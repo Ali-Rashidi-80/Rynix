@@ -14,6 +14,8 @@ Commands:
   parse <file.ryx>    Parse a source file into an arena AST
   check <file.ryx>    Lex + parse + sema; report diagnostics
   dump-rir <file.ryx> Lower to RIR and print textual form
+  emit-ll <file.ryx>  Emit textual LLVM IR (.ll)
+  build <file.ryx>    Emit .ll and link with clang + rt/portable.c
 
 Options for `lex`:
   --dump-tokens       Print one line per token: span, kind, text
@@ -29,6 +31,11 @@ Options for `dump-rir`:
   --opt               Run DCE / const-fold / simplify-cfg before dump
   --escape            Run escape analysis and inject region/free markers
 
+Options for `emit-ll` / `build`:
+  -o <path>           Output path (.ll for emit-ll, binary for build)
+  --opt               Run RIR optimization pipeline (emit-ll; build always opts)
+  --keep-ll           (build) Keep the intermediate .ll next to the binary
+
 Shared options:
   --error-format=FMT  Diagnostic rendering: `human` (default) or `json`
                       (`json` emits one rynix.diag.v1 object per line;
@@ -38,7 +45,7 @@ Global options:
   -h, --help          Print this help
   -V, --version       Print the compiler version
 
-Exit codes: 0 success, 1 diagnostics reported, 2 bad invocation, 3 I/O error
+Exit codes: 0 success, 1 diagnostics/build failure, 2 bad invocation, 3 I/O error
 ";
 
 /// How diagnostics are rendered.
@@ -78,6 +85,22 @@ pub struct DumpRirOptions {
 }
 
 #[derive(Debug)]
+pub struct EmitLlOptions {
+    pub path: PathBuf,
+    pub output: Option<PathBuf>,
+    pub optimize: bool,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct BuildOptions {
+    pub path: PathBuf,
+    pub output: Option<PathBuf>,
+    pub keep_ll: bool,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
 pub enum Command {
     Help,
     Version,
@@ -85,6 +108,8 @@ pub enum Command {
     Parse(ParseOptions),
     Check(CheckOptions),
     DumpRir(DumpRirOptions),
+    EmitLl(EmitLlOptions),
+    Build(BuildOptions),
 }
 
 /// Parses command-line arguments (without the program name).
@@ -99,6 +124,8 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         "parse" => parse_parse(&args[1..]),
         "check" => parse_check(&args[1..]),
         "dump-rir" => parse_dump_rir(&args[1..]),
+        "emit-ll" => parse_emit_ll(&args[1..]),
+        "build" => parse_build(&args[1..]),
         other => Err(format!("unknown command `{other}`")),
     }
 }
@@ -237,6 +264,96 @@ fn parse_dump_rir(args: &[String]) -> Result<Command, String> {
     }))
 }
 
+fn parse_emit_ll(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut output = None;
+    let mut optimize = false;
+    let mut error_format = ErrorFormat::Human;
+    let mut expect_o = false;
+
+    for arg in args {
+        if expect_o {
+            output = Some(PathBuf::from(arg));
+            expect_o = false;
+            continue;
+        }
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--opt" => optimize = true,
+            "-o" => expect_o = true,
+            other if other.starts_with("-o=") => {
+                output = Some(PathBuf::from(&other[3..]));
+            }
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    if expect_o {
+        return Err("missing path after -o".into());
+    }
+
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::EmitLl(EmitLlOptions {
+        path,
+        output,
+        optimize,
+        error_format,
+    }))
+}
+
+fn parse_build(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut output = None;
+    let mut keep_ll = false;
+    let mut error_format = ErrorFormat::Human;
+    let mut expect_o = false;
+
+    for arg in args {
+        if expect_o {
+            output = Some(PathBuf::from(arg));
+            expect_o = false;
+            continue;
+        }
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--keep-ll" => keep_ll = true,
+            "-o" => expect_o = true,
+            other if other.starts_with("-o=") => {
+                output = Some(PathBuf::from(&other[3..]));
+            }
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    if expect_o {
+        return Err("missing path after -o".into());
+    }
+
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::Build(BuildOptions {
+        path,
+        output,
+        keep_ll,
+        error_format,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,7 +452,7 @@ mod tests {
                 .contains("missing input")
         );
         assert!(
-            parse(&args(&["build"]))
+            parse(&args(&["nope"]))
                 .unwrap_err()
                 .contains("unknown command")
         );

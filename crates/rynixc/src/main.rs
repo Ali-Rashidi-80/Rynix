@@ -5,12 +5,17 @@
 //! rynixc parse    <file.ryx> [--dump-ast]    [--error-format=human|json]
 //! rynixc check    <file.ryx>                 [--error-format=human|json]
 //! rynixc dump-rir <file.ryx> [--opt]         [--error-format=human|json]
+//! rynixc emit-ll  <file.ryx> [-o out.ll] [--opt]
+//! rynixc build    <file.ryx> [-o out] [--keep-ll]
 //! ```
 
+mod build_cmd;
 mod check_cmd;
 mod cli;
+mod codegen_pipe;
 mod driver;
 mod dump_rir_cmd;
+mod emit_ll_cmd;
 mod lex_cmd;
 mod parse_cmd;
 
@@ -31,6 +36,8 @@ fn main() -> ExitCode {
         Ok(cli::Command::Parse(options)) => parse_cmd::run(&options),
         Ok(cli::Command::Check(options)) => check_cmd::run(&options),
         Ok(cli::Command::DumpRir(options)) => dump_rir_cmd::run(&options),
+        Ok(cli::Command::EmitLl(options)) => emit_ll_cmd::run(&options),
+        Ok(cli::Command::Build(options)) => build_cmd::run(&options),
         Err(message) => {
             eprintln!("error: {message}\n");
             eprint!("{}", cli::USAGE);

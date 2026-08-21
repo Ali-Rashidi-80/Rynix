@@ -21,9 +21,11 @@ specification (v0.1 draft).
 - `crates/rynix-ast` — arena-allocated AST (Phase 2)
 - `crates/rynix-parser` — recursive-descent + Pratt parser
 - `crates/rynix-sema` — name resolution and type checking
-- `crates/rynix-rir` — canonical SSA IR (block args, passes, interpreter)
+- `crates/rynix-rir` — canonical SSA IR (block args, passes, interpreter, escape)
+- `crates/rynix-codegen` — textual LLVM IR emission + reachability DCE
 - `crates/rynixc` — compiler driver CLI
-- `docs/` — roadmap, spec, diagnostics registry, ADRs
+- `rt/portable.c` — portable `rynix_rt_*` stubs for `rynixc build`
+- `docs/` — roadmap, spec, diagnostics registry, ADRs, ABI
 - `testdata/` — `.ryx` corpora for snapshot tests and benchmarks
 - `fuzz/` — cargo-fuzz targets (run on Linux/WSL2)
 
@@ -38,6 +40,7 @@ cargo bench -p rynix-lexer   # lexer throughput
 On Windows the repository uses the `x86_64-pc-windows-gnu` toolchain (no
 Visual Studio required). Everything through code generation is
 platform-portable; the fiber/io_uring runtime (Phase 8) targets Linux.
+`rynixc build` needs an external `clang` on PATH (ADR-0005).
 
 ## Trying the front-end
 
@@ -47,7 +50,9 @@ cargo run -p rynixc -- parse testdata/lexer/functions.ryx --dump-ast
 cargo run -p rynixc -- check testdata/lexer/errors.ryx --error-format=json
 cargo run -p rynixc -- check testdata/lexer/hello.ryx --explain-alloc
 cargo run -p rynixc -- dump-rir testdata/lexer/hello.ryx
-cargo run -p rynixc -- dump-rir testdata/lexer/functions.ryx --opt --escape
+cargo run -p rynixc -- emit-ll testdata/lexer/hello.ryx
+cargo run -p rynixc -- build testdata/lexer/hello.ryx -o hello --keep-ll
 ```
 
 Machine-readable diagnostics follow [`docs/schemas/rynix.diag.v1.json`](docs/schemas/rynix.diag.v1.json).
+Runtime ABI: [`docs/abi.md`](docs/abi.md).

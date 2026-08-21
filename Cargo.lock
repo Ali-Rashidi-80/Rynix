@@ -673,6 +673,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rynix-codegen"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "rustc-hash",
+ "rynix-ast",
+ "rynix-diag",
+ "rynix-parser",
+ "rynix-rir",
+ "rynix-sema",
+ "rynix-span",
+]
+
+[[package]]
 name = "rynix-diag"
 version = "0.1.0"
 dependencies = [
@@ -745,6 +759,7 @@ name = "rynixc"
 version = "0.1.0"
 dependencies = [
  "rynix-ast",
+ "rynix-codegen",
  "rynix-diag",
  "rynix-lexer",
  "rynix-parser",

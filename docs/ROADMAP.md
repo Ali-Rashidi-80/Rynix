@@ -131,19 +131,16 @@ initially (stretch: 1 GB/s).
   `rynix.alloc.v1`); `rynixc dump-rir --escape`.
 - Tests: `#^ alloc: stack|region|heap` directives; unit tests for heap/region.
 
-## Phase 7 — LLVM backend and sub-1MB binaries
+## Phase 7 — LLVM backend and sub-1MB binaries ✅
 
 - Step 1: emit textual LLVM IR (no LLVM linkage — Windows-friendly), link via
-  `clang -O3 -flto=thin -ffunction-sections -Wl,--gc-sections`. Step 2:
-  migrate to inkwell for in-process codegen, fat LTO, later Polly/PGO.
-- Root fix for the reference language's 4.1MB binaries: whole-program
-  reachability DCE at the RIR level — only functions reachable from `main`
-  are emitted.
-- `docs/abi.md` documents the `rynix_rt_*` symbol set (alloc, region, fiber,
-  I/O).
-- Tests: end-to-end execution corpus (compile, run, assert output); `.ll`
-  pattern tests (e.g. no heap call for stack-promoted sites); size gates:
-  static hello-world < 300KB, http-echo < 1MB (measured in Linux CI).
+  `clang -O3 -flto=thin -ffunction-sections -Wl,--gc-sections` plus
+  [`rt/portable.c`](../rt/portable.c). Step 2 (later): inkwell.
+- Whole-program reachability DCE at the RIR level — only functions reachable
+  from `main` are emitted (`rynix-codegen::prune_unreachable`).
+- [`docs/abi.md`](abi.md) documents the `rynix_rt_*` symbol set.
+- CLI: `rynixc emit-ll`, `rynixc build` (requires `clang` on PATH).
+- Tests: `.ll` pattern tests (print, no heap for stack locals, dead-fn DCE).
 
 ## Phase 8 — Runtime: fibers + io_uring (colorless concurrency)
 

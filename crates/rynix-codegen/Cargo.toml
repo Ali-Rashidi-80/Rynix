@@ -1,6 +1,6 @@
 [package]
-name = "rynixc"
-description = "The Rynix compiler driver (CLI)"
+name = "rynix-codegen"
+description = "Textual LLVM IR emission from RIR (Phase 7)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,13 +9,15 @@ repository.workspace = true
 
 [dependencies]
 rynix-span = { workspace = true }
-rynix-diag = { workspace = true }
-rynix-lexer = { workspace = true }
+rynix-rir = { workspace = true }
+rustc-hash = { workspace = true }
+
+[dev-dependencies]
 rynix-ast = { workspace = true }
+rynix-diag = { workspace = true }
 rynix-parser = { workspace = true }
 rynix-sema = { workspace = true }
-rynix-rir = { workspace = true }
-rynix-codegen = { workspace = true }
+insta = { workspace = true }
 
 [lints]
 workspace = true
