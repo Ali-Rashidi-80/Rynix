@@ -13,10 +13,10 @@ todos:
     status: completed
   - id: phase1-diag-core
     content: "فاز ۱: هسته rynix-diag (DiagCode، Diagnostic/Fix با confidence، DiagSink و VecSink تستی)"
-    status: in_progress
+    status: completed
   - id: phase1-token-cursor
     content: "فاز ۱: TokenKind (~۷۰ واریانت) و Cursor صفر-تخصیص با جدول dispatch، کلیدواژه‌ها، اعداد/رشته/کامنت/Newline"
-    status: pending
+    status: in_progress
   - id: phase1-lexer-errors
     content: "فاز ۱: خطاهای ساختاریافته RYX0001..0006 با Fix پیشنهادی و بازیابی total"
     status: pending
