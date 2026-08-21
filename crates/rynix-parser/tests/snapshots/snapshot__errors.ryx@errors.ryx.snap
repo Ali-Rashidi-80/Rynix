@@ -1,0 +1,174 @@
+---
+source: crates/rynix-parser/tests/snapshot.rs
+expression: dump
+input_file: testdata/lexer/errors.ryx
+---
+(module
+  (fn broken
+    (body
+      (let a
+        (int)
+      )
+      (expr
+        (error)
+      )
+      (let b
+        (int)
+      )
+      (expr
+        (error)
+      )
+      (let c
+        (path x)
+      )
+      (expr
+        (error)
+      )
+      (let d
+        (path x)
+      )
+      (expr
+        (error)
+      )
+      (let e
+        (error)
+      )
+      (expr
+        (path flag)
+      )
+      (let wrong
+        (error)
+      )
+      (expr
+        (path single)
+      )
+      (let café
+        (int)
+      )
+      (let 
+        (error)
+      )
+      (expr
+        (error)
+      )
+      (let bad_hex
+        (int)
+      )
+      (let no_digits
+        (int)
+      )
+      (let bad_bin
+        (int)
+      )
+      (let bad_us
+        (int)
+      )
+      (let suffix
+        (int)
+      )
+      (let bad_exp
+        (float)
+      )
+      (let escape
+        (str)
+      )
+      (let short_hex
+        (str)
+      )
+      (let bad_scalar
+        (str)
+      )
+      (let open
+        (str)
+      )
+    )
+  )
+)
+
+--- diagnostics ---
+error[RYX0001]: unknown character `$`
+ --> errors.ryx:3:13
+error[RYX1001]: unexpected unknown token
+ --> errors.ryx:3:13
+error[RYX1001]: unexpected integer literal
+ --> errors.ryx:3:15
+error[RYX0001]: unknown character `;`
+ --> errors.ryx:4:13: Rynix has no statement separator
+  = help: remove `;` (newlines terminate statements) (confidence 0.90)
+error[RYX1001]: unexpected unknown token
+ --> errors.ryx:4:13
+error[RYX1001]: unexpected integer literal
+ --> errors.ryx:4:15
+error[RYX0001]: unknown character `&&`
+ --> errors.ryx:5:13: logical conjunction is spelled `and`
+  = help: replace `&&` with `and` (confidence 0.85)
+error[RYX1001]: unexpected unknown token
+ --> errors.ryx:5:13
+error[RYX1001]: unexpected identifier
+ --> errors.ryx:5:16
+error[RYX0001]: unknown character `||`
+ --> errors.ryx:6:13: logical disjunction is spelled `or`
+  = help: replace `||` with `or` (confidence 0.85)
+error[RYX1001]: unexpected unknown token
+ --> errors.ryx:6:13
+error[RYX1001]: unexpected identifier
+ --> errors.ryx:6:16
+error[RYX0001]: unknown character `!`
+ --> errors.ryx:7:11: logical negation is spelled `not`
+  = help: replace `!` with `not ` (confidence 0.85)
+error[RYX1001]: unexpected unknown token
+ --> errors.ryx:7:11
+error[RYX0001]: unknown character `'`
+ --> errors.ryx:8:15: strings use double quotes
+  = help: replace `'` with `"` (confidence 0.70)
+error[RYX1001]: unexpected unknown token
+ --> errors.ryx:8:15
+error[RYX0001]: unknown character `'`
+ --> errors.ryx:8:22: strings use double quotes
+  = help: replace `'` with `"` (confidence 0.70)
+error[RYX1001]: unexpected unknown token
+ --> errors.ryx:8:22
+error[RYX0003]: identifiers must be ASCII-only in Rynix v0.1
+ --> errors.ryx:9:7: non-ASCII characters in this identifier
+error[RYX0003]: identifiers must be ASCII-only in Rynix v0.1
+ --> errors.ryx:10:7: non-ASCII text is only allowed in strings and comments
+error[RYX1002]: expected binding name, found unknown token
+ --> errors.ryx:10:7
+error[RYX1002]: expected `=`, found unknown token
+ --> errors.ryx:10:7
+  = help: insert `=` (confidence 0.90)
+error[RYX1001]: unexpected unknown token
+ --> errors.ryx:10:7
+error[RYX1001]: unexpected =
+ --> errors.ryx:10:10
+error[RYX1001]: unexpected integer literal
+ --> errors.ryx:10:12
+error[RYX0004]: base prefix `0X` must be lowercase
+ --> errors.ryx:11:18
+  = note: in this number literal (errors.ryx:11:17)
+  = help: write it lowercase: `x` (confidence 0.95)
+error[RYX0004]: missing digits after base prefix `0x`
+ --> errors.ryx:12:19
+error[RYX0004]: invalid digit `2` for a base-2 literal
+ --> errors.ryx:13:20
+  = note: in this number literal (errors.ryx:13:17)
+error[RYX0004]: `_` in a number literal must separate two digits
+ --> errors.ryx:14:17
+  = note: in this number literal (errors.ryx:14:16)
+error[RYX0004]: invalid suffix `abc`: Rynix has no numeric suffixes, use `as` to convert
+ --> errors.ryx:15:19
+  = note: in this number literal (errors.ryx:15:16)
+error[RYX0004]: exponent marker must be the lowercase `e`
+ --> errors.ryx:16:18
+  = note: in this number literal (errors.ryx:16:17)
+  = help: write it lowercase: `e` (confidence 0.90)
+error[RYX0005]: unknown escape sequence `\q`
+ --> errors.ryx:17:18
+  = help: remove the backslash to write the character literally (confidence 0.70)
+error[RYX0005]: `\x` must be followed by exactly two hex digits
+ --> errors.ryx:18:20
+error[RYX0005]: `\u{d800}` is not a Unicode scalar value
+ --> errors.ryx:19:21
+error[RYX0002]: unterminated string literal
+ --> errors.ryx:20:14: string literals may not span lines
+  = help: insert the closing `"` (confidence 0.90)

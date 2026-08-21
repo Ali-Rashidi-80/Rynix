@@ -1,0 +1,169 @@
+---
+source: crates/rynix-parser/tests/snapshot.rs
+expression: dump
+input_file: testdata/lexer/operators.ryx
+---
+(module
+  (fn operators -> bool
+    (params
+      (a: i64)
+      (b: i64)
+    )
+    (body
+      (let sum
+        (binary +
+          (path a)
+          (path b)
+        )
+      )
+      (let diff
+        (binary -
+          (path a)
+          (path b)
+        )
+      )
+      (let prod
+        (binary *
+          (path a)
+          (path b)
+        )
+      )
+      (let quot
+        (binary /
+          (path a)
+          (path b)
+        )
+      )
+      (let rem
+        (binary %
+          (path a)
+          (path b)
+        )
+      )
+      (let mut acc
+        (int)
+      )
+      (assign +=
+        (path acc)
+        (int)
+      )
+      (assign -=
+        (path acc)
+        (int)
+      )
+      (assign *=
+        (path acc)
+        (int)
+      )
+      (assign /=
+        (path acc)
+        (int)
+      )
+      (assign %=
+        (path acc)
+        (int)
+      )
+      (let neg
+        (unary -
+          (path acc)
+        )
+      )
+      (let range
+        (binary ..
+          (int)
+          (int)
+        )
+      )
+      (let closed
+        (binary ..=
+          (int)
+          (int)
+        )
+      )
+      (let compare
+        (binary or
+          (binary ==
+            (path a)
+            (path b)
+          )
+          (binary and
+            (binary !=
+              (path a)
+              (path b)
+            )
+            (unary not
+              (binary <
+                (path a)
+                (path b)
+              )
+            )
+          )
+        )
+      )
+      (let bounds
+        (binary or
+          (binary or
+            (binary <=
+              (path a)
+              (path b)
+            )
+            (binary >=
+              (path a)
+              (path b)
+            )
+          )
+          (binary >
+            (path a)
+            (path b)
+          )
+        )
+      )
+      (let tuple_like
+        (array
+          (path a)
+          (path b)
+        )
+      )
+      (let mapping
+        (error)
+      )
+      (expr
+        (path a)
+      )
+      (let path
+        (call
+          (path std::math::abs)
+          (path neg)
+        )
+      )
+      (let field
+        (field x
+          (path point)
+        )
+      )
+      (let call
+        (method length
+          (path point)
+        )
+      )
+      (let index
+        (index
+          (path tuple_like)
+          (int)
+        )
+      )
+      (return
+        (binary and
+          (path compare)
+          (path bounds)
+        )
+      )
+    )
+  )
+)
+
+--- diagnostics ---
+error[RYX1001]: unexpected {
+ --> operators.ryx:20:17
+error[RYX1001]: unexpected :
+ --> operators.ryx:20:20

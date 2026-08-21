@@ -1,0 +1,36 @@
+---
+source: crates/rynix-parser/tests/snapshot.rs
+expression: dump
+---
+(module
+  (fn broken
+    (params
+      (return: <error>)
+    )
+    (body
+    )
+  )
+  (fn ok
+    (body
+      (return
+        (int)
+      )
+    )
+  )
+)
+
+--- diagnostics ---
+error[RYX1002]: expected parameter name, found return
+ --> recovery.ryx:2:3
+error[RYX1002]: expected `:`, found integer literal
+ --> recovery.ryx:2:10
+  = help: insert `:` (confidence 0.90)
+error[RYX1002]: expected a type, found integer literal
+ --> recovery.ryx:2:10
+error[RYX1002]: expected `)`, found end
+ --> recovery.ryx:3:1
+  = help: insert `)` (confidence 0.90)
+error[RYX1002]: expected newline after header, found return
+ --> recovery.ryx:6:3
+  = help: insert `
+` (confidence 0.90)

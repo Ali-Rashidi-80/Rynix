@@ -1,0 +1,128 @@
+---
+source: crates/rynix-parser/tests/snapshot.rs
+expression: dump
+input_file: testdata/lexer/control_flow.ryx
+---
+(module
+  (fn classify -> i64
+    (params
+      (n: i64)
+    )
+    (body
+      (if
+        (arm
+          (binary <
+            (path n)
+            (int)
+          )
+          (body
+            (return
+              (binary -
+                (int)
+                (int)
+              )
+            )
+          )
+        )
+        (elif
+          (binary ==
+            (path n)
+            (int)
+          )
+          (body
+            (return
+              (int)
+            )
+          )
+        )
+        (else
+          (return
+            (int)
+          )
+        )
+      )
+    )
+  )
+  (fn scan -> i64
+    (params
+      (limit: i64)
+    )
+    (body
+      (let mut i
+        (int)
+      )
+      (let mut hits
+        (int)
+      )
+      (loop
+        (if
+          (arm
+            (binary >=
+              (path i)
+              (path limit)
+            )
+            (body
+              (break)
+            )
+          )
+        )
+        (if
+          (arm
+            (binary ==
+              (binary %
+                (path i)
+                (int)
+              )
+              (int)
+            )
+            (body
+              (assign +=
+                (path i)
+                (int)
+              )
+              (continue)
+            )
+          )
+        )
+        (assign +=
+          (path hits)
+          (call
+            (path classify)
+            (path i)
+          )
+        )
+        (assign +=
+          (path i)
+          (int)
+        )
+      )
+      (for step
+        (binary ..
+          (int)
+          (path limit)
+        )
+        (body
+          (assign +=
+            (path hits)
+            (path step)
+          )
+        )
+      )
+      (for step
+        (binary ..=
+          (int)
+          (path limit)
+        )
+        (body
+          (assign -=
+            (path hits)
+            (path step)
+          )
+        )
+      )
+      (return
+        (path hits)
+      )
+    )
+  )
+)

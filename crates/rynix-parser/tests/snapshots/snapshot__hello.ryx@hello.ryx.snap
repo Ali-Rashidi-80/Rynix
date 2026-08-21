@@ -1,0 +1,17 @@
+---
+source: crates/rynix-parser/tests/snapshot.rs
+expression: dump
+input_file: testdata/lexer/hello.ryx
+---
+(module
+  (fn main
+    (body
+      (expr
+        (call
+          (path print)
+          (str)
+        )
+      )
+    )
+  )
+)

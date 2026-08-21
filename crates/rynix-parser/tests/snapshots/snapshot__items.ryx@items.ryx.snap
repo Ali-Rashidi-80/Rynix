@@ -1,0 +1,39 @@
+---
+source: crates/rynix-parser/tests/snapshot.rs
+expression: dump
+input_file: testdata/lexer/items.ryx
+---
+(module
+  (import std::net)
+  (import std::time)
+  (pub struct Point
+    (x: f64)
+    (y: f64)
+  )
+  (pub enum Shape
+    (Empty)
+    (Circle f64)
+    (Boxed Point)
+  )
+  (type Meters = f64)
+  (pub fn area -> f64
+    (params
+      (shape: Shape)
+    )
+    (body
+      (loop
+        (if
+          (arm
+            (true)
+            (body
+              (break)
+            )
+          )
+        )
+      )
+      (return
+        (float)
+      )
+    )
+  )
+)

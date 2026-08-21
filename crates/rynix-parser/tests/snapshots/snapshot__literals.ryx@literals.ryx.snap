@@ -1,0 +1,62 @@
+---
+source: crates/rynix-parser/tests/snapshot.rs
+expression: dump
+input_file: testdata/lexer/literals.ryx
+---
+(module
+  (fn literals
+    (body
+      (let dec
+        (int)
+      )
+      (let grouped
+        (int)
+      )
+      (let hex
+        (int)
+      )
+      (let oct
+        (int)
+      )
+      (let bin
+        (int)
+      )
+      (let zero
+        (int)
+      )
+      (let float
+        (float)
+      )
+      (let exp
+        (float)
+      )
+      (let exp_plus
+        (float)
+      )
+      (let exp_minus
+        (float)
+      )
+      (let text
+        (str)
+      )
+      (let escapes
+        (str)
+      )
+      (let unicode
+        (str)
+      )
+      (let empty
+        (str)
+      )
+      (let flag
+        (true)
+      )
+      (let other
+        (false)
+      )
+      (let nothing
+        (nil)
+      )
+    )
+  )
+)

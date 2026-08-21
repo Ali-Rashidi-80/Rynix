@@ -1,0 +1,115 @@
+---
+source: crates/rynix-parser/tests/snapshot.rs
+expression: dump
+input_file: testdata/lexer/functions.ryx
+---
+(module
+  (import std::io)
+  (pub fn sum_below -> i64
+    (params
+      (values: [i64])
+      (ceiling: i64)
+    )
+    (body
+      (let mut total
+        (int)
+      )
+      (for value
+        (path values)
+        (body
+          (if
+            (arm
+              (binary <
+                (path value)
+                (path ceiling)
+              )
+              (body
+                (assign +=
+                  (path total)
+                  (path value)
+                )
+              )
+            )
+          )
+        )
+      )
+      (return
+        (path total)
+      )
+    )
+  )
+  (fn scale -> f64
+    (params
+      (value: f64)
+    )
+    (body
+      (return
+        (binary *
+          (path value)
+          (float)
+        )
+      )
+    )
+  )
+  (fn entry
+    (body
+      (let numbers
+        (array
+          (int)
+          (int)
+          (int)
+          (int)
+          (int)
+        )
+      )
+      (let total
+        (call
+          (path sum_below)
+          (path numbers)
+          (int)
+        )
+      )
+      (let ratio
+        (call
+          (path scale)
+          (as f64
+            (path total)
+          )
+        )
+      )
+      (expr
+        (call
+          (path io::write)
+          (path ratio)
+        )
+      )
+      (expr
+        (spawn
+          (call
+            (path worker)
+            (path total)
+          )
+        )
+      )
+    )
+  )
+  (fn worker
+    (params
+      (seed: i64)
+    )
+    (body
+      (let handle
+        (binary %
+          (path seed)
+          (int)
+        )
+      )
+      (expr
+        (call
+          (path print)
+          (path handle)
+        )
+      )
+    )
+  )
+)

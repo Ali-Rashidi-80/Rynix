@@ -1,0 +1,22 @@
+---
+source: crates/rynix-parser/tests/snapshot.rs
+expression: dump
+input_file: testdata/lexer/errors_eof.ryx
+---
+(module
+  (fn truncated
+    (body
+      (let open
+        (str)
+      )
+    )
+  )
+)
+
+--- diagnostics ---
+error[RYX0006]: end of file inside string literal
+ --> errors_eof.ryx:3:14: this string is never closed
+  = help: append the closing `"` (confidence 0.80)
+error[RYX1004]: missing `end` to close this block
+ --> errors_eof.ryx:2:1
+  = help: insert `end` (confidence 0.85)
