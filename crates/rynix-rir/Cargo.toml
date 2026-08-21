@@ -1,6 +1,6 @@
 [package]
-name = "rynixc"
-description = "The Rynix compiler driver (CLI)"
+name = "rynix-rir"
+description = "Canonical SSA IR (RIR) for Rynix (Phase 5)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,11 +10,13 @@ repository.workspace = true
 [dependencies]
 rynix-span = { workspace = true }
 rynix-diag = { workspace = true }
-rynix-lexer = { workspace = true }
 rynix-ast = { workspace = true }
-rynix-parser = { workspace = true }
 rynix-sema = { workspace = true }
-rynix-rir = { workspace = true }
+rustc-hash = { workspace = true }
+
+[dev-dependencies]
+rynix-parser = { workspace = true }
+insta = { workspace = true }
 
 [lints]
 workspace = true

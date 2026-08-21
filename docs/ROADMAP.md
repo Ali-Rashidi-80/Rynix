@@ -103,17 +103,18 @@ initially (stretch: 1 GB/s).
   required for interprocedural analysis and LLM predictability.
 - Tests: type dumps; comment-directive tests (`#^ error RYX2xxx`).
 
-## Phase 5 — RIR: canonical SSA IR
+## Phase 5 — RIR: canonical SSA IR ✅
 
 - SoA `Function { blocks, insts }` with block arguments (Cranelift-style)
   instead of phi nodes; ~25 instructions including `alloc{site_id}` (the unit
-  of escape reasoning), bounds-checked indexing, calls, branches.
-- SSA construction: Braun et al. (on-the-fly, sealed blocks). Debug-mode
-  verifier (dominance, types) between all passes.
-- Textual `.rir` format + parser for FileCheck-style pass tests; baseline
-  passes: DCE, const-fold, simplify-cfg, interval range analysis for
-  bounds-check elimination v0 (Presburger in Phase 9).
+  of escape reasoning), calls, branches. Locals lower via alloc/load/store
+  (Braun-ready sealed blocks; full on-the-fly SSA values deferred where
+  mutable slots dominate).
+- Structural verifier between passes; textual `.rir` printer + subset parser;
+  baseline passes: DCE, const-fold, simplify-cfg. Interval range analysis for
+  bounds-check elimination deferred to when indexing lands in lowering.
 - Small RIR interpreter as a differential-testing oracle for codegen.
+- CLI: `rynixc dump-rir [--opt]`.
 
 ## Phase 6 — Escape analysis and region inference (the Zero-GC core)
 

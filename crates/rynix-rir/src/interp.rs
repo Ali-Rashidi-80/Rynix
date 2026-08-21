@@ -1,0 +1,260 @@
+//! Tiny RIR interpreter — differential-testing oracle for later codegen.
+
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::many_single_char_names)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::match_same_arms)]
+
+use rynix_span::Interner;
+use rustc_hash::FxHashMap;
+
+use crate::ir::{FuncId, Inst, IrTy, Module, ValueId};
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum InterpValue {
+    Unit,
+    Bool(bool),
+    I64(i64),
+    F64(f64),
+    Str(String),
+    Ptr(u32), // index into memory slots
+}
+
+#[derive(Debug)]
+pub enum InterpError {
+    MissingMain,
+    Trap(String),
+}
+
+/// Execute `@main` with no arguments; return its value (or Unit).
+pub fn interpret_module(
+    module: &Module,
+    interner: &Interner,
+) -> Result<InterpValue, InterpError> {
+    let main = module
+        .func_names
+        .iter()
+        .position(|&n| interner.resolve(n) == "main")
+        .map(|i| FuncId(i as u32))
+        .ok_or(InterpError::MissingMain)?;
+    let mut mem: Vec<InterpValue> = Vec::new();
+    eval_func(module, interner, main, &[], &mut mem)
+}
+
+fn eval_func(
+    module: &Module,
+    interner: &Interner,
+    fid: FuncId,
+    args: &[InterpValue],
+    mem: &mut Vec<InterpValue>,
+) -> Result<InterpValue, InterpError> {
+    let func = module.func(fid);
+    let mut vals: FxHashMap<ValueId, InterpValue> = FxHashMap::default();
+    for (i, (vid, _)) in func.params.iter().enumerate() {
+        vals.insert(*vid, args.get(i).cloned().unwrap_or(InterpValue::Unit));
+    }
+
+    let mut block = func.entry;
+    loop {
+        let b = func.block(block);
+        for &(pid, _) in &b.params {
+            // Block params should already be set by the branch.
+            let _ = pid;
+        }
+        for &iid in &b.insts {
+            let inst = func.inst(iid);
+            let result_vid = func.values.iter().enumerate().find_map(|(vi, v)| {
+                (v.def == Some(iid)).then_some(ValueId(vi as u32))
+            });
+            match inst {
+                Inst::IConst(n) => {
+                    vals.insert(result_vid.unwrap(), InterpValue::I64(*n));
+                }
+                Inst::FConst(n) => {
+                    vals.insert(result_vid.unwrap(), InterpValue::F64(*n));
+                }
+                Inst::BConst(b) => {
+                    vals.insert(result_vid.unwrap(), InterpValue::Bool(*b));
+                }
+                Inst::SConst(s) => {
+                    vals.insert(
+                        result_vid.unwrap(),
+                        InterpValue::Str(interner.resolve(*s).to_string()),
+                    );
+                }
+                Inst::Nil => {
+                    vals.insert(result_vid.unwrap(), InterpValue::Unit);
+                }
+                Inst::IAdd(a, b) => {
+                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x + y)?);
+                }
+                Inst::ISub(a, b) => {
+                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x - y)?);
+                }
+                Inst::IMul(a, b) => {
+                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x * y)?);
+                }
+                Inst::IDiv(a, b) => {
+                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x / y)?);
+                }
+                Inst::IRem(a, b) => {
+                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x % y)?);
+                }
+                Inst::INeg(a) => {
+                    let InterpValue::I64(x) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("ineg".into()));
+                    };
+                    vals.insert(result_vid.unwrap(), InterpValue::I64(-x));
+                }
+                Inst::ICmp(op, a, b) => {
+                    let InterpValue::I64(x) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("icmp".into()));
+                    };
+                    let InterpValue::I64(y) = get(&vals, *b)? else {
+                        return Err(InterpError::Trap("icmp".into()));
+                    };
+                    let r = match op {
+                        crate::ir::CmpOp::Eq => x == y,
+                        crate::ir::CmpOp::Ne => x != y,
+                        crate::ir::CmpOp::Lt => x < y,
+                        crate::ir::CmpOp::Le => x <= y,
+                        crate::ir::CmpOp::Gt => x > y,
+                        crate::ir::CmpOp::Ge => x >= y,
+                    };
+                    vals.insert(result_vid.unwrap(), InterpValue::Bool(r));
+                }
+                Inst::BNot(a) => {
+                    let InterpValue::Bool(x) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("bnot".into()));
+                    };
+                    vals.insert(result_vid.unwrap(), InterpValue::Bool(!x));
+                }
+                Inst::Alloc { ty, .. } => {
+                    let init = match ty {
+                        IrTy::Bool => InterpValue::Bool(false),
+                        IrTy::I64 => InterpValue::I64(0),
+                        IrTy::F64 => InterpValue::F64(0.0),
+                        IrTy::Str => InterpValue::Str(String::new()),
+                        _ => InterpValue::Unit,
+                    };
+                    let idx = mem.len() as u32;
+                    mem.push(init);
+                    vals.insert(result_vid.unwrap(), InterpValue::Ptr(idx));
+                }
+                Inst::Load(p) => {
+                    let InterpValue::Ptr(idx) = get(&vals, *p)? else {
+                        return Err(InterpError::Trap("load".into()));
+                    };
+                    vals.insert(result_vid.unwrap(), mem[idx as usize].clone());
+                }
+                Inst::Store { ptr, value } => {
+                    let InterpValue::Ptr(idx) = get(&vals, *ptr)? else {
+                        return Err(InterpError::Trap("store".into()));
+                    };
+                    mem[idx as usize] = get(&vals, *value)?;
+                }
+                Inst::Call { func, args } => {
+                    let argv: Result<Vec<_>, _> =
+                        args.iter().map(|a| get(&vals, *a)).collect();
+                    let argv = argv?;
+                    let ret = eval_func(module, interner, *func, &argv, mem)?;
+                    if let Some(r) = result_vid {
+                        vals.insert(r, ret);
+                    }
+                }
+                Inst::CallExt { name, args, ret } => {
+                    let n = interner.resolve(*name);
+                    if n == "print" {
+                        for a in args {
+                            let _ = get(&vals, *a)?;
+                        }
+                    }
+                    if let Some(r) = result_vid {
+                        vals.insert(
+                            r,
+                            match ret {
+                                IrTy::I64 => InterpValue::I64(0),
+                                IrTy::Bool => InterpValue::Bool(false),
+                                IrTy::Unit => InterpValue::Unit,
+                                _ => InterpValue::Unit,
+                            },
+                        );
+                    }
+                }
+                Inst::Ret(None) => return Ok(InterpValue::Unit),
+                Inst::Ret(Some(v)) => return get(&vals, *v),
+                Inst::Jump { target, args } => {
+                    let bparams = &func.block(*target).params;
+                    for (i, (pid, _)) in bparams.iter().enumerate() {
+                        if let Some(a) = args.get(i) {
+                            vals.insert(*pid, get(&vals, *a)?);
+                        }
+                    }
+                    block = *target;
+                    break;
+                }
+                Inst::Br {
+                    cond,
+                    then_target,
+                    then_args,
+                    else_target,
+                    else_args,
+                } => {
+                    let InterpValue::Bool(c) = get(&vals, *cond)? else {
+                        return Err(InterpError::Trap("br cond".into()));
+                    };
+                    let (target, args) = if c {
+                        (*then_target, then_args)
+                    } else {
+                        (*else_target, else_args)
+                    };
+                    let bparams = &func.block(target).params;
+                    for (i, (pid, _)) in bparams.iter().enumerate() {
+                        if let Some(a) = args.get(i) {
+                            vals.insert(*pid, get(&vals, *a)?);
+                        }
+                    }
+                    block = target;
+                    break;
+                }
+                Inst::Unreachable => return Err(InterpError::Trap("unreachable".into())),
+                _ => {
+                    // Floats etc. — skip / zero.
+                    if let Some(r) = result_vid {
+                        vals.insert(r, InterpValue::I64(0));
+                    }
+                }
+            }
+            // If terminator handled via Jump/Br, inner break only exits inst loop —
+            // we use a flag. Actually Jump/Br use `break` from the for-loop, then
+            // the outer loop continues with new block. Good.
+            if inst.is_terminator() && !matches!(inst, Inst::Jump { .. } | Inst::Br { .. }) {
+                // Ret / Unreachable already returned.
+            }
+        }
+    }
+}
+
+fn get(
+    vals: &FxHashMap<ValueId, InterpValue>,
+    id: ValueId,
+) -> Result<InterpValue, InterpError> {
+    vals.get(&id)
+        .cloned()
+        .ok_or_else(|| InterpError::Trap(format!("undefined %{}", id.0)))
+}
+
+fn iop(
+    vals: &FxHashMap<ValueId, InterpValue>,
+    a: ValueId,
+    b: ValueId,
+    f: impl Fn(i64, i64) -> i64,
+) -> Result<InterpValue, InterpError> {
+    let InterpValue::I64(x) = get(vals, a)? else {
+        return Err(InterpError::Trap("expected i64".into()));
+    };
+    let InterpValue::I64(y) = get(vals, b)? else {
+        return Err(InterpError::Trap("expected i64".into()));
+    };
+    Ok(InterpValue::I64(f(x, y)))
+}

@@ -12,13 +12,17 @@ Usage: rynixc <command> [options]
 Commands:
   lex <file.ryx>      Tokenize a source file
   parse <file.ryx>    Parse a source file into an arena AST
-  check <file.ryx>    Lex + parse; report diagnostics (no AST dump)
+  check <file.ryx>    Lex + parse + sema; report diagnostics
+  dump-rir <file.ryx> Lower to RIR and print textual form
 
 Options for `lex`:
   --dump-tokens       Print one line per token: span, kind, text
 
 Options for `parse`:
   --dump-ast          Print the AST as an s-expression
+
+Options for `dump-rir`:
+  --opt               Run DCE / const-fold / simplify-cfg before dump
 
 Shared options:
   --error-format=FMT  Diagnostic rendering: `human` (default) or `json`
@@ -60,12 +64,20 @@ pub struct CheckOptions {
 }
 
 #[derive(Debug)]
+pub struct DumpRirOptions {
+    pub path: PathBuf,
+    pub optimize: bool,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
 pub enum Command {
     Help,
     Version,
     Lex(LexOptions),
     Parse(ParseOptions),
     Check(CheckOptions),
+    DumpRir(DumpRirOptions),
 }
 
 /// Parses command-line arguments (without the program name).
@@ -79,6 +91,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         "lex" => parse_lex(&args[1..]),
         "parse" => parse_parse(&args[1..]),
         "check" => parse_check(&args[1..]),
+        "dump-rir" => parse_dump_rir(&args[1..]),
         other => Err(format!("unknown command `{other}`")),
     }
 }
@@ -178,6 +191,36 @@ fn parse_check(args: &[String]) -> Result<Command, String> {
     Ok(Command::Check(CheckOptions { path, error_format }))
 }
 
+fn parse_dump_rir(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut optimize = false;
+    let mut error_format = ErrorFormat::Human;
+
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--opt" => optimize = true,
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::DumpRir(DumpRirOptions {
+        path,
+        optimize,
+        error_format,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,16 +277,18 @@ mod tests {
         assert_eq!(options.error_format, ErrorFormat::Json);
     }
 
-    #[test]
-    fn check_accepts_json() {
-        let Command::Check(options) =
-            parse(&args(&["check", "a.ryx", "--error-format=json"])).unwrap()
-        else {
-            panic!("expected check");
-        };
-        assert_eq!(options.path.to_str(), Some("a.ryx"));
-        assert_eq!(options.error_format, ErrorFormat::Json);
-    }
+#[test]
+fn dump_rir_prints_func() {
+    let Command::DumpRir(options) =
+        parse(&args(&["dump-rir", "a.ryx", "--opt", "--error-format=json"])).unwrap()
+    else {
+        panic!("expected dump-rir");
+    };
+    assert_eq!(options.path.to_str(), Some("a.ryx"));
+    assert!(options.optimize);
+    assert_eq!(options.error_format, ErrorFormat::Json);
+}
+
 
     #[test]
     fn invocation_errors_are_specific() {

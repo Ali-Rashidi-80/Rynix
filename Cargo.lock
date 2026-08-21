@@ -706,6 +706,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rynix-rir"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "rustc-hash",
+ "rynix-ast",
+ "rynix-diag",
+ "rynix-parser",
+ "rynix-sema",
+ "rynix-span",
+]
+
+[[package]]
 name = "rynix-sema"
 version = "0.1.0"
 dependencies = [
@@ -734,6 +747,7 @@ dependencies = [
  "rynix-diag",
  "rynix-lexer",
  "rynix-parser",
+ "rynix-rir",
  "rynix-sema",
  "rynix-span",
 ]

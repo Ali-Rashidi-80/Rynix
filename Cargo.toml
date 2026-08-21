@@ -7,6 +7,7 @@ members = [
     "crates/rynix-ast",
     "crates/rynix-parser",
     "crates/rynix-sema",
+    "crates/rynix-rir",
     "crates/rynixc",
 ]
 # The fuzz crate is its own workspace: it needs nightly + libFuzzer and must
@@ -28,6 +29,7 @@ rynix-lexer = { path = "crates/rynix-lexer" }
 rynix-ast = { path = "crates/rynix-ast" }
 rynix-parser = { path = "crates/rynix-parser" }
 rynix-sema = { path = "crates/rynix-sema" }
+rynix-rir = { path = "crates/rynix-rir" }
 
 # External dependencies. Policy (ADR-0004): every addition must be justified
 # in an ADR; the compiler hot paths must not allocate through them implicitly.
