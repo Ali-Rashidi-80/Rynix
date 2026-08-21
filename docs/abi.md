@@ -4,8 +4,9 @@ Status: draft (Phase 7–8)
 
 The compiler emits calls to these C symbols. `rynixc build` links the unity
 translation unit [`rt/portable.c`](../rt/portable.c) (sources under
-`rt/src/`). Phase 8 adds cooperative fibers; Linux `--runtime=uring` enables
-io_uring stubs (`RYNIX_RT_URING`) while keeping the same symbol names.
+`rt/src/`). Phase 8 adds cooperative fibers and portable TCP; Linux
+`--runtime=uring` enables a syscall io_uring path for read/write (with
+portable fallback if ring setup fails).
 
 ## Conventions
 
