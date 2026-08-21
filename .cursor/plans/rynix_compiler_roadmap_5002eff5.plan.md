@@ -22,13 +22,13 @@ todos:
     status: completed
   - id: phase1-tests
     content: "فاز ۱: تست‌های واحد + snapshot با insta + property با proptest (بی‌اتلافی، totality) + تست شمارنده صفر-تخصیص"
-    status: in_progress
+    status: completed
   - id: phase1-bench-fuzz
     content: "فاز ۱: بنچمارک criterion با baseline کامیت‌شده + تارگت cargo-fuzz (برای CI/WSL)"
-    status: pending
+    status: completed
   - id: phase1-cli
     content: "فاز ۱: فرمان rynixc lex با --dump-tokens و --error-format=json از روی فایل mmap شده"
-    status: pending
+    status: completed
 isProject: false
 ---
 
