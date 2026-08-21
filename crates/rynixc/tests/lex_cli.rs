@@ -133,3 +133,25 @@ fn help_and_version() {
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr(&output).contains("unknown command"));
 }
+
+#[test]
+fn parse_dumps_ast() {
+    let path = corpus("hello.ryx");
+    let output = run(&["parse", path.to_str().unwrap(), "--dump-ast"]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let dump = stdout(&output);
+    assert!(dump.contains("(fn main"), "{dump}");
+    assert!(dump.contains("(call"), "{dump}");
+    assert!(stderr(&output).is_empty());
+}
+
+#[test]
+fn parse_reports_missing_end() {
+    let dir = std::env::temp_dir();
+    let path = dir.join("rynixc_parse_missing_end.ryx");
+    std::fs::write(&path, "def a()\n  return 1\n").unwrap();
+    let output = run(&["parse", path.to_str().unwrap(), "--error-format=json"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("RYX1004"), "{}", stderr(&output));
+    let _ = std::fs::remove_file(path);
+}

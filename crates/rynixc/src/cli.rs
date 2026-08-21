@@ -11,9 +11,15 @@ Usage: rynixc <command> [options]
 
 Commands:
   lex <file.ryx>      Tokenize a source file
+  parse <file.ryx>    Parse a source file into an arena AST
 
 Options for `lex`:
   --dump-tokens       Print one line per token: span, kind, text
+
+Options for `parse`:
+  --dump-ast          Print the AST as an s-expression
+
+Shared options:
   --error-format=FMT  Diagnostic rendering: `human` (default) or `json`
                       (`json` emits one rynix.diag.v1 object per line)
 
@@ -39,10 +45,18 @@ pub struct LexOptions {
 }
 
 #[derive(Debug)]
+pub struct ParseOptions {
+    pub path: PathBuf,
+    pub dump_ast: bool,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
 pub enum Command {
     Help,
     Version,
     Lex(LexOptions),
+    Parse(ParseOptions),
 }
 
 /// Parses command-line arguments (without the program name).
@@ -51,17 +65,20 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         return Ok(Command::Help);
     };
     match first.as_str() {
-        "-h" | "--help" | "help" => return Ok(Command::Help),
-        "-V" | "--version" | "version" => return Ok(Command::Version),
-        "lex" => {}
-        other => return Err(format!("unknown command `{other}`")),
+        "-h" | "--help" | "help" => Ok(Command::Help),
+        "-V" | "--version" | "version" => Ok(Command::Version),
+        "lex" => parse_lex(&args[1..]),
+        "parse" => parse_parse(&args[1..]),
+        other => Err(format!("unknown command `{other}`")),
     }
+}
 
+fn parse_lex(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut dump_tokens = false;
     let mut error_format = ErrorFormat::Human;
 
-    for arg in &args[1..] {
+    for arg in args {
         match arg.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
             "--dump-tokens" => dump_tokens = true,
@@ -86,6 +103,40 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
     Ok(Command::Lex(LexOptions {
         path,
         dump_tokens,
+        error_format,
+    }))
+}
+
+fn parse_parse(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut dump_ast = false;
+    let mut error_format = ErrorFormat::Human;
+
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--dump-ast" => dump_ast = true,
+            "--error-format=human" => error_format = ErrorFormat::Human,
+            "--error-format=json" => error_format = ErrorFormat::Json,
+            other if other.starts_with("--error-format") => {
+                return Err(format!(
+                    "invalid `{other}`: expected --error-format=human or --error-format=json"
+                ));
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::Parse(ParseOptions {
+        path,
+        dump_ast,
         error_format,
     }))
 }
@@ -128,6 +179,21 @@ mod tests {
         };
         assert_eq!(options.path.to_str(), Some("b.ryx"));
         assert!(options.dump_tokens);
+        assert_eq!(options.error_format, ErrorFormat::Json);
+    }
+
+    #[test]
+    fn parse_accepts_dump_ast() {
+        let Command::Parse(options) = parse(&args(&[
+            "parse",
+            "a.ryx",
+            "--dump-ast",
+            "--error-format=json",
+        ]))
+        .unwrap() else {
+            panic!("expected parse");
+        };
+        assert!(options.dump_ast);
         assert_eq!(options.error_format, ErrorFormat::Json);
     }
 

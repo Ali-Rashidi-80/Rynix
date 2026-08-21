@@ -1,15 +1,13 @@
 //! The Rynix compiler driver.
 //!
-//! Phase 1 exposes a single subcommand, `lex`, which is enough to exercise
-//! the whole front-end plumbing: memory-mapped source loading, the
-//! zero-allocation lexer, and both diagnostic renderers.
-//!
 //! ```text
-//! rynixc lex <file.ryx> [--dump-tokens] [--error-format=human|json]
+//! rynixc lex   <file.ryx> [--dump-tokens] [--error-format=human|json]
+//! rynixc parse <file.ryx> [--dump-ast]    [--error-format=human|json]
 //! ```
 
 mod cli;
 mod lex_cmd;
+mod parse_cmd;
 
 use std::process::ExitCode;
 
@@ -25,6 +23,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Ok(cli::Command::Lex(options)) => lex_cmd::run(&options),
+        Ok(cli::Command::Parse(options)) => parse_cmd::run(&options),
         Err(message) => {
             eprintln!("error: {message}\n");
             eprint!("{}", cli::USAGE);

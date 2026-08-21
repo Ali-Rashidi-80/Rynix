@@ -11,6 +11,8 @@ repository.workspace = true
 rynix-span = { workspace = true }
 rynix-diag = { workspace = true }
 rynix-lexer = { workspace = true }
+rynix-ast = { workspace = true }
+rynix-parser = { workspace = true }
 
 [lints]
 workspace = true

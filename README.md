@@ -37,9 +37,10 @@ On Windows the repository uses the `x86_64-pc-windows-gnu` toolchain (no
 Visual Studio required). Everything through code generation is
 platform-portable; the fiber/io_uring runtime (Phase 8) targets Linux.
 
-## Trying the lexer
+## Trying the front-end
 
 ```sh
 cargo run -p rynixc -- lex testdata/lexer/hello.ryx --dump-tokens
-cargo run -p rynixc -- lex broken.ryx --error-format=json
+cargo run -p rynixc -- parse testdata/lexer/functions.ryx --dump-ast
+cargo run -p rynixc -- parse broken.ryx --error-format=json
 ```
