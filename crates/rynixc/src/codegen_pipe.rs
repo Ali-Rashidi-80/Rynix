@@ -72,32 +72,33 @@ pub fn compile_to_llvm(
     Ok(CodegenResult { ll })
 }
 
-/// Locate `rt/portable.c` relative to the compiler binary / source tree.
-pub fn portable_runtime_c() -> Option<std::path::PathBuf> {
-    // 1) Next to the executable: <exe_dir>/rt/portable.c or ../rt/portable.c
+/// Locate the `rt/` directory (contains `portable.c` and `include/`).
+pub fn runtime_root() -> Option<std::path::PathBuf> {
     if let Ok(exe) = std::env::current_exe()
         && let Some(dir) = exe.parent()
     {
-        let candidates = [
-            dir.join("rt/portable.c"),
-            dir.join("../rt/portable.c"),
-            dir.join("../../rt/portable.c"),
-        ];
-        for c in candidates {
-            if c.is_file() {
+        for c in [
+            dir.join("rt"),
+            dir.join("../rt"),
+            dir.join("../../rt"),
+        ] {
+            if c.join("portable.c").is_file() {
                 return Some(c);
             }
         }
     }
-    // 2) Workspace layout when running via `cargo run`
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let ws = manifest.join("../../rt/portable.c");
-    if ws.is_file() {
-        return Some(ws.canonicalize().unwrap_or(ws));
-    }
-    let ws2 = manifest.join("../rt/portable.c");
-    if ws2.is_file() {
-        return Some(ws2);
+    for rel in ["../../rt", "../rt"] {
+        let ws = manifest.join(rel);
+        if ws.join("portable.c").is_file() {
+            return Some(ws.canonicalize().unwrap_or(ws));
+        }
     }
     None
+}
+
+/// Locate `rt/portable.c` (unity build of the portable runtime).
+#[allow(dead_code)]
+pub fn portable_runtime_c() -> Option<std::path::PathBuf> {
+    runtime_root().map(|r| r.join("portable.c"))
 }

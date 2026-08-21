@@ -1,0 +1,15 @@
+# Runtime translation units linked by `rynixc build` (portable backend).
+#
+# Always:
+#   src/alloc.c
+#   src/fiber.c
+#   src/io_portable.c
+#   src/uring_stub.c
+#
+# Linux + --runtime=uring additionally defines RYNIX_RT_URING and may later
+# link liburing. The x86_64 SysV swap is in src/fiber_swap_x86_64.S (Linux only).
+
+src/alloc.c
+src/fiber.c
+src/io_portable.c
+src/uring_stub.c

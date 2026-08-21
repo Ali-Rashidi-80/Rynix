@@ -24,7 +24,7 @@ specification (v0.1 draft).
 - `crates/rynix-rir` — canonical SSA IR (block args, passes, interpreter, escape)
 - `crates/rynix-codegen` — textual LLVM IR emission + reachability DCE
 - `crates/rynixc` — compiler driver CLI
-- `rt/portable.c` — portable `rynix_rt_*` stubs for `rynixc build`
+- `rt/` — portable `rynix_rt_*` runtime (fibers, regions, colorless I/O)
 - `docs/` — roadmap, spec, diagnostics registry, ADRs, ABI
 - `testdata/` — `.ryx` corpora for snapshot tests and benchmarks
 - `fuzz/` — cargo-fuzz targets (run on Linux/WSL2)
@@ -52,6 +52,7 @@ cargo run -p rynixc -- check testdata/lexer/hello.ryx --explain-alloc
 cargo run -p rynixc -- dump-rir testdata/lexer/hello.ryx
 cargo run -p rynixc -- emit-ll testdata/lexer/hello.ryx
 cargo run -p rynixc -- build testdata/lexer/hello.ryx -o hello --keep-ll
+cargo run -p rynixc -- build testdata/lexer/hello.ryx -o hello --runtime=portable
 ```
 
 Machine-readable diagnostics follow [`docs/schemas/rynix.diag.v1.json`](docs/schemas/rynix.diag.v1.json).

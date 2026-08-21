@@ -32,7 +32,14 @@ pub fn emit_llvm(
     out.push_str("declare void @rynix_rt_region_create(i32)\n");
     out.push_str("declare void @rynix_rt_region_reset(i32)\n");
     out.push_str("declare ptr @rynix_rt_region_alloc(i32, i64)\n");
-    out.push_str("declare void @rynix_rt_panic(ptr)\n\n");
+    out.push_str("declare void @rynix_rt_panic(ptr)\n");
+    out.push_str("declare ptr @rynix_rt_spawn(ptr, ptr)\n");
+    out.push_str("declare void @rynix_rt_yield()\n");
+    out.push_str("declare void @rynix_rt_sleep_ms(i64)\n");
+    out.push_str("declare void @rynix_rt_run()\n");
+    out.push_str("declare i64 @rynix_rt_fiber_count()\n");
+    out.push_str("declare i64 @rynix_rt_read(i64, ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_write(i64, ptr, i64)\n\n");
 
     // String constants.
     let strings = collect_strings(module, interner);

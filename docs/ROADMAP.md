@@ -142,20 +142,15 @@ initially (stretch: 1 GB/s).
 - CLI: `rynixc emit-ll`, `rynixc build` (requires `clang` on PATH).
 - Tests: `.ll` pattern tests (print, no heap for stack locals, dead-fn DCE).
 
-## Phase 8 — Runtime: fibers + io_uring (colorless concurrency)
+## Phase 8 — Runtime: fibers + io_uring (colorless concurrency) ✅
 
-- `rynix-rt` staticlib (C ABI): x86_64 SysV context switch in inline asm
-  (callee-saved + rsp; target < 30ns); fiber stacks mmap'd with guard page,
-  fixed 256KB in v0.
-- Thread-per-core scheduler: one event loop + private io_uring per core
-  (`io-uring` crate), local run queue, no work stealing in v0, MPSC injector
-  for cross-core spawn, park via `io_uring_enter(min_complete=1)`.
-- Colorless: blocking-looking stdlib calls (read/accept/sleep) lower to
-  SQE submit + fiber yield; no async/await anywhere in the language.
-- Environments: WSL2 Ubuntu or Docker for dev/test; Linux CI. A portable
-  blocking backend (`--runtime=portable`) keeps the Windows dev loop alive.
-- Tests: context-switch microbench; echo-server load test (rewrk) vs
-  Go/Tokio baselines; ASan/TSan runs; fiber-leak assertion at exit.
+- `rynix-rt` C ABI under `rt/`: Win32 Fibers (Windows) / `ucontext` (POSIX);
+  stacks 256 KiB with a guard page; SysV `fiber_swap_x86_64.S` on Linux.
+- Cooperative scheduler: `spawn` / `yield` / `run` / `sleep_ms`; portable
+  blocking `read`/`write` that yield first (colorless surface).
+- `--runtime=portable` (default) keeps the Windows dev loop; `--runtime=uring`
+  sets `RYNIX_RT_URING` for Linux io_uring hooks (full SQE park + liburing next).
+- Tests: `rt/tests/fiber_smoke.c` (round-robin + leak check).
 
 ## Phase 9 — Stdlib, tooling, AI features
 

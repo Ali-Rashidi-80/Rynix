@@ -35,6 +35,7 @@ Options for `emit-ll` / `build`:
   -o <path>           Output path (.ll for emit-ll, binary for build)
   --opt               Run RIR optimization pipeline (emit-ll; build always opts)
   --keep-ll           (build) Keep the intermediate .ll next to the binary
+  --runtime=KIND      (build) `portable` (default) or `uring` (Linux)
 
 Shared options:
   --error-format=FMT  Diagnostic rendering: `human` (default) or `json`
@@ -92,11 +93,18 @@ pub struct EmitLlOptions {
     pub error_format: ErrorFormat,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RuntimeKind {
+    Portable,
+    Uring,
+}
+
 #[derive(Debug)]
 pub struct BuildOptions {
     pub path: PathBuf,
     pub output: Option<PathBuf>,
     pub keep_ll: bool,
+    pub runtime: RuntimeKind,
     pub error_format: ErrorFormat,
 }
 
@@ -313,6 +321,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut output = None;
     let mut keep_ll = false;
+    let mut runtime = RuntimeKind::Portable;
     let mut error_format = ErrorFormat::Human;
     let mut expect_o = false;
 
@@ -325,6 +334,13 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
         match arg.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
             "--keep-ll" => keep_ll = true,
+            "--runtime=portable" => runtime = RuntimeKind::Portable,
+            "--runtime=uring" => runtime = RuntimeKind::Uring,
+            other if other.starts_with("--runtime") => {
+                return Err(
+                    "invalid `--runtime`: expected --runtime=portable or --runtime=uring".into(),
+                );
+            }
             "-o" => expect_o = true,
             other if other.starts_with("-o=") => {
                 output = Some(PathBuf::from(&other[3..]));
@@ -350,6 +366,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
         path,
         output,
         keep_ll,
+        runtime,
         error_format,
     }))
 }
