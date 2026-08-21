@@ -72,7 +72,7 @@ fn fiber_echo_smoke_c() {
         .arg("-o")
         .arg(&out);
     if cfg!(windows) {
-        cmd.arg("-fuse-ld=lld");
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
     }
     let status = cmd.status().expect("clang echo");
     assert!(status.success(), "echo_smoke compile failed");
@@ -83,4 +83,88 @@ fn fiber_echo_smoke_c() {
     };
     let status = Command::new(&exe).status().expect("run echo");
     assert!(status.success(), "echo_smoke failed");
+}
+
+#[test]
+fn tcp_echo_rps_c() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = std::env::temp_dir().join("rynix_tcp_echo_rps");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/tcp_echo_rps.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+    }
+    let status = cmd.status().expect("clang tcp_echo");
+    assert!(status.success(), "tcp_echo compile failed");
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    let status = Command::new(&exe).status().expect("run tcp_echo");
+    assert!(status.success(), "tcp_echo_rps failed");
+}
+
+#[test]
+fn collections_smoke_c() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let src = root.join("target/collections_smoke.c");
+    std::fs::write(
+        &src,
+        r#"
+#include "rynix_rt.h"
+#include <stdio.h>
+int main(void) {
+  rynix_rt_region_create(0);
+  void *v = rynix_rt_vec_i64_new(0);
+  rynix_rt_vec_i64_push(v, 10);
+  rynix_rt_vec_i64_push(v, 20);
+  if (rynix_rt_vec_i64_len(v) != 2) return 1;
+  if (rynix_rt_vec_i64_get(v, 1) != 20) return 1;
+  void *m = rynix_rt_map_i64_new(0);
+  rynix_rt_map_i64_insert(m, 7, 70);
+  if (rynix_rt_map_i64_get(m, 7) != 70) return 1;
+  puts("collections ok");
+  return 0;
+}
+"#,
+    )
+    .unwrap();
+    let out = root.join("target/collections_smoke");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg(&src)
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+    }
+    assert!(cmd.status().unwrap().success());
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(Command::new(exe).status().unwrap().success());
 }

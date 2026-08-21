@@ -1,4 +1,4 @@
-/* Rynix runtime C ABI — Phase 7/8.
+/* Rynix runtime C ABI — Phase 7–9.
  * See docs/abi.md for the full symbol table.
  */
 #ifndef RYNIX_RT_H
@@ -21,34 +21,43 @@ void rynix_rt_heap_free(void *p);
 void rynix_rt_region_create(int32_t id);
 void rynix_rt_region_reset(int32_t id);
 void *rynix_rt_region_alloc(int32_t id, int64_t size);
-
-/** Monotonic-ish milliseconds since an unspecified epoch (portable clock). */
 int64_t rynix_rt_now_ms(void);
+
+/* ---- region Vec / Map (i64 monomorphized) ------------------------------ */
+void *rynix_rt_vec_i64_new(int32_t region);
+void rynix_rt_vec_i64_push(void *vec, int64_t x);
+int64_t rynix_rt_vec_i64_get(void *vec, int64_t i);
+int64_t rynix_rt_vec_i64_len(void *vec);
+void *rynix_rt_map_i64_new(int32_t region);
+void rynix_rt_map_i64_insert(void *map, int64_t key, int64_t val);
+int64_t rynix_rt_map_i64_get(void *map, int64_t key);
+int64_t rynix_rt_map_i64_len(void *map);
 
 /* ---- fibers ------------------------------------------------------------ */
 typedef void (*rynix_rt_fiber_fn)(void *arg);
-
-/** Spawn a fiber on the current worker; returns an opaque handle (or NULL). */
 void *rynix_rt_spawn(rynix_rt_fiber_fn fn, void *arg);
-
-/** Cooperative yield to the next ready fiber on this worker. */
 void rynix_rt_yield(void);
-
-/** Sleep at least `ms` milliseconds (colorless; parks the fiber). */
 void rynix_rt_sleep_ms(int64_t ms);
-
-/** Run the scheduler until all fibers complete. Call from main thread. */
 void rynix_rt_run(void);
-
-/** Number of live (non-finished) fibers — used by leak checks. */
 int64_t rynix_rt_fiber_count(void);
 
-/* ---- colorless I/O (portable = blocking under the hood) ---------------- */
-/** Read up to `n` bytes from fd into buf; returns bytes read or -1. */
+/* ---- colorless I/O ----------------------------------------------------- */
 int64_t rynix_rt_read(int64_t fd, void *buf, int64_t n);
-
-/** Write `n` bytes; returns bytes written or -1. */
 int64_t rynix_rt_write(int64_t fd, const void *buf, int64_t n);
+
+/* ---- TCP (portable) ---------------------------------------------------- */
+int64_t rynix_rt_tcp_listen(int64_t port);
+int64_t rynix_rt_tcp_accept(int64_t listen_fd);
+int64_t rynix_rt_tcp_connect(const char *host, int64_t port);
+void rynix_rt_tcp_close(int64_t fd);
+int64_t rynix_rt_tcp_recv(int64_t fd, void *buf, int64_t n);
+int64_t rynix_rt_tcp_send(int64_t fd, const void *buf, int64_t n);
+
+/* ---- io_uring (Linux + RYNIX_RT_URING; else stubs returning -1) -------- */
+void rynix_rt_uring_init(void);
+void rynix_rt_uring_shutdown(void);
+int64_t rynix_rt_uring_read(int64_t fd, void *buf, int64_t n);
+int64_t rynix_rt_uring_write(int64_t fd, const void *buf, int64_t n);
 
 #ifdef __cplusplus
 }

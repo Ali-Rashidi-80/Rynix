@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test
+        run: cargo test --workspace --all-targets
+
+  sanitizer-rt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang
+        run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Fiber smoke (ASan)
+        run: |
+          clang -O1 -g -fsanitize=address -I rt/include \
+            rt/portable.c rt/tests/fiber_smoke.c -o /tmp/fiber_smoke
+          /tmp/fiber_smoke
+      - name: Echo pipe smoke (ASan)
+        run: |
+          clang -O1 -g -fsanitize=address -I rt/include \
+            rt/portable.c rt/tests/echo_smoke.c -o /tmp/echo_smoke
+          /tmp/echo_smoke
+      - name: TCP echo RPS (ASan)
+        run: |
+          clang -O1 -g -fsanitize=address -I rt/include \
+            rt/portable.c rt/tests/tcp_echo_rps.c -o /tmp/tcp_echo
+          /tmp/tcp_echo
+      - name: Uring build smoke
+        run: |
+          clang -O1 -DRYNIX_RT_URING -I rt/include \
+            rt/portable.c rt/tests/fiber_smoke.c -o /tmp/fiber_uring
+          /tmp/fiber_uring

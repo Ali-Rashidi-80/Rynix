@@ -31,15 +31,20 @@ io_uring stubs (`RYNIX_RT_URING`) while keeping the same symbol names.
 | `rynix_rt_run` | `void()` | Drain the local run queue until idle |
 | `rynix_rt_fiber_count` | `i64()` | Live fibers (leak check) |
 | `rynix_rt_read` | `i64(i64, ptr, i64)` | Colorless read (portable = blocking) |
-| `rynix_rt_write` | `i64(i64, ptr, i64)` | Colorless write (portable = blocking) |
-| `rynix_rt_now_ms` | `i64()` | Monotonic-ish milliseconds |
+| `rynix_rt_tcp_listen` | `i64(i64)` | Bind loopback TCP listen (non-blocking) |
+| `rynix_rt_tcp_accept` | `i64(i64)` | Accept with yield loop |
+| `rynix_rt_tcp_connect` | `i64(ptr, i64)` | Connect with yield loop |
+| `rynix_rt_tcp_close` | `void(i64)` | Close socket |
+| `rynix_rt_tcp_recv` / `send` | `i64(i64, ptr, i64)` | Fiber-safe socket I/O |
+| `rynix_rt_vec_i64_*` / `map_i64_*` | (see header) | Region Vec/Map |
+| `rynix_rt_uring_*` | Linux + `RYNIX_RT_URING` | Syscall io_uring read/write |
 
 ## Backends
 
 | `--runtime` | Platform | Notes |
 |-------------|----------|-------|
-| `portable` (default) | All | Win32 Fibers / POSIX `ucontext`; blocking I/O |
-| `uring` | Linux | Defines `RYNIX_RT_URING`; full SQE park TBD + liburing |
+| `portable` (default) | All | Fibers + non-blocking TCP; blocking fd read/write |
+| `uring` | Linux | `RYNIX_RT_URING`: syscall io_uring for read/write; TCP still non-blocking poll |
 
 `rt/src/fiber_swap_x86_64.S` provides a SysV callee-saved swap for Linux
 experiments; Windows uses the Microsoft fiber API instead.

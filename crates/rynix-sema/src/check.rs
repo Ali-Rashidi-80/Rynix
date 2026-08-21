@@ -25,6 +25,8 @@ pub struct Analysis {
     pub def_types: FxHashMap<DefId, TypeId>,
     /// Path `NodeId` → resolved `DefId` (last segment).
     pub path_resolution: FxHashMap<rynix_ast::NodeId, DefId>,
+    /// Struct field byte/slot index (i64 slots) for lowering.
+    pub field_offsets: FxHashMap<(DefId, Symbol), u32>,
 }
 
 /// Run name resolution + type checking. Diagnostics are appended to `sink`.
@@ -48,6 +50,7 @@ struct Checker<'a> {
     path_resolution: FxHashMap<rynix_ast::NodeId, DefId>,
     /// Struct `DefId` → field name → field type.
     struct_fields: FxHashMap<DefId, FxHashMap<Symbol, TypeId>>,
+    field_offsets: FxHashMap<(DefId, Symbol), u32>,
     /// Enum `DefId` → variant name → (Variant `DefId`, optional payload type).
     enum_variants: FxHashMap<DefId, FxHashMap<Symbol, (DefId, Option<TypeId>)>>,
     /// Fn `DefId` → function type.
@@ -71,6 +74,7 @@ impl<'a> Checker<'a> {
             def_types: FxHashMap::default(),
             path_resolution: FxHashMap::default(),
             struct_fields: FxHashMap::default(),
+            field_offsets: FxHashMap::default(),
             enum_variants: FxHashMap::default(),
             fn_sigs: FxHashMap::default(),
             aliases: FxHashMap::default(),
@@ -86,6 +90,7 @@ impl<'a> Checker<'a> {
             node_types: self.node_types,
             def_types: self.def_types,
             path_resolution: self.path_resolution,
+            field_offsets: self.field_offsets,
         }
     }
 
@@ -139,6 +144,24 @@ impl<'a> Checker<'a> {
         self.soft_fn("tensor", vec![ty_int, slice_i64], slice_i64);
         self.soft_fn("signal", vec![self.types.ty_int], self.types.ty_unit);
         self.soft_fn("agent", vec![self.types.ty_str], self.types.ty_unit);
+
+        // Region Vec/Map (i64 monomorphized) — soft std surface.
+        let ptr = self.types.ty_error; // opaque handle
+        let unit = self.types.ty_unit;
+        let i = self.types.ty_int;
+        self.soft_fn("vec_new", vec![i], ptr);
+        self.soft_fn("vec_push", vec![ptr, i], unit);
+        self.soft_fn("vec_get", vec![ptr, i], i);
+        self.soft_fn("vec_len", vec![ptr], i);
+        self.soft_fn("map_new", vec![i], ptr);
+        self.soft_fn("map_insert", vec![ptr, i, i], unit);
+        self.soft_fn("map_get", vec![ptr, i], i);
+        self.soft_fn("map_len", vec![ptr], i);
+
+        // TCP soft surface.
+        self.soft_fn("tcp_listen", vec![i], i);
+        self.soft_fn("tcp_accept", vec![i], i);
+        self.soft_fn("tcp_close", vec![i], unit);
     }
 
     fn soft_fn(&mut self, name: &str, params: Vec<TypeId>, ret: TypeId) {
@@ -244,9 +267,11 @@ impl<'a> Checker<'a> {
         }
         for (def, s) in pending_structs {
             let mut fields = FxHashMap::default();
-            for field in s.fields {
+            for (i, field) in s.fields.iter().enumerate() {
                 let ty = self.lower_type(field.ty, self.module_scope);
                 fields.insert(field.name.name, ty);
+                self.field_offsets
+                    .insert((def, field.name.name), i as u32);
             }
             self.struct_fields.insert(def, fields);
         }

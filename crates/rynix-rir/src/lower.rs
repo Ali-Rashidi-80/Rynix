@@ -15,7 +15,20 @@ use rynix_span::{Interner, Symbol};
 use rustc_hash::FxHashMap;
 
 use crate::builder::FunctionBuilder;
-use crate::ir::{CmpOp, FuncId, Inst, IrTy, Module, ValueId};
+use crate::ir::{BlockId, CmpOp, FuncId, Inst, IrTy, Module, ValueId};
+
+#[derive(Clone, Copy)]
+enum Local {
+    /// Mutable / address-taken: alloca pointer.
+    Slot(ValueId),
+    /// Immutable SSA value (Braun-style direct binding).
+    Ssa(ValueId),
+}
+
+struct LoopFrame {
+    header: BlockId,
+    exit: BlockId,
+}
 
 /// Lower an entire module. `analysis` must be from the same AST.
 /// `src` is the original source (for recovering literal values from spans).
@@ -87,20 +100,19 @@ fn lower_function(
         .unwrap_or(IrTy::Unit);
 
     let mut b = FunctionBuilder::new(f.name.name, ret_ty);
-    let mut locals: FxHashMap<Symbol, ValueId> = FxHashMap::default(); // name → alloca ptr
+    let mut locals: FxHashMap<Symbol, Local> = FxHashMap::default();
+    let mut loops: Vec<LoopFrame> = Vec::new();
 
     // Params: create allocas and store the incoming values (uniform addressing).
     for param in f.params {
         let ty = map_ty(
             analysis,
-            // Look up param type from def_types via name in... we need param DefId.
-            // Fall back to lowering the AST type annotation through analysis.node / path.
             param_type(analysis, f, param),
         );
         let incoming = b.add_param(ty);
         let slot = b.alloc(ty, param.span);
         b.store(slot, incoming);
-        locals.insert(param.name.name, slot);
+        locals.insert(param.name.name, Local::Slot(slot));
     }
 
     let mut cx = LowerCtx {
@@ -109,6 +121,7 @@ fn lower_function(
         interner,
         fn_map,
         locals: &mut locals,
+        loops: &mut loops,
         src,
         base,
     };
@@ -153,7 +166,8 @@ struct LowerCtx<'a, 'b> {
     analysis: &'b Analysis,
     interner: &'b mut Interner,
     fn_map: &'b FxHashMap<Symbol, FuncId>,
-    locals: &'a mut FxHashMap<Symbol, ValueId>,
+    locals: &'a mut FxHashMap<Symbol, Local>,
+    loops: &'a mut Vec<LoopFrame>,
     src: &'b str,
     base: u32,
 }
@@ -172,28 +186,42 @@ impl LowerCtx<'_, '_> {
             return;
         }
         match stmt {
-            Stmt::Error(_) | Stmt::Break(_) | Stmt::Continue(_) => {
-                // Break/continue need loop layout; emit unreachable stub for v0.
-                if matches!(stmt, Stmt::Break(_) | Stmt::Continue(_)) {
+            Stmt::Error(_) => {}
+            Stmt::Break(_) => {
+                if let Some(frame) = self.loops.last() {
+                    self.b.jump(frame.exit, vec![]);
+                } else {
+                    let _ = self.b.push(Inst::Unreachable);
+                }
+            }
+            Stmt::Continue(_) => {
+                if let Some(frame) = self.loops.last() {
+                    self.b.jump(frame.header, vec![]);
+                } else {
                     let _ = self.b.push(Inst::Unreachable);
                 }
             }
             Stmt::Let(l) => {
                 let init = self.expr(l.init);
-                let ty = self
-                    .analysis
-                    .node_types
-                    .get(&l.id)
-                    .map(|t| map_ty(self.analysis, *t))
-                    .unwrap_or_else(|| self.b.func.value_ty(init));
-                let slot = self.b.alloc(ty, l.span);
-                self.b.store(slot, init);
-                self.locals.insert(l.name.name, slot);
+                if l.mutable {
+                    let ty = self
+                        .analysis
+                        .node_types
+                        .get(&l.id)
+                        .map(|t| map_ty(self.analysis, *t))
+                        .unwrap_or_else(|| self.b.func.value_ty(init));
+                    let slot = self.b.alloc(ty, l.span);
+                    self.b.store(slot, init);
+                    self.locals.insert(l.name.name, Local::Slot(slot));
+                } else {
+                    // Immutable → direct SSA binding (Braun-style).
+                    self.locals.insert(l.name.name, Local::Ssa(init));
+                }
             }
             Stmt::Assign(a) => {
                 if let Expr::Path(p) = a.target
                     && let Some(seg) = p.segments.last()
-                    && let Some(&slot) = self.locals.get(&seg.name)
+                    && let Some(Local::Slot(slot)) = self.locals.get(&seg.name).copied()
                 {
                     let rhs = self.expr(a.value);
                     let val = match a.op {
@@ -244,29 +272,55 @@ impl LowerCtx<'_, '_> {
                 self.b.jump(body, vec![]);
                 self.b.switch_to(body);
                 self.b.seal_block(body);
+                self.loops.push(LoopFrame { header, exit });
                 for s in l.body {
                     self.stmt(s);
                 }
+                self.loops.pop();
                 if !self.is_terminated() {
                     self.b.jump(header, vec![]);
                 }
                 self.b.switch_to(exit);
                 self.b.seal_block(exit);
-                // Note: break/continue don't target exit yet in v0.
-                let _ = exit;
             }
             Stmt::For(f) => {
-                // Lower as: iter evaluated once; body runs once if we can't expand.
-                // Better: treat array literal specially; otherwise call body with binder=0 stub.
-                let _iter = self.expr(f.iter);
-                let ty = IrTy::I64;
-                let slot = self.b.alloc(ty, f.span);
+                let base = self.expr(f.iter);
+                let len = self.b.push_value(Inst::ArrayLen(base));
+                let i_slot = self.b.alloc(IrTy::I64, f.span);
                 let zero = self.b.iconst(0);
-                self.b.store(slot, zero);
-                self.locals.insert(f.binder.name, slot);
+                self.b.store(i_slot, zero);
+                let binder_slot = self.b.alloc(IrTy::I64, f.span);
+                self.locals
+                    .insert(f.binder.name, Local::Slot(binder_slot));
+
+                let header = self.b.create_block();
+                let body = self.b.create_block();
+                let exit = self.b.create_block();
+                self.b.jump(header, vec![]);
+                self.b.switch_to(header);
+                self.b.seal_block(header);
+                let i = self.b.load(i_slot);
+                let cond = self.b.push_value(Inst::ICmp(CmpOp::Lt, i, len));
+                self.b.br(cond, body, vec![], exit, vec![]);
+                self.b.switch_to(body);
+                self.b.seal_block(body);
+                let _ = self.b.push(Inst::BoundsCheck { index: i, len });
+                let elem = self.b.push_value(Inst::LoadIndex { base, index: i });
+                self.b.store(binder_slot, elem);
+                self.loops.push(LoopFrame { header, exit });
                 for s in f.body {
                     self.stmt(s);
                 }
+                self.loops.pop();
+                if !self.is_terminated() {
+                    let i2 = self.b.load(i_slot);
+                    let one = self.b.iconst(1);
+                    let next = self.b.push_value(Inst::IAdd(i2, one));
+                    self.b.store(i_slot, next);
+                    self.b.jump(header, vec![]);
+                }
+                self.b.switch_to(exit);
+                self.b.seal_block(exit);
             }
         }
     }
@@ -339,9 +393,12 @@ impl LowerCtx<'_, '_> {
             }
             Expr::Path(p) => {
                 if let Some(seg) = p.segments.last()
-                    && let Some(&slot) = self.locals.get(&seg.name)
+                    && let Some(local) = self.locals.get(&seg.name).copied()
                 {
-                    return self.b.load(slot);
+                    return match local {
+                        Local::Slot(slot) => self.b.load(slot),
+                        Local::Ssa(v) => v,
+                    };
                 }
                 // Function ref as value not supported — zero.
                 self.b.iconst(0)
@@ -384,8 +441,29 @@ impl LowerCtx<'_, '_> {
                 self.b.push_value(Inst::LoadIndex { base, index })
             }
             Expr::Field(f) => {
-                let _ = self.expr(f.base);
-                self.b.iconst(0)
+                let base = self.expr(f.base);
+                // Resolve struct DefId from the base expression's type.
+                let offset = self
+                    .analysis
+                    .node_types
+                    .get(&f.base.id())
+                    .and_then(|&ty| match self.analysis.types.kind(ty) {
+                        TypeKind::Struct(def) => Some(*def),
+                        _ => None,
+                    })
+                    .and_then(|def| {
+                        self.analysis
+                            .field_offsets
+                            .get(&(def, f.field.name))
+                            .copied()
+                    })
+                    .unwrap_or(0);
+                let idx = self.b.iconst(i64::from(offset));
+                let slot = self.b.push_value(Inst::GepI64 {
+                    base,
+                    index: idx,
+                });
+                self.b.load(slot)
             }
             Expr::Array(a) => {
                 // Layout: [len | e0 | e1 | …] as contiguous i64 slots via heap_alloc.
@@ -527,6 +605,17 @@ impl LowerCtx<'_, '_> {
                 "yield" => (self.interner.intern("rynix_rt_yield"), IrTy::Unit),
                 "now_ms" => (self.interner.intern("rynix_rt_now_ms"), IrTy::I64),
                 "fiber_run" => (self.interner.intern("rynix_rt_run"), IrTy::Unit),
+                "vec_new" => (self.interner.intern("rynix_rt_vec_i64_new"), IrTy::Ptr),
+                "vec_push" => (self.interner.intern("rynix_rt_vec_i64_push"), IrTy::Unit),
+                "vec_get" => (self.interner.intern("rynix_rt_vec_i64_get"), IrTy::I64),
+                "vec_len" => (self.interner.intern("rynix_rt_vec_i64_len"), IrTy::I64),
+                "map_new" => (self.interner.intern("rynix_rt_map_i64_new"), IrTy::Ptr),
+                "map_insert" => (self.interner.intern("rynix_rt_map_i64_insert"), IrTy::Unit),
+                "map_get" => (self.interner.intern("rynix_rt_map_i64_get"), IrTy::I64),
+                "map_len" => (self.interner.intern("rynix_rt_map_i64_len"), IrTy::I64),
+                "tcp_listen" => (self.interner.intern("rynix_rt_tcp_listen"), IrTy::I64),
+                "tcp_accept" => (self.interner.intern("rynix_rt_tcp_accept"), IrTy::I64),
+                "tcp_close" => (self.interner.intern("rynix_rt_tcp_close"), IrTy::Unit),
                 "signal" | "agent" => (name, IrTy::Unit),
                 _ => {
                     let ret = self

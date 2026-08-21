@@ -1,7 +1,16 @@
-## Soft std prelude (Phase 9+) — names are builtins in the compiler.
-## `print`, `sleep_ms`, `yield`, `now_ms`, `fiber_run` lower to `rynix_rt_*`.
-## Collections: use `[i64]` arrays with bounds-checked index + BCE.
+## Core / collections
 
-## Example:
-##   let xs = tensor(3, [1, 2, 3])
-##   let t = now_ms()
+Soft builtins (i64 monomorphized, region id `0` = current bump region):
+
+```
+let v = vec_new(0)
+vec_push(v, 1)
+let x = vec_get(v, 0)
+let n = vec_len(v)
+
+let m = map_new(0)
+map_insert(m, 1, 10)
+let y = map_get(m, 1)
+```
+
+Arrays `[1, 2, 3]` are language literals with bounds-checked index + BCE.

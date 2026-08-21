@@ -69,6 +69,14 @@ pub fn run(options: &BuildOptions) -> ExitCode {
         cmd.arg("-DRYNIX_RT_URING");
     }
 
+    if cfg!(windows) {
+        cmd.arg("-lws2_32");
+    }
+
+    if cfg!(windows) {
+        cmd.arg("-lws2_32");
+    }
+
     // Linux SysV fiber swap object (optional; unused by Win32 fiber path).
     let asm = rt_root.join("src/fiber_swap_x86_64.S");
     if cfg!(target_os = "linux") && asm.is_file() {

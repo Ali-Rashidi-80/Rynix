@@ -36,16 +36,18 @@ fn fiber_smoke_round_robin() {
     );
 
     let out = std::env::temp_dir().join("rynix_fiber_smoke.exe");
-    let status = Command::new(&clang)
-        .current_dir(&root)
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
         .arg("-O2")
         .arg("-Irt/include")
         .arg("rt/portable.c")
         .arg("rt/tests/fiber_smoke.c")
         .arg("-o")
-        .arg(&out)
-        .status()
-        .expect("spawn clang");
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+    }
+    let status = cmd.status().expect("spawn clang");
     assert!(status.success(), "clang failed: {status}");
 
     let run = Command::new(&out).output().expect("run fiber_smoke");

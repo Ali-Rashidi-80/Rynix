@@ -242,6 +242,7 @@ void rynix_rt_yield(void) {
 }
 
 void rynix_rt_run(void) {
+  rynix_rt_uring_init();
 #ifdef _WIN32
   if (!g_worker_converted) {
     g_main_fiber = ConvertThreadToFiber(NULL);

@@ -87,8 +87,8 @@ fn locals_are_stack() {
     check_allocs(
         r"
 def main() -> i64
-  let x = 1 #^ alloc: stack
-  let y = x + 2 #^ alloc: stack
+  let mut x = 1 #^ alloc: stack
+  let mut y = x + 2 #^ alloc: stack
   return y
 end
 ",
@@ -104,8 +104,8 @@ def add(a: i64, b: i64) -> i64 # param slots are stack
 end
 
 def main() -> i64
-  let a = 1 #^ alloc: stack
-  let b = 2 #^ alloc: stack
+  let mut a = 1 #^ alloc: stack
+  let mut b = 2 #^ alloc: stack
   return add(a, b)
 end
 ",
@@ -119,7 +119,7 @@ fn returned_pointer_arg_escapes() {
     check_allocs(
         r"
 def main() -> i64
-  let box = 42 #^ alloc: stack
+  let mut box = 42 #^ alloc: stack
   return box
 end
 ",

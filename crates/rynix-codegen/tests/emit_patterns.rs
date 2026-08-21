@@ -72,7 +72,7 @@ end
 }
 
 #[test]
-fn add_uses_stack_alloca_not_heap() {
+fn immutable_lets_are_ssa_not_heap() {
     let ll = emit(
         r"
 def main() -> i64
@@ -82,7 +82,23 @@ def main() -> i64
 end
 ",
     );
-    assert!(ll.contains("alloca"), "{ll}");
+    // Immutable locals lower as SSA values (no alloca / no heap).
+    assert!(!ll.contains("alloca"), "{ll}");
     assert!(!ll.contains("call ptr @rynix_rt_heap_alloc"), "{ll}");
     assert!(ll.contains("add i64"), "{ll}");
+}
+
+#[test]
+fn mutable_let_uses_stack_alloca() {
+    let ll = emit(
+        r"
+def main() -> i64
+  let mut x = 1
+  x += 2
+  return x
+end
+",
+    );
+    assert!(ll.contains("alloca"), "{ll}");
+    assert!(!ll.contains("call ptr @rynix_rt_heap_alloc"), "{ll}");
 }

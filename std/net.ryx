@@ -1,2 +1,10 @@
-## Networking stubs — listen/accept require full uring/TCP runtime.
-## Portable fiber echo validated in `rt/tests/echo_smoke.c`.
+## Net — soft builtins → rynix_rt_tcp_*
+
+```
+let s = tcp_listen(8080)
+let c = tcp_accept(s)
+tcp_close(c)
+tcp_close(s)
+```
+
+Fiber-safe non-blocking sockets. See `rt/tests/tcp_echo_rps.c`.

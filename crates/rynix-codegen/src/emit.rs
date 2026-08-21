@@ -40,7 +40,18 @@ pub fn emit_llvm(
     out.push_str("declare i64 @rynix_rt_fiber_count()\n");
     out.push_str("declare i64 @rynix_rt_read(i64, ptr, i64)\n");
     out.push_str("declare i64 @rynix_rt_write(i64, ptr, i64)\n");
-    out.push_str("declare i64 @rynix_rt_now_ms()\n\n");
+    out.push_str("declare i64 @rynix_rt_now_ms()\n");
+    out.push_str("declare ptr @rynix_rt_vec_i64_new(i32)\n");
+    out.push_str("declare void @rynix_rt_vec_i64_push(ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_vec_i64_get(ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_vec_i64_len(ptr)\n");
+    out.push_str("declare ptr @rynix_rt_map_i64_new(i32)\n");
+    out.push_str("declare void @rynix_rt_map_i64_insert(ptr, i64, i64)\n");
+    out.push_str("declare i64 @rynix_rt_map_i64_get(ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_map_i64_len(ptr)\n");
+    out.push_str("declare i64 @rynix_rt_tcp_listen(i64)\n");
+    out.push_str("declare i64 @rynix_rt_tcp_accept(i64)\n");
+    out.push_str("declare void @rynix_rt_tcp_close(i64)\n\n");
     out.push_str(
         "@.rynix.bounds = private unnamed_addr constant [20 x i8] c\"index out of bounds\\00\", align 1\n\n",
     );
@@ -676,6 +687,55 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                 let t = ctx.tmp();
                 let _ = writeln!(ctx.out, "  {t} = call i64 @rynix_rt_now_ms()");
                 ctx.bind(result.unwrap(), t);
+            } else if n == "rynix_rt_vec_i64_new" || n == "rynix_rt_map_i64_new" {
+                let rid = args.first().map(|a| ctx.val(*a)).unwrap_or_else(|| "0".into());
+                let trunc = ctx.tmp();
+                let t = ctx.tmp();
+                let _ = writeln!(ctx.out, "  {trunc} = trunc i64 {rid} to i32");
+                let _ = writeln!(ctx.out, "  {t} = call ptr @{n}(i32 {trunc})");
+                ctx.bind(result.unwrap(), t);
+            } else if n == "rynix_rt_vec_i64_push" {
+                let v = ctx.val(args[0]);
+                let x = ctx.val(args[1]);
+                let _ = writeln!(ctx.out, "  call void @rynix_rt_vec_i64_push(ptr {v}, i64 {x})");
+            } else if n == "rynix_rt_map_i64_insert" {
+                let m = ctx.val(args[0]);
+                let k = ctx.val(args[1]);
+                let val = ctx.val(args[2]);
+                let _ = writeln!(
+                    ctx.out,
+                    "  call void @rynix_rt_map_i64_insert(ptr {m}, i64 {k}, i64 {val})"
+                );
+            } else if n == "rynix_rt_vec_i64_get"
+                || n == "rynix_rt_vec_i64_len"
+                || n == "rynix_rt_map_i64_get"
+                || n == "rynix_rt_map_i64_len"
+                || n == "rynix_rt_tcp_listen"
+                || n == "rynix_rt_tcp_accept"
+            {
+                let arg_s: Vec<_> = args
+                    .iter()
+                    .enumerate()
+                    .map(|(i, a)| {
+                        if n.starts_with("rynix_rt_tcp") {
+                            format!("i64 {}", ctx.val(*a))
+                        } else if i == 0 {
+                            format!("ptr {}", ctx.val(*a))
+                        } else {
+                            format!("i64 {}", ctx.val(*a))
+                        }
+                    })
+                    .collect();
+                let t = ctx.tmp();
+                let _ = writeln!(
+                    ctx.out,
+                    "  {t} = call i64 @{n}({args})",
+                    args = arg_s.join(", ")
+                );
+                ctx.bind(result.unwrap(), t);
+            } else if n == "rynix_rt_tcp_close" {
+                let fd = args.first().map(|a| ctx.val(*a)).unwrap_or_else(|| "0".into());
+                let _ = writeln!(ctx.out, "  call void @rynix_rt_tcp_close(i64 {fd})");
             } else {
                 // Unknown external: declare on the fly and call.
                 let rty = llvm_abi_ty(*ret);
