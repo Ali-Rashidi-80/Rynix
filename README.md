@@ -42,5 +42,7 @@ platform-portable; the fiber/io_uring runtime (Phase 8) targets Linux.
 ```sh
 cargo run -p rynixc -- lex testdata/lexer/hello.ryx --dump-tokens
 cargo run -p rynixc -- parse testdata/lexer/functions.ryx --dump-ast
-cargo run -p rynixc -- parse broken.ryx --error-format=json
+cargo run -p rynixc -- check testdata/lexer/errors.ryx --error-format=json
 ```
+
+Machine-readable diagnostics follow [`docs/schemas/rynix.diag.v1.json`](docs/schemas/rynix.diag.v1.json).

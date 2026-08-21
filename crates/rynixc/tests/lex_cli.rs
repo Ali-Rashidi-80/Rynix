@@ -153,5 +153,48 @@ fn parse_reports_missing_end() {
     let output = run(&["parse", path.to_str().unwrap(), "--error-format=json"]);
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr(&output).contains("RYX1004"), "{}", stderr(&output));
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn check_clean_file_succeeds() {
+    let path = corpus("hello.ryx");
+    let output = run(&["check", path.to_str().unwrap()]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(stdout(&output).is_empty());
+    assert!(stderr(&output).is_empty());
+}
+
+#[test]
+fn check_broken_file_json_is_schema_valid() {
+    let path = corpus("errors.ryx");
+    let output = run(&["check", path.to_str().unwrap(), "--error-format=json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let text = stderr(&output);
+    let lines: Vec<&str> = text.lines().filter(|l| !l.is_empty()).collect();
+    assert!(!lines.is_empty(), "expected diagnostics");
+    for line in lines {
+        assert!(line.contains("\"schema\":\"rynix.diag.v1\""), "{line}");
+        assert!(
+            line.contains("\"stage\":\"lex\"") || line.contains("\"stage\":\"parse\""),
+            "{line}"
+        );
+    }
+}
+
+#[test]
+fn check_human_shows_snippet() {
+    let dir = std::env::temp_dir();
+    let path = dir.join("rynixc_check_snippet.ryx");
+    std::fs::write(&path, "x $ y\n").unwrap();
+    let output = run(&["check", path.to_str().unwrap()]);
+    assert_eq!(output.status.code(), Some(1));
+    let text = stderr(&output);
+    assert!(text.contains("error[RYX0001]"), "{text}");
+    assert!(
+        text.contains("| x $ y") || text.contains("1 | x $ y"),
+        "{text}"
+    );
+    assert!(text.contains('^'), "{text}");
     let _ = std::fs::remove_file(path);
 }

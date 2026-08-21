@@ -1,16 +1,15 @@
-//! The `rynixc parse` subcommand.
+//! The `rynixc check` subcommand: lex + parse, report diagnostics.
 
-use std::io::{BufWriter, Write};
 use std::process::ExitCode;
 
-use rynix_ast::{AstArena, dump_module};
+use rynix_ast::AstArena;
 use rynix_diag::VecSink;
 use rynix_span::{Interner, SourceMap};
 
-use crate::cli::ParseOptions;
+use crate::cli::CheckOptions;
 use crate::driver;
 
-pub fn run(options: &ParseOptions) -> ExitCode {
+pub fn run(options: &CheckOptions) -> ExitCode {
     let mut sources = SourceMap::new();
     let file_id = match sources.load_file(&options.path) {
         Ok(id) => id,
@@ -24,19 +23,13 @@ pub fn run(options: &ParseOptions) -> ExitCode {
     let arena = AstArena::new();
     let mut interner = Interner::new();
     let mut sink = VecSink::new();
-    let module = rynix_parser::parse(
+    let _module = rynix_parser::parse(
         &arena,
         &mut interner,
         file.text(),
         file.start_pos(),
         &mut sink,
     );
-
-    if options.dump_ast {
-        let mut out = BufWriter::new(std::io::stdout().lock());
-        let _ = writeln!(out, "{}", dump_module(module, &interner));
-        let _ = out.flush();
-    }
 
     driver::emit_diagnostics(&sink, &sources, options.error_format)
 }

@@ -3,11 +3,12 @@
 use std::io::{BufWriter, Write};
 use std::process::ExitCode;
 
-use rynix_diag::{VecSink, render_human, render_json};
+use rynix_diag::VecSink;
 use rynix_lexer::Lexer;
 use rynix_span::SourceMap;
 
-use crate::cli::{ErrorFormat, LexOptions};
+use crate::cli::LexOptions;
+use crate::driver;
 
 pub fn run(options: &LexOptions) -> ExitCode {
     let mut sources = SourceMap::new();
@@ -47,28 +48,5 @@ pub fn run(options: &LexOptions) -> ExitCode {
         }
     }
     let _ = out.flush();
-
-    let mut stderr = BufWriter::new(std::io::stderr().lock());
-    for diag in &sink.diags {
-        let rendered = match options.error_format {
-            ErrorFormat::Human => render_human(diag, &sources),
-            ErrorFormat::Json => render_json(diag, &sources),
-        };
-        let _ = writeln!(stderr, "{rendered}");
-    }
-    let errors = sink.error_count();
-    if errors > 0 && options.error_format == ErrorFormat::Human {
-        let _ = writeln!(
-            stderr,
-            "\n{errors} error{} reported",
-            if errors == 1 { "" } else { "s" }
-        );
-    }
-    let _ = stderr.flush();
-
-    if errors > 0 {
-        ExitCode::from(1)
-    } else {
-        ExitCode::SUCCESS
-    }
+    driver::emit_diagnostics(&sink, &sources, options.error_format)
 }
