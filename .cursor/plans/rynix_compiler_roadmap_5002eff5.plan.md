@@ -7,10 +7,10 @@ todos:
     status: completed
   - id: phase0-docs
     content: "فاز ۰: نگارش docs/ROADMAP.md و SPEC.md (گرامر EBNF v0.1 با def/end) و ADR-0001..0005 و رجیستری diagnostics.md"
-    status: in_progress
+    status: completed
   - id: phase1-span
     content: "فاز ۱: پیاده‌سازی rynix-span (Span/FileId/SourceMap/SourceText با mmap، ایندکس خطوط، Interner) + تست‌های واحد"
-    status: pending
+    status: in_progress
   - id: phase1-diag-core
     content: "فاز ۱: هسته rynix-diag (DiagCode، Diagnostic/Fix با confidence، DiagSink و VecSink تستی)"
     status: pending
