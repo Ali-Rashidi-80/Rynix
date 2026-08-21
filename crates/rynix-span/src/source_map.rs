@@ -115,6 +115,29 @@ impl SourceFile {
             col: local - self.line_starts[line_idx] + 1,
         }
     }
+
+    /// Number of lines in this file (at least 1 for a non-empty trailing line).
+    #[inline]
+    pub fn line_count(&self) -> u32 {
+        self.line_starts.len() as u32
+    }
+
+    /// Text of the 1-based `line`, without its terminating newline(s).
+    ///
+    /// Panics if `line` is out of range (`1..=line_count()`).
+    pub fn line_text(&self, line: u32) -> &str {
+        assert!(
+            line >= 1 && line <= self.line_count(),
+            "line {line} out of range"
+        );
+        let idx = (line - 1) as usize;
+        let start = self.line_starts[idx] as usize;
+        let end = self
+            .line_starts
+            .get(idx + 1)
+            .map_or(self.text().len(), |&s| s as usize);
+        self.text()[start..end].trim_end_matches(['\r', '\n'])
+    }
 }
 
 impl fmt::Debug for SourceFile {
@@ -331,5 +354,16 @@ mod tests {
         assert_eq!(sm.span_text(Span::new(0, 3)), "def");
         assert_eq!(sm.span_text(Span::new(4, 8)), "main");
         assert_eq!(sm.span_text(Span::empty(3)), "");
+    }
+
+    #[test]
+    fn line_text_strips_terminators() {
+        let mut sm = SourceMap::new();
+        let id = sm.add_owned("m", "ab\ncde\r\nf".to_string());
+        let f = sm.file(id);
+        assert_eq!(f.line_count(), 3);
+        assert_eq!(f.line_text(1), "ab");
+        assert_eq!(f.line_text(2), "cde");
+        assert_eq!(f.line_text(3), "f");
     }
 }

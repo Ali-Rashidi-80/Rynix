@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.diag.v1.json",
+  "title": "rynix.diag.v1",
+  "description": "One Rynix compiler diagnostic as a single NDJSON object. Frozen in Phase 3; the full MCP JSON-RPC server arrives in Phase 9.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "code", "severity", "stage", "message", "spans", "fixes"],
+  "properties": {
+    "schema": {
+      "const": "rynix.diag.v1"
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^RYX[0-9]{4}$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["error", "warning", "note", "help"]
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["lex", "parse", "sema", "ir", "codegen"]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "spans": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/span" }
+    },
+    "fixes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fix" }
+    }
+  },
+  "$defs": {
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "lo", "hi", "line", "col", "end_line", "end_col", "primary", "label"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "lo": { "type": "integer", "minimum": 0 },
+        "hi": { "type": "integer", "minimum": 0 },
+        "line": { "type": "integer", "minimum": 1 },
+        "col": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 },
+        "end_col": { "type": "integer", "minimum": 1 },
+        "primary": { "type": "boolean" },
+        "label": { "type": "string" }
+      }
+    },
+    "fix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["message", "confidence", "edits"],
+      "properties": {
+        "message": { "type": "string", "minLength": 1 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "edits": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/edit" }
+        }
+      }
+    },
+    "edit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "lo", "hi", "replacement"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "lo": { "type": "integer", "minimum": 0 },
+        "hi": { "type": "integer", "minimum": 0 },
+        "replacement": { "type": "string" }
+      }
+    }
+  }
+}

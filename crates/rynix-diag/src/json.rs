@@ -1,8 +1,9 @@
 //! The `rynix.diag.v1` JSON rendering (one object per line, NDJSON).
 //!
 //! This is the machine interface consumed by AI agents and editor tooling.
-//! The schema is versioned via the `schema` field; it will be frozen with a
-//! JSON Schema document in Phase 3, but the shape below is already stable:
+//! The schema is frozen; the normative JSON Schema document lives at
+//! `docs/schemas/rynix.diag.v1.json` and is enforced by
+//! [`crate::validate_diag_v1`].
 //!
 //! ```json
 //! {
