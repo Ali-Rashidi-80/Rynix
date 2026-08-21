@@ -1,0 +1,16 @@
+[package]
+name = "rynix-span"
+description = "Source positions, source map, and string interning for the Rynix compiler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+memmap2 = { workspace = true }
+memchr = { workspace = true }
+rustc-hash = { workspace = true }
+
+[lints]
+workspace = true

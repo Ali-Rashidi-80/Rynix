@@ -1,0 +1,11 @@
+# Build artifacts
+/target
+
+# insta pending snapshots (accepted snapshots ARE committed)
+*.pending-snap
+
+# Fuzzing artifacts (the fuzz crate itself is committed)
+/fuzz/target
+/fuzz/corpus
+/fuzz/artifacts
+/fuzz/coverage

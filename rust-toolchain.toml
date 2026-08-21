@@ -1,0 +1,7 @@
+# Pin to the stable channel. The exact MSRV (1.98) is enforced via
+# `workspace.package.rust-version` in Cargo.toml. We deliberately avoid an
+# exact-version pin here: rustup would download a separate toolchain even when
+# the installed stable matches, which fails on some locked-down machines.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

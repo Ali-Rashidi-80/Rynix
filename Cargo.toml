@@ -1,0 +1,70 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/rynix-span",
+    "crates/rynix-diag",
+    "crates/rynix-lexer",
+    "crates/rynix-ast",
+    "crates/rynix-parser",
+    "crates/rynixc",
+]
+# The fuzz crate is its own workspace: it needs nightly + libFuzzer and must
+# not participate in regular `cargo build/test` runs.
+exclude = ["fuzz"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT OR Apache-2.0"
+repository = "https://example.invalid/rynix"
+
+[workspace.dependencies]
+# Internal crates
+rynix-span = { path = "crates/rynix-span" }
+rynix-diag = { path = "crates/rynix-diag" }
+rynix-lexer = { path = "crates/rynix-lexer" }
+rynix-ast = { path = "crates/rynix-ast" }
+rynix-parser = { path = "crates/rynix-parser" }
+
+# External dependencies. Policy (ADR-0004): every addition must be justified
+# in an ADR; the compiler hot paths must not allocate through them implicitly.
+memmap2 = "0.9"    # zero-copy source loading (Phase 1)
+memchr = "2"       # SIMD byte scanning in the lexer (Phase 1)
+rustc-hash = "2"   # FxHashMap for the string interner (Phase 1)
+bumpalo = "3"      # AST arena (Phase 2)
+serde = { version = "1", features = ["derive"] }  # rynix-diag JSON only
+serde_json = "1"                                  # rynix-diag JSON only
+
+# Dev-only dependencies
+insta = { version = "1", features = ["glob"] }
+proptest = "1"
+criterion = "0.8"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Deliberate allows: offset arithmetic uses u32<->usize casts that are
+# range-checked at the SourceMap boundary (total source capped at 4 GiB).
+cast_possible_truncation = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
+# The compiler itself is built for maximum performance and minimum size.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+[profile.bench]
+inherits = "release"
+debug = true # keep symbols for profiling
+
+# Faster test cycles: optimize third-party deps (proptest, insta) even in dev.
+[profile.dev.package."*"]
+opt-level = 1

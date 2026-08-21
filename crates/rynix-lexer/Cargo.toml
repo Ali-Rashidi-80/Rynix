@@ -1,0 +1,25 @@
+[package]
+name = "rynix-lexer"
+description = "Zero-allocation lexer for Rynix source"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rynix-span = { workspace = true }
+rynix-diag = { workspace = true }
+memchr = { workspace = true }
+
+[dev-dependencies]
+insta = { workspace = true }
+proptest = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "throughput"
+harness = false
+
+[lints]
+workspace = true
