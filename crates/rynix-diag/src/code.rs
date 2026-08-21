@@ -62,6 +62,14 @@ pub mod codes {
         MALFORMED_NUMBER    = ("RYX0004", "malformed number literal");
         INVALID_ESCAPE      = ("RYX0005", "invalid escape sequence");
         EOF_IN_STRING       = ("RYX0006", "end of file inside string literal");
+
+        UNEXPECTED_TOKEN    = ("RYX1001", "unexpected token");
+        EXPECTED_TOKEN      = ("RYX1002", "expected token");
+        UNCLOSED_DELIMITER  = ("RYX1003", "unclosed delimiter");
+        MISSING_END         = ("RYX1004", "missing `end`");
+        RESERVED_KEYWORD    = ("RYX1005", "reserved keyword");
+        UNEXPECTED_EOF      = ("RYX1006", "unexpected end of file");
+        CHAINED_COMPARISON  = ("RYX1007", "chained comparison");
     }
 }
 

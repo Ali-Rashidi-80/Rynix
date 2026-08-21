@@ -64,3 +64,45 @@ scalar value). Fix for unknown escapes: remove the backslash, confidence 0.70.
 ### RYX0006 — end of file inside string literal
 
 The file ended before the closing `"`. Fix: append `"`, confidence 0.80.
+
+## Syntactic diagnostics
+
+### RYX1001 — unexpected token
+
+A token appeared where no production expected it. The parser inserts an
+`Error` node spanning the token and resumes at the next synchronisation
+point (`Newline`, `end`, `def`, `struct`, `enum`, `type`, `import`).
+
+### RYX1002 — expected token
+
+A specific token was required (e.g. `)`, `:`, `in`, `end`) and something
+else was found. When the expected token is a single character of
+punctuation, a high-confidence fix inserts it at the current position.
+
+### RYX1003 — unclosed delimiter
+
+A `(`, `[`, or `{` was never closed before a statement boundary or EOF.
+The opening span is labelled; recovery pretends the closer was present.
+
+### RYX1004 — missing `end`
+
+A keyword-delimited block (`def`/`struct`/`enum`/`if`/`loop`/`for`) ran
+into EOF or a sibling item without seeing `end`. Fix: insert `end` at the
+recovery point, confidence 0.85.
+
+### RYX1005 — reserved keyword
+
+One of `match`, `agent`, `signal`, `tensor` was used as an identifier or
+item name. These are reserved for a future release; the node is still
+built so later phases can attach more precise guidance.
+
+### RYX1006 — unexpected end of file
+
+The file ended while a construct was still open (parameter list, type,
+expression). Distinct from `RYX1004` which is specifically about `end`.
+
+### RYX1007 — chained comparison
+
+Comparisons are non-associative (canonical syntax). `a < b < c` is an
+error; write `a < b and b < c`. Fix: rewrite as a conjunction, confidence
+0.80.
