@@ -10,10 +10,10 @@ todos:
     status: completed
   - id: phase1-span
     content: "فاز ۱: پیاده‌سازی rynix-span (Span/FileId/SourceMap/SourceText با mmap، ایندکس خطوط، Interner) + تست‌های واحد"
-    status: in_progress
+    status: completed
   - id: phase1-diag-core
     content: "فاز ۱: هسته rynix-diag (DiagCode، Diagnostic/Fix با confidence، DiagSink و VecSink تستی)"
-    status: pending
+    status: in_progress
   - id: phase1-token-cursor
     content: "فاز ۱: TokenKind (~۷۰ واریانت) و Cursor صفر-تخصیص با جدول dispatch، کلیدواژه‌ها، اعداد/رشته/کامنت/Newline"
     status: pending

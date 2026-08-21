@@ -1,0 +1,95 @@
+use std::fmt;
+
+/// A stable, machine-readable diagnostic code (`RYX####`).
+///
+/// Codes are never reused or renumbered; the full registry with prose
+/// documentation lives in `docs/diagnostics.md` (a test enforces that every
+/// registered code is documented there).
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DiagCode(&'static str);
+
+impl DiagCode {
+    pub(crate) const fn new(code: &'static str) -> Self {
+        DiagCode(code)
+    }
+
+    #[inline]
+    pub fn as_str(self) -> &'static str {
+        self.0
+    }
+}
+
+impl fmt::Debug for DiagCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0)
+    }
+}
+
+impl fmt::Display for DiagCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0)
+    }
+}
+
+/// Registry entry: code plus a short title (the long docs are in
+/// `docs/diagnostics.md`).
+pub struct CodeInfo {
+    pub code: DiagCode,
+    pub title: &'static str,
+}
+
+macro_rules! declare_codes {
+    ($($name:ident = ($code:literal, $title:literal);)+) => {
+        $(pub const $name: DiagCode = DiagCode::new($code);)+
+
+        /// Every diagnostic code the compiler can currently emit.
+        pub const REGISTRY: &[CodeInfo] = &[
+            $(CodeInfo { code: $name, title: $title },)+
+        ];
+    };
+}
+
+/// The diagnostic code registry. Numbering plan: `RYX0xxx` lexical,
+/// `RYX1xxx` syntactic, `RYX2xxx` names/types, `RYX3xxx` escape/regions,
+/// `RYX4xxx` codegen/linking, `RYX5xxx` runtime-facing.
+pub mod codes {
+    use super::{CodeInfo, DiagCode};
+
+    declare_codes! {
+        UNKNOWN_CHAR        = ("RYX0001", "unknown character");
+        UNTERMINATED_STRING = ("RYX0002", "unterminated string literal");
+        NON_ASCII_IDENT     = ("RYX0003", "non-ASCII identifier");
+        MALFORMED_NUMBER    = ("RYX0004", "malformed number literal");
+        INVALID_ESCAPE      = ("RYX0005", "invalid escape sequence");
+        EOF_IN_STRING       = ("RYX0006", "end of file inside string literal");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::codes::REGISTRY;
+
+    #[test]
+    fn codes_are_unique_and_well_formed() {
+        let mut seen = std::collections::HashSet::new();
+        for info in REGISTRY {
+            let c = info.code.as_str();
+            assert!(c.starts_with("RYX") && c.len() == 7, "malformed code {c}");
+            assert!(c[3..].chars().all(|ch| ch.is_ascii_digit()), "{c}");
+            assert!(seen.insert(c), "duplicate code {c}");
+            assert!(!info.title.is_empty());
+        }
+    }
+
+    #[test]
+    fn every_code_is_documented() {
+        let docs = include_str!("../../../docs/diagnostics.md");
+        for info in REGISTRY {
+            assert!(
+                docs.contains(info.code.as_str()),
+                "{} is not documented in docs/diagnostics.md",
+                info.code
+            );
+        }
+    }
+}
