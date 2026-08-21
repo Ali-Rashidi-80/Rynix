@@ -176,7 +176,9 @@ fn check_broken_file_json_is_schema_valid() {
     for line in lines {
         assert!(line.contains("\"schema\":\"rynix.diag.v1\""), "{line}");
         assert!(
-            line.contains("\"stage\":\"lex\"") || line.contains("\"stage\":\"parse\""),
+            line.contains("\"stage\":\"lex\"")
+                || line.contains("\"stage\":\"parse\"")
+                || line.contains("\"stage\":\"sema\""),
             "{line}"
         );
     }

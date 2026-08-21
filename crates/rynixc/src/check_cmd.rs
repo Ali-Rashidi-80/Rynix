@@ -1,9 +1,10 @@
-//! The `rynixc check` subcommand: lex + parse, report diagnostics.
+//! The `rynixc check` subcommand: lex + parse + sema, report diagnostics.
 
 use std::process::ExitCode;
 
 use rynix_ast::AstArena;
 use rynix_diag::VecSink;
+use rynix_sema::analyze;
 use rynix_span::{Interner, SourceMap};
 
 use crate::cli::CheckOptions;
@@ -23,13 +24,17 @@ pub fn run(options: &CheckOptions) -> ExitCode {
     let arena = AstArena::new();
     let mut interner = Interner::new();
     let mut sink = VecSink::new();
-    let _module = rynix_parser::parse(
+    let module = rynix_parser::parse(
         &arena,
         &mut interner,
         file.text(),
         file.start_pos(),
         &mut sink,
     );
+
+    // Always run sema on the (possibly recovered) tree so AI agents see the
+    // full diagnostic set for a single `check` invocation.
+    let _analysis = analyze(module, &mut interner, &mut sink);
 
     driver::emit_diagnostics(&sink, &sources, options.error_format)
 }

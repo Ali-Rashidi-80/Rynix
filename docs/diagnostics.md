@@ -106,3 +106,47 @@ expression). Distinct from `RYX1004` which is specifically about `end`.
 Comparisons are non-associative (canonical syntax). `a < b < c` is an
 error; write `a < b and b < c`. Fix: rewrite as a conjunction, confidence
 0.80.
+
+## Semantic diagnostics
+
+### RYX2001 — unresolved name
+
+A path segment could not be found in the current scope (value or type
+position).
+
+### RYX2002 — duplicate definition
+
+Two items or locals in the same scope share a name. The secondary label
+points at the earlier definition.
+
+### RYX2003 — type mismatch
+
+An expression's type is incompatible with the type required by its
+context (assignment, argument, return, condition, etc.).
+
+### RYX2004 — expected a type
+
+A value was used where a type was required (e.g. in a parameter annotation).
+
+### RYX2005 — assignment to immutable binding
+
+`x = ...` or `x += ...` where `x` was not declared `mut`.
+
+### RYX2006 — unknown field
+
+Field access on a struct type that has no such field.
+
+### RYX2007 — wrong number of arguments
+
+A call site supplies a different number of arguments than the callee's
+signature.
+
+### RYX2008 — break outside loop
+
+### RYX2009 — continue outside loop
+
+`break` / `continue` appeared outside any `loop` or `for`.
+
+### RYX2010 — value is not callable
+
+A call was attempted on a non-function value.

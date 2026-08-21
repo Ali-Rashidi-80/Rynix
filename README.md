@@ -19,7 +19,8 @@ specification (v0.1 draft).
 - `crates/rynix-diag` — structured diagnostics (`RYX####` codes, fixes with confidence, JSON)
 - `crates/rynix-lexer` — zero-allocation total lexer
 - `crates/rynix-ast` — arena-allocated AST (Phase 2)
-- `crates/rynix-parser` — recursive-descent + Pratt parser (Phase 2)
+- `crates/rynix-parser` — recursive-descent + Pratt parser
+- `crates/rynix-sema` — name resolution and type checking
 - `crates/rynixc` — compiler driver CLI
 - `docs/` — roadmap, spec, diagnostics registry, ADRs
 - `testdata/` — `.ryx` corpora for snapshot tests and benchmarks

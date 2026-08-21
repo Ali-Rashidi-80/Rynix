@@ -1,6 +1,6 @@
 [package]
-name = "rynixc"
-description = "The Rynix compiler driver (CLI)"
+name = "rynix-sema"
+description = "Name resolution and type checking for Rynix (Phase 4)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,10 +10,12 @@ repository.workspace = true
 [dependencies]
 rynix-span = { workspace = true }
 rynix-diag = { workspace = true }
-rynix-lexer = { workspace = true }
 rynix-ast = { workspace = true }
+rustc-hash = { workspace = true }
+
+[dev-dependencies]
 rynix-parser = { workspace = true }
-rynix-sema = { workspace = true }
+insta = { workspace = true }
 
 [lints]
 workspace = true

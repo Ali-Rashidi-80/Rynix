@@ -70,6 +70,17 @@ pub mod codes {
         RESERVED_KEYWORD    = ("RYX1005", "reserved keyword");
         UNEXPECTED_EOF      = ("RYX1006", "unexpected end of file");
         CHAINED_COMPARISON  = ("RYX1007", "chained comparison");
+
+        UNRESOLVED_NAME     = ("RYX2001", "unresolved name");
+        DUPLICATE_DEF       = ("RYX2002", "duplicate definition");
+        TYPE_MISMATCH       = ("RYX2003", "type mismatch");
+        EXPECTED_TYPE       = ("RYX2004", "expected a type");
+        IMMUTABLE_ASSIGN    = ("RYX2005", "assignment to immutable binding");
+        UNKNOWN_FIELD       = ("RYX2006", "unknown field");
+        WRONG_ARITY         = ("RYX2007", "wrong number of arguments");
+        BREAK_OUTSIDE_LOOP  = ("RYX2008", "break/continue outside loop");
+        CONTINUE_OUTSIDE_LOOP = ("RYX2009", "continue outside loop");
+        NOT_CALLABLE        = ("RYX2010", "value is not callable");
     }
 }
 
