@@ -39,7 +39,11 @@ pub fn emit_llvm(
     out.push_str("declare void @rynix_rt_run()\n");
     out.push_str("declare i64 @rynix_rt_fiber_count()\n");
     out.push_str("declare i64 @rynix_rt_read(i64, ptr, i64)\n");
-    out.push_str("declare i64 @rynix_rt_write(i64, ptr, i64)\n\n");
+    out.push_str("declare i64 @rynix_rt_write(i64, ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_now_ms()\n\n");
+    out.push_str(
+        "@.rynix.bounds = private unnamed_addr constant [20 x i8] c\"index out of bounds\\00\", align 1\n\n",
+    );
 
     // String constants.
     let strings = collect_strings(module, interner);
@@ -480,6 +484,79 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                 ctx.val(*ptr)
             );
         }
+        Inst::GepI64 { base, index } => {
+            let name = ctx.tmp();
+            let _ = writeln!(
+                ctx.out,
+                "  {name} = getelementptr inbounds i64, ptr {}, i64 {}",
+                ctx.val(*base),
+                ctx.val(*index)
+            );
+            ctx.bind(result.unwrap(), name);
+        }
+        Inst::BoundsCheck { index, len } => {
+            let ok_lo = ctx.tmp();
+            let ok_hi = ctx.tmp();
+            let ok = ctx.tmp();
+            let cont = format!("bc_ok.{}", ctx.next_tmp);
+            let fail = format!("bc_fail.{}", ctx.next_tmp);
+            ctx.next_tmp += 1;
+            let _ = writeln!(
+                ctx.out,
+                "  {ok_lo} = icmp sge i64 {}, 0",
+                ctx.val(*index)
+            );
+            let _ = writeln!(
+                ctx.out,
+                "  {ok_hi} = icmp slt i64 {}, {}",
+                ctx.val(*index),
+                ctx.val(*len)
+            );
+            let _ = writeln!(ctx.out, "  {ok} = and i1 {ok_lo}, {ok_hi}");
+            let _ = writeln!(ctx.out, "  br i1 {ok}, label %{cont}, label %{fail}");
+            let _ = writeln!(ctx.out, "{fail}:");
+            let _ = writeln!(
+                ctx.out,
+                "  call void @rynix_rt_panic(ptr @.rynix.bounds)"
+            );
+            let _ = writeln!(ctx.out, "  unreachable");
+            let _ = writeln!(ctx.out, "{cont}:");
+        }
+        Inst::ArrayLen(base) => {
+            let name = ctx.tmp();
+            let _ = writeln!(
+                ctx.out,
+                "  {name} = load i64, ptr {}, align 8",
+                ctx.val(*base)
+            );
+            ctx.bind(result.unwrap(), name);
+        }
+        Inst::LoadIndex { base, index } => {
+            let one = ctx.tmp();
+            let off = ctx.tmp();
+            let slot = ctx.tmp();
+            let name = ctx.tmp();
+            let _ = writeln!(ctx.out, "  {one} = add i64 0, 1");
+            let _ = writeln!(
+                ctx.out,
+                "  {off} = add i64 {}, {one}",
+                ctx.val(*index)
+            );
+            let _ = writeln!(
+                ctx.out,
+                "  {slot} = getelementptr inbounds i64, ptr {}, i64 {off}",
+                ctx.val(*base)
+            );
+            let _ = writeln!(ctx.out, "  {name} = load i64, ptr {slot}, align 8");
+            ctx.bind(result.unwrap(), name);
+        }
+        Inst::Free { ptr, .. } => {
+            let _ = writeln!(
+                ctx.out,
+                "  call void @rynix_rt_heap_free(ptr {})",
+                ctx.val(*ptr)
+            );
+        }
         Inst::Call { func: callee, args } => {
             let cf = ctx.module.func(*callee);
             let cname = ctx.interner.resolve(cf.name);
@@ -527,6 +604,78 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                     let _ = writeln!(ctx.out, "  {t} = add i64 0, 0");
                     ctx.bind(r, t);
                 }
+            } else if n == "rynix_rt_heap_alloc" {
+                let size = args
+                    .first()
+                    .map(|a| ctx.val(*a))
+                    .unwrap_or_else(|| "0".into());
+                let t = ctx.tmp();
+                let _ = writeln!(
+                    ctx.out,
+                    "  {t} = call ptr @rynix_rt_heap_alloc(i64 {size})"
+                );
+                ctx.bind(result.unwrap(), t);
+            } else if n == "rynix_rt_spawn" {
+                // First arg may be an sconst naming the fiber entry; bitcast @name.
+                let fn_ptr = if let Some(a) = args.first() {
+                    // If bound to a string global, we cannot bitcast easily; use null.
+                    // Prefer looking up function by resolving sconst content.
+                    let _ = a;
+                    "null".to_string()
+                } else {
+                    "null".into()
+                };
+                // Better: if first arg is SConst of a known function name, use @name.
+                let fn_ptr = match args.first().and_then(|a| {
+                    // Recover symbol from RIR if this value is an SConst.
+                    for (ii, inst) in func.insts.iter().enumerate() {
+                        if let Inst::SConst(sym) = inst {
+                            let iid = rynix_rir::InstId(ii as u32);
+                            if result_of(func, iid) == Some(*a) {
+                                let name = ctx.interner.resolve(*sym);
+                                if ctx.module.func_names.iter().any(|&n| {
+                                    ctx.interner.resolve(n) == name
+                                }) {
+                                    return Some(format!("@{name}"));
+                                }
+                            }
+                        }
+                    }
+                    None
+                }) {
+                    Some(p) => p,
+                    None => fn_ptr,
+                };
+                let t = ctx.tmp();
+                let _ = writeln!(
+                    ctx.out,
+                    "  {t} = call ptr @rynix_rt_spawn(ptr {fn_ptr}, ptr null)"
+                );
+                if let Some(r) = result {
+                    ctx.bind(r, t);
+                }
+            } else if n == "sleep_ms" || n == "rynix_rt_sleep_ms" {
+                let ms = args
+                    .first()
+                    .map(|a| ctx.val(*a))
+                    .unwrap_or_else(|| "0".into());
+                let _ = writeln!(ctx.out, "  call void @rynix_rt_sleep_ms(i64 {ms})");
+                if let Some(r) = result {
+                    let t = ctx.tmp();
+                    let _ = writeln!(ctx.out, "  {t} = add i64 0, 0");
+                    ctx.bind(r, t);
+                }
+            } else if n == "yield" || n == "rynix_rt_yield" {
+                let _ = writeln!(ctx.out, "  call void @rynix_rt_yield()");
+                if let Some(r) = result {
+                    let t = ctx.tmp();
+                    let _ = writeln!(ctx.out, "  {t} = add i64 0, 0");
+                    ctx.bind(r, t);
+                }
+            } else if n == "now_ms" || n == "rynix_rt_now_ms" {
+                let t = ctx.tmp();
+                let _ = writeln!(ctx.out, "  {t} = call i64 @rynix_rt_now_ms()");
+                ctx.bind(result.unwrap(), t);
             } else {
                 // Unknown external: declare on the fly and call.
                 let rty = llvm_abi_ty(*ret);
@@ -562,13 +711,6 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                 ctx.out,
                 "  call void @rynix_rt_region_reset(i32 {region})"
             );
-        }
-        Inst::Free { .. } => {
-            // Free needs the pointer — site-only Free is approximate; skip ptr
-            // tracking in v0 (escape injects after last use of site pointer).
-            // Look up last alloca for site is not stored on Free. No-op for stack;
-            // for heap we'd need the ptr. Emit a comment.
-            let _ = writeln!(ctx.out, "  ; free site (ptr recovered in Phase 7.1)");
         }
         Inst::Ret(None) => {
             if is_main {

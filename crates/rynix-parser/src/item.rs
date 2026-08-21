@@ -209,6 +209,10 @@ impl<'arena> Parser<'arena, '_, '_> {
     }
 
     pub(crate) fn expect_ident(&mut self, label: &str) -> Ident {
+        self.expect_ident_ext(label, false)
+    }
+
+    pub(crate) fn expect_ident_ext(&mut self, label: &str, allow_reserved: bool) -> Ident {
         if self.at(TokenKind::Ident) {
             let tok = self.bump();
             let text = self.text(tok.span).to_string();
@@ -220,8 +224,10 @@ impl<'arena> Parser<'arena, '_, '_> {
         if self.peek().kind.is_reserved() {
             let tok = self.bump();
             let word = self.text(tok.span).to_string();
-            self.sink
-                .emit(parse_errors::reserved_keyword(tok.span, &word));
+            if !allow_reserved {
+                self.sink
+                    .emit(parse_errors::reserved_keyword(tok.span, &word));
+            }
             return Ident {
                 name: self.interner.intern(&word),
                 span: tok.span,

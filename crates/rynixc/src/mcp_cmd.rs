@@ -1,15 +1,17 @@
 //! `rynixc mcp-serve` — JSON-RPC 2.0 over stdio (Content-Length framing).
 //!
-//! Tools: `rynix_check`, `rynix_format`, `rynix_explain_alloc`.
+//! Tools: `diagnostics`/`rynix_check`, `rynix_format`, `rynix_explain_alloc`,
+//! `compile`, `ast_query`, `apply_fix`.
 
 #![allow(clippy::too_many_lines)]
 
 use std::io::{self, BufRead, Write};
 use std::process::ExitCode;
 
-use rynix_ast::{format_module, AstArena};
+use rynix_ast::{dump_module, format_module, AstArena};
+use rynix_codegen::emit_llvm;
 use rynix_diag::{render_json, VecSink};
-use rynix_rir::{analyze_escape, explain_alloc_json, lower_module};
+use rynix_rir::{analyze_escape, explain_alloc_json, inject_regions, lower_module, run_pipeline};
 use rynix_sema::analyze;
 use rynix_span::{Interner, SourceMap};
 use serde_json::{json, Value};
@@ -44,40 +46,7 @@ pub fn run() -> ExitCode {
                 "serverInfo": { "name": "rynixc", "version": env!("CARGO_PKG_VERSION") }
             })),
             "ping" => Ok(json!({})),
-            "tools/list" => Ok(json!({
-                "tools": [
-                    {
-                        "name": "rynix_check",
-                        "description": "Lex+parse+sema a Rynix source string; return diagnostics",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "source": { "type": "string" },
-                                "path": { "type": "string" }
-                            },
-                            "required": ["source"]
-                        }
-                    },
-                    {
-                        "name": "rynix_format",
-                        "description": "Canonical-format a Rynix source string",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": { "source": { "type": "string" } },
-                            "required": ["source"]
-                        }
-                    },
-                    {
-                        "name": "rynix_explain_alloc",
-                        "description": "Escape/placement report for a clean Rynix source string",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": { "source": { "type": "string" } },
-                            "required": ["source"]
-                        }
-                    }
-                ]
-            })),
+            "tools/list" => Ok(json!({ "tools": tool_defs() })),
             "tools/call" => tools_call(&params),
             "shutdown" => {
                 write_result(&mut stdout, id, Ok(Value::Null));
@@ -93,6 +62,80 @@ pub fn run() -> ExitCode {
     }
 }
 
+fn tool_defs() -> Value {
+    json!([
+        {
+            "name": "diagnostics",
+            "description": "Alias of rynix_check — structured diagnostics for a source string",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string" }
+                },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "rynix_check",
+            "description": "Lex+parse+sema a Rynix source string; return diagnostics",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string" }
+                },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "rynix_format",
+            "description": "Canonical-format a Rynix source string",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "source": { "type": "string" } },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "rynix_explain_alloc",
+            "description": "Escape/placement report for a clean Rynix source string",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "source": { "type": "string" } },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "compile",
+            "description": "Lower+escape+opt and emit textual LLVM IR (.ll)",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "source": { "type": "string" } },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "ast_query",
+            "description": "Parse and return the s-expression AST dump",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "source": { "type": "string" } },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "apply_fix",
+            "description": "Apply the first suggested Fix from diagnostics, if any",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "source": { "type": "string" } },
+                "required": ["source"]
+            }
+        }
+    ])
+}
+
 fn tools_call(params: &Value) -> Result<Value, Value> {
     let name = params
         .get("name")
@@ -105,7 +148,7 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         .ok_or_else(|| rpc_error(-32602, "missing source"))?;
 
     match name {
-        "rynix_check" => {
+        "rynix_check" | "diagnostics" => {
             let path = args.get("path").and_then(|p| p.as_str()).unwrap_or("mcp.ryx");
             let text = check_source(path, source);
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
@@ -117,6 +160,18 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         "rynix_explain_alloc" => {
             let text = explain_source(source)?;
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
+        }
+        "compile" => {
+            let ll = compile_source(source)?;
+            Ok(json!({ "content": [{ "type": "text", "text": ll }] }))
+        }
+        "ast_query" => {
+            let dump = ast_source(source)?;
+            Ok(json!({ "content": [{ "type": "text", "text": dump }] }))
+        }
+        "apply_fix" => {
+            let fixed = apply_fix_source(source)?;
+            Ok(json!({ "content": [{ "type": "text", "text": fixed }] }))
         }
         other => Err(rpc_error(-32602, format!("unknown tool: {other}"))),
     }
@@ -164,6 +219,59 @@ fn explain_source(source: &str) -> Result<String, Value> {
     let rir = lower_module(module, &analysis, &mut interner, source, 0);
     let report = analyze_escape(&rir, &interner);
     Ok(explain_alloc_json(&rir, &report, &interner))
+}
+
+fn compile_source(source: &str) -> Result<String, Value> {
+    let arena = AstArena::new();
+    let mut interner = Interner::new();
+    let mut sink = VecSink::new();
+    let module = rynix_parser::parse(&arena, &mut interner, source, 0, &mut sink);
+    let analysis = analyze(module, &mut interner, &mut sink);
+    if sink.error_count() > 0 {
+        return Err(rpc_error(-32000, "sema/parse errors"));
+    }
+    let mut rir = lower_module(module, &analysis, &mut interner, source, 0);
+    let report = analyze_escape(&rir, &interner);
+    inject_regions(&mut rir, &report);
+    let _ = run_pipeline(&mut rir);
+    Ok(emit_llvm(&rir, &interner, Some(&report)))
+}
+
+fn ast_source(source: &str) -> Result<String, Value> {
+    let arena = AstArena::new();
+    let mut interner = Interner::new();
+    let mut sink = VecSink::new();
+    let module = rynix_parser::parse(&arena, &mut interner, source, 0, &mut sink);
+    if sink.error_count() > 0 {
+        return Err(rpc_error(-32000, "parse errors"));
+    }
+    Ok(dump_module(module, &interner))
+}
+
+fn apply_fix_source(source: &str) -> Result<String, Value> {
+    let arena = AstArena::new();
+    let mut interner = Interner::new();
+    let mut sink = VecSink::new();
+    let module = rynix_parser::parse(&arena, &mut interner, source, 0, &mut sink);
+    let _ = analyze(module, &mut interner, &mut sink);
+    for d in &sink.diags {
+        if let Some(fix) = d.fixes.first() {
+            let mut bytes = source.as_bytes().to_vec();
+            let mut edits = fix.edits.clone();
+            edits.sort_by_key(|e| std::cmp::Reverse(e.span.lo()));
+            for edit in edits {
+                let lo = edit.span.lo() as usize;
+                let hi = edit.span.hi() as usize;
+                if hi > bytes.len() || lo > hi {
+                    continue;
+                }
+                bytes.splice(lo..hi, edit.replacement.bytes());
+            }
+            return String::from_utf8(bytes)
+                .map_err(|_| rpc_error(-32000, "fix produced non-utf8"));
+        }
+    }
+    Ok(source.to_string())
 }
 
 fn rpc_error(code: i64, message: impl AsRef<str>) -> Value {

@@ -36,11 +36,17 @@ impl<'arena> Parser<'arena, '_, '_> {
     }
 
     pub(crate) fn parse_path(&mut self) -> &'arena rynix_ast::Path<'arena> {
-        let first = self.expect_ident("identifier");
+        self.parse_path_ext(false)
+    }
+
+    /// When `allow_reserved`, `tensor`/`signal`/`agent`/`match` may appear as
+    /// path segments without emitting `RYX1005` (smart-primitive experiments).
+    pub(crate) fn parse_path_ext(&mut self, allow_reserved: bool) -> &'arena rynix_ast::Path<'arena> {
+        let first = self.expect_ident_ext("identifier", allow_reserved);
         let start = first.span;
         let mut segs = vec![first];
         while self.eat(TokenKind::ColonColon).is_some() {
-            segs.push(self.expect_ident("path segment"));
+            segs.push(self.expect_ident_ext("path segment", allow_reserved));
         }
         let end = segs.last().map_or(start, |s| s.span);
         self.arena.alloc(rynix_ast::Path {

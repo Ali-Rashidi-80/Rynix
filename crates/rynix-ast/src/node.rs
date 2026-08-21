@@ -372,6 +372,8 @@ impl Expr<'_> {
 pub struct LiteralExpr {
     pub id: NodeId,
     pub kind: LiteralKind,
+    /// Parsed integer value when `kind == Int` (for compile-time checks).
+    pub int_value: Option<i64>,
     pub span: Span,
 }
 

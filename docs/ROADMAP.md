@@ -28,150 +28,96 @@ explicit acceptance criterion. Irreversible decisions are recorded as ADRs in
 Every stage emits structured diagnostics (JSON / MCP).
 ```
 
-## Phase 0 — Workspace scaffold (done first)
+## Honesty legend
+
+- ✅ = acceptance criteria met with tests in-tree.
+- ◐ = real implementation with known gaps (listed).
+- ○ = not started / stub only.
+
+## Phase 0 — Workspace scaffold ✅
 
 - Cargo workspace, stable toolchain pin, pedantic lints,
   `unsafe_op_in_unsafe_fn = deny`, release profile `lto=fat`,
   `codegen-units=1`, `panic=abort`.
 - Crates: `rynix-span`, `rynix-diag`, `rynix-lexer`, `rynix-ast`,
-  `rynix-parser`, `rynixc`. Dependency policy: minimal, ADR-gated
-  (`memmap2`, `memchr`, `rustc-hash`, `bumpalo`, `serde{,_json}` in diag only).
-- Acceptance: green `cargo build`/`cargo test`, first commit, docs in place.
+  `rynix-parser`, `rynixc` (+ later crates).
+- Acceptance: green `cargo build`/`cargo test`, docs in place.
 
-## Phase 1 — Zero-allocation lexer
+## Phase 1 — Zero-allocation lexer ✅
 
-Data structures:
+- Zero-alloc cursor, structured `RYX0001..0006`, mmap sources.
+- Tests: unit, insta, proptest tiling, zero-alloc counter, fuzz, criterion
+  (mixed corpus ~388 MiB/s — within noise of 400 MiB/s target; 1 GB/s stretch).
 
-- `Span { lo: u32, hi: u32 }` — 8-byte Copy, global offset space (ADR-0003).
-- `Token { kind: TokenKind, span: Span }` — 12-byte Copy.
-- `TokenKind` — `#[repr(u8)]`, 70 variants (3 literals, `Ident`, 26 keywords,
-  4 reserved keywords, 30 punctuation, 6 structural).
-- `Cursor<'src>` — lazy, total, allocation-free lexer over `&[u8]` from a
-  memory-mapped `SourceFile`.
+## Phase 2 — Parser and arena AST ✅
 
-Algorithm: static 256-entry first-byte dispatch table; `memchr`-accelerated
-string/comment scanning; keyword recognition via length+bytes match;
-ASCII-only identifiers (ADR-0002); `Newline` is a real token (statement
-terminator), the parser ignores it inside brackets.
+- Arena AST, Pratt parser, error recovery, s-expression dumps.
+- Canonical formatter (`rynixc fmt`) landed in Phase 9.
 
-Errors are structured from day one: `RYX0001..RYX0006` with confidence-scored
-fixes (e.g. unterminated string suggests inserting `"` at end-of-line).
+## Phase 3 — JSON diagnostics ✅
 
-Testing (six layers): unit tests per token kind and boundary; insta snapshot
-corpus (`testdata/lexer/*.ryx`); proptest invariants (perfect tiling: token
-spans partition the input byte-exactly; totality; non-empty non-EOF tokens);
-a zero-allocation counter test (custom `GlobalAlloc` proves 0 heap
-allocations on a clean corpus); cargo-fuzz target (Linux/CI); criterion
-throughput benches with committed baseline.
+- Dual human/JSON renderers, `rynix.diag.v1` schema + golden tests.
+- Full MCP server tools completed in Phase 9 / backlog.
 
-Acceptance: `rynixc lex file.ryx --dump-tokens --error-format=json` works
-from an mmap'd file; all tests green; throughput >= 400 MB/s single-core
-initially (stretch: 1 GB/s).
+## Phase 4 — Semantic analysis ✅
 
-## Phase 2 — Parser and arena AST
+- Scopes, types, `#^ error RYX2xxx` directives.
+- Soft builtins: `print`, `sleep_ms`, `yield`, `now_ms`, `fiber_run`,
+  `tensor` (compile-time length check), `signal`, `agent`.
 
-- `AstArena` (bumpalo newtype): all nodes `&'arena`, lists `&'arena [T]`,
-  no `Box`/`Rc`/`Drop`/`String` in nodes; identifiers are interned `Symbol`s;
-  `NodeId(u32)` for SoA side tables in sema.
-- v0.1 nodes: `Module, FnDef, StructDef, EnumDef, TypeAlias, Import`;
-  `Let, ExprStmt, Return, Break, Continue`; expressions (literals, path,
-  unary, binary, call, method call, index, field, if/elif/else, loop, for,
-  block); types (path, ref, slice, fn).
-- Hand-written recursive descent + Pratt (precedence:
-  `or < and < not < comparison < range < additive < multiplicative < unary <
-  as < postfix`). Comparisons are non-associative (canonical).
-- Total parser: `Error` nodes + panic-mode sync at `{Newline, end, def, struct}`.
-- Tests: s-expression AST snapshots, error-recovery snapshots, pretty-print
-  round-trip property (printer later becomes `rynix fmt`), fuzz.
+## Phase 5 — RIR ✅ (with noted deferrals)
 
-## Phase 3 — JSON diagnostics and MCP schema
+- SoA SSA, block args, DCE/const-fold/simplify-cfg, interpreter oracle.
+- **Indexing:** `bounds_check` + `load_index` + array layout `[len|elems…]`.
+- **BCE:** interval / Presburger-lite pass (`eliminate_bounds_checks`) removes
+  proven-safe checks (const index/len and recovered array lengths).
+- Still deferred: full Braun on-the-fly SSA for all mutables; `match`; field
+  lowering; full `for`/`break`/`continue` CFG.
 
-- Dual renderers: human (annotated snippets) and NDJSON `rynix.diag.v1`
-  (code, spans with line/col, fixes with confidence, compiler stage) plus a
-  JSON Schema document and golden validation tests.
-- `rynixc check` wires lexer+parser diagnostics. The full JSON-RPC 2.0
-  `rynixc mcp-serve` (tools: compile, diagnostics, ast_query, apply_fix)
-  lands in Phase 9; the schema is frozen here.
+## Phase 6 — Escape analysis ✅
 
-## Phase 4 — Semantic analysis: names and types
+- Escape lattice, region inject, `Free { site, ptr }`, `--explain-alloc`.
+- Gaps: `#^ free-at` corpus incomplete; no sanitizer CI yet.
 
-- Scope tree (`IndexVec<ScopeId, Scope>`), two-pass resolution (items, then
-  bodies), `DefId(u32)`.
-- `TypeCtx` with hash-consing (`TypeId(u32)`): ints/floats, bool, str, unit,
-  never, nominal struct/enum, ref, slice, fn. Literal defaults: `i64`/`f64`.
-- Function-local inference only (unification); signatures always explicit —
-  required for interprocedural analysis and LLM predictability.
-- Tests: type dumps; comment-directive tests (`#^ error RYX2xxx`).
+## Phase 7 — LLVM backend ◐
 
-## Phase 5 — RIR: canonical SSA IR ✅
+- Textual `.ll`, reachability DCE, `emit-ll`/`build`, heap free codegen.
+- **Size gate:** `crates/rynixc/tests/size_echo_gates.rs` asserts hello
+  `< 300KiB` when clang is available.
+- Gaps: inkwell step 2; differential LLVM vs interpreter not wired to every
+  corpus; http-echo binary size gate deferred until TCP lands.
 
-- SoA `Function { blocks, insts }` with block arguments (Cranelift-style)
-  instead of phi nodes; ~25 instructions including `alloc{site_id}` (the unit
-  of escape reasoning), calls, branches. Locals lower via alloc/load/store
-  (Braun-ready sealed blocks; full on-the-fly SSA values deferred where
-  mutable slots dominate).
-- Structural verifier between passes; textual `.rir` printer + subset parser;
-  baseline passes: DCE, const-fold, simplify-cfg. Interval range analysis for
-  bounds-check elimination deferred to when indexing lands in lowering.
-- Small RIR interpreter as a differential-testing oracle for codegen.
-- CLI: `rynixc dump-rir [--opt]`.
+## Phase 8 — Runtime fibers ◐
 
-## Phase 6 — Escape analysis and region inference (the Zero-GC core) ✅
+- Win32 Fibers / ucontext, portable colorless read/write/sleep, spawn/yield/run.
+- **Echo smoke:** `rt/tests/echo_smoke.c` + gated test (pipe round-trip).
+- **`--runtime=uring`:** still stub hooks (`rt/src/uring_stub.c`) — full SQE
+  park + liburing is Linux follow-up. M8 “target RPS echo server” is **not**
+  claimed done.
 
-- Per-allocation-site lattice `NoEscape < ArgEscape < RegionEscape <
-  GlobalEscape`; mapping: NoEscape -> stack; Arg/RegionEscape -> implicit
-  bump arenas (no `region` keyword); GlobalEscape -> heap with
-  compiler-injected `free` via last-use (`Inst::Free`).
-- Intraprocedural points-to on SSA; bottom-up interprocedural summaries over
-  the call graph with SCC fixpoints; `call_ext` conservative except benign
-  builtins (`print`/`println`/`assert`).
-- `region_create` / `region_reset` injected at function entry and loop
-  headers when any site is region-placed.
-- Transparency: `rynixc check --explain-alloc` (human + JSON
-  `rynix.alloc.v1`); `rynixc dump-rir --escape`.
-- Tests: `#^ alloc: stack|region|heap` directives; unit tests for heap/region.
+## Phase 9 — Stdlib, tooling, AI ✅ / ◐
 
-## Phase 7 — LLVM backend and sub-1MB binaries ✅
+- CLI: `build` / `run` / `test` / `fmt` / `mcp-serve`.
+- MCP tools: `diagnostics`/`rynix_check`, `rynix_format`,
+  `rynix_explain_alloc`, `compile`, `ast_query`, `apply_fix`.
+- Canonical formatter (zero config).
+- Soft std prelude + `std/` docs (`core`/`io`/`fs`/`net`/`time`/`json`);
+  executable collections are language arrays + builtins (no generic Vec yet).
+- Smart primitives: `tensor(len, […])` shape check; `signal`/`agent` soft.
+- Presburger-lite BCE: landed (const + recovered lengths).
 
-- Step 1: emit textual LLVM IR (no LLVM linkage — Windows-friendly), link via
-  `clang -O3 -flto=thin -ffunction-sections -Wl,--gc-sections` plus
-  [`rt/portable.c`](../rt/portable.c). Step 2 (later): inkwell.
-- Whole-program reachability DCE at the RIR level — only functions reachable
-  from `main` are emitted (`rynix-codegen::prune_unreachable`).
-- [`docs/abi.md`](abi.md) documents the `rynix_rt_*` symbol set.
-- CLI: `rynixc emit-ll`, `rynixc build` (requires `clang` on PATH).
-- Tests: `.ll` pattern tests (print, no heap for stack locals, dead-fn DCE).
+## Open follow-ups (explicit, not silently closed)
 
-## Phase 8 — Runtime: fibers + io_uring (colorless concurrency) ✅
-
-- `rynix-rt` C ABI under `rt/`: Win32 Fibers (Windows) / `ucontext` (POSIX);
-  stacks 256 KiB with a guard page; SysV `fiber_swap_x86_64.S` on Linux.
-- Cooperative scheduler: `spawn` / `yield` / `run` / `sleep_ms`; portable
-  blocking `read`/`write` that yield first (colorless surface).
-- `--runtime=portable` (default) keeps the Windows dev loop; `--runtime=uring`
-  sets `RYNIX_RT_URING` for Linux io_uring hooks (full SQE park + liburing next).
-- Tests: `rt/tests/fiber_smoke.c` (round-robin + leak check).
-
-## Phase 9 — Stdlib, tooling, AI features ✅
-
-- Minimal `std/` stubs (`core`, `io`, `fs`, `time`, `json`) on the region
-  story; package manifest `rynix.toml`.
-- Full CLI: `build` / `run` / `test` / `fmt` / `mcp-serve` (plus earlier
-  front-end commands). Canonical formatter: zero configuration.
-- `rynixc mcp-serve`: JSON-RPC 2.0 over stdio (Content-Length) with MCP tools
-  `rynix_check`, `rynix_format`, `rynix_explain_alloc`.
-- Deferred to follow-ups: Presburger BCE, `tensor`/`signal`/`agent` smart
-  primitives (documented as experiments in the roadmap milestones).
+1. Real Linux io_uring backend (SQE + fiber park) and TCP listen/accept.
+2. Load-tested fiber HTTP echo + RPS vs Go/Tokio; echo `<1MB` size gate.
+3. Generic `Vec`/`Map` in std on region allocators.
+4. Full Braun SSA for mutables; field/method/`for` CFG completeness.
+5. Sanitizer CI, `#^ free-at` corpus, differential codegen oracle expansion.
+6. Lexer 1 GB/s stretch; inkwell migration (ADR-0005 step 2).
 
 ## Milestones
 
-- M0: workspace + docs committed.
-- M1: `rynixc lex` at target throughput with zero allocations proven.
-- M2: parse + AST dumps with error recovery.
-- M3: JSON diagnostics frozen (`rynix.diag.v1`).
-- M4: type checking.
-- M5: RIR + interpreter oracle.
-- M6: escape/region analysis with `--explain-alloc`.
-- M7: native binaries via LLVM within size gates.
-- M8: fiber/io_uring echo server at target RPS.
-- M9: std + MCP server + fmt.
+- M0–M6: met.
+- M7: native binaries via LLVM — met with size gate when clang present.
+- M8: fiber portable echo smoke met; **io_uring RPS echo not met**.
+- M9: std surface + MCP + fmt + BCE + smart-primitive experiments met.

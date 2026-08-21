@@ -1,0 +1,2 @@
+## Networking stubs — listen/accept require full uring/TCP runtime.
+## Portable fiber echo validated in `rt/tests/echo_smoke.c`.

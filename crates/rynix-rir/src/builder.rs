@@ -124,9 +124,13 @@ impl FunctionBuilder {
                 // Load returns the allocated slot type stored on the pointer value.
                 self.func.value_ty(*p)
             }
+            Inst::GepI64 { .. } => IrTy::Ptr,
+            Inst::LoadIndex { .. } => IrTy::I64,
+            Inst::ArrayLen(_) => IrTy::I64,
             Inst::Call { func: _, args: _ } => IrTy::Unit, // patched by caller via push_call
             Inst::CallExt { ret, .. } => *ret,
             Inst::Store { .. }
+            | Inst::BoundsCheck { .. }
             | Inst::RegionCreate { .. }
             | Inst::RegionReset { .. }
             | Inst::Free { .. }

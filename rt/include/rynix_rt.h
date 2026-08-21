@@ -22,6 +22,9 @@ void rynix_rt_region_create(int32_t id);
 void rynix_rt_region_reset(int32_t id);
 void *rynix_rt_region_alloc(int32_t id, int64_t size);
 
+/** Monotonic-ish milliseconds since an unspecified epoch (portable clock). */
+int64_t rynix_rt_now_ms(void);
+
 /* ---- fibers ------------------------------------------------------------ */
 typedef void (*rynix_rt_fiber_fn)(void *arg);
 

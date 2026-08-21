@@ -10,6 +10,7 @@
 
 mod builder;
 pub mod escape;
+mod bounds;
 mod interp;
 mod ir;
 mod lower;
@@ -18,6 +19,7 @@ mod pass;
 mod print;
 mod verify;
 
+pub use bounds::eliminate_bounds_checks;
 pub use builder::FunctionBuilder;
 pub use escape::{
     analyze_escape, explain_alloc_human, explain_alloc_json, inject_regions, Escape, EscapeReport,

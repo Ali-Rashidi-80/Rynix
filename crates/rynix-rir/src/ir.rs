@@ -114,6 +114,23 @@ pub enum Inst {
         ptr: ValueId,
         value: ValueId,
     },
+    /// `v = gep_i64 base, index` — pointer to the `index`-th i64 slot (stride 8).
+    GepI64 {
+        base: ValueId,
+        index: ValueId,
+    },
+    /// Panic unless `0 <= index < len` (eliminable by interval / Presburger-lite BCE).
+    BoundsCheck {
+        index: ValueId,
+        len: ValueId,
+    },
+    /// `v = load_index base, index` — load i64 at slot `index+1` (slot 0 is length).
+    LoadIndex {
+        base: ValueId,
+        index: ValueId,
+    },
+    /// `v = array_len base` — load length header (slot 0).
+    ArrayLen(ValueId),
     /// `v = call @fn(args…)`
     Call {
         func: FuncId,
@@ -136,6 +153,7 @@ pub enum Inst {
     /// Compiler-injected heap free (GoFree-style) for a [`AllocSite`].
     Free {
         site: AllocSite,
+        ptr: ValueId,
     },
     /// `ret` / `ret val`
     Ret(Option<ValueId>),
@@ -168,6 +186,7 @@ impl Inst {
         !matches!(
             self,
             Inst::Store { .. }
+                | Inst::BoundsCheck { .. }
                 | Inst::RegionCreate { .. }
                 | Inst::RegionReset { .. }
                 | Inst::Free { .. }

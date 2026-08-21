@@ -6,6 +6,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <time.h>
+#endif
+
 void rynix_rt_print(const char *s) {
   if (s) {
     fputs(s, stdout);
@@ -29,6 +36,17 @@ void *rynix_rt_heap_alloc(int64_t size) {
 }
 
 void rynix_rt_heap_free(void *p) { free(p); }
+
+int64_t rynix_rt_now_ms(void) {
+#if defined(_WIN32)
+  /* GetTickCount64 is ms since boot — good enough for portable clocks. */
+  return (int64_t)GetTickCount64();
+#else
+  struct timespec ts;
+  if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) return 0;
+  return (int64_t)ts.tv_sec * 1000 + (int64_t)ts.tv_nsec / 1000000;
+#endif
+}
 
 #define RYNIX_MAX_REGIONS 16
 #define RYNIX_REGION_CAP (1u << 20)

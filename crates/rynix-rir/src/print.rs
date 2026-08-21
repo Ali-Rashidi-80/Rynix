@@ -87,9 +87,15 @@ fn format_inst(
         Inst::Alloc { site, ty, .. } => format!("{lhs}alloc site{} {}", site.0, ty.as_str()),
         Inst::Load(p) => format!("{lhs}load {}", v(*p)),
         Inst::Store { ptr, value } => format!("store {}, {}", v(*ptr), v(*value)),
+        Inst::GepI64 { base, index } => format!("{lhs}gep_i64 {}, {}", v(*base), v(*index)),
+        Inst::BoundsCheck { index, len } => format!("bounds_check {}, {}", v(*index), v(*len)),
+        Inst::LoadIndex { base, index } => {
+            format!("{lhs}load_index {}, {}", v(*base), v(*index))
+        }
+        Inst::ArrayLen(p) => format!("{lhs}array_len {}", v(*p)),
         Inst::RegionCreate { region } => format!("region_create {region}"),
         Inst::RegionReset { region } => format!("region_reset {region}"),
-        Inst::Free { site } => format!("free site{}", site.0),
+        Inst::Free { site, ptr } => format!("free site{} {}", site.0, v(*ptr)),
         Inst::Call { func, args } => {
             let name = module
                 .funcs

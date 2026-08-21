@@ -127,6 +127,30 @@ impl<'a> Checker<'a> {
             .fn_type(vec![self.types.ty_error], self.types.ty_unit);
         self.def_types.insert(print_def, print_ty);
         self.fn_sigs.insert(print_def, print_ty);
+
+        // Soft std / runtime prelude (Phase 9+).
+        self.soft_fn("sleep_ms", vec![self.types.ty_int], self.types.ty_unit);
+        self.soft_fn("yield", vec![], self.types.ty_unit);
+        self.soft_fn("now_ms", vec![], self.types.ty_int);
+        self.soft_fn("fiber_run", vec![], self.types.ty_unit);
+        // Smart-primitive experiments: shape-checked tensor + opaque signal/agent.
+        let slice_i64 = self.types.slice(self.types.ty_int);
+        let ty_int = self.types.ty_int;
+        self.soft_fn("tensor", vec![ty_int, slice_i64], slice_i64);
+        self.soft_fn("signal", vec![self.types.ty_int], self.types.ty_unit);
+        self.soft_fn("agent", vec![self.types.ty_str], self.types.ty_unit);
+    }
+
+    fn soft_fn(&mut self, name: &str, params: Vec<TypeId>, ret: TypeId) {
+        let sym = self.interner.intern(name);
+        let def = self.alloc_def(DefKind::Import {
+            name: sym,
+            span: Span::empty(0),
+        });
+        self.scopes.define(self.module_scope, sym, def);
+        let ty = self.types.fn_type(params, ret);
+        self.def_types.insert(def, ty);
+        self.fn_sigs.insert(def, ty);
     }
 
     #[allow(clippy::too_many_lines)]
@@ -615,6 +639,14 @@ impl<'a> Checker<'a> {
             Expr::Call(c) => {
                 let callee = self.check_expr(c.callee, scope, None);
                 let ty = self.check_call(callee, c.args, c.span, scope);
+                if let Expr::Path(p) = c.callee
+                    && p.segments.len() == 1
+                {
+                    let name = self.interner.resolve(p.segments[0].name);
+                    if name == "tensor" {
+                        self.check_tensor_shape(c.args, c.span);
+                    }
+                }
                 self.node_types.insert(c.id, ty);
                 ty
             }
@@ -876,5 +908,42 @@ impl<'a> Checker<'a> {
                 self.types.ty_error
             }
         }
+    }
+
+    /// `tensor(len, […])` — compile-time shape check: `len` literal must equal array length.
+    fn check_tensor_shape(&mut self, args: &[&Expr<'_>], span: Span) {
+        if args.len() != 2 {
+            return;
+        }
+        let Some(len) = literal_i64(args[0]) else {
+            self.sink.emit(errors::type_mismatch(
+                args[0].span(),
+                "integer literal (tensor length)",
+                "non-literal",
+            ));
+            return;
+        };
+        let Expr::Array(a) = args[1] else {
+            self.sink.emit(errors::type_mismatch(
+                args[1].span(),
+                "array literal",
+                "non-array",
+            ));
+            return;
+        };
+        if Some(len) != i64::try_from(a.elems.len()).ok() {
+            self.sink.emit(errors::type_mismatch(
+                span,
+                &format!("tensor length {len}"),
+                &format!("array of length {}", a.elems.len()),
+            ));
+        }
+    }
+}
+
+fn literal_i64(expr: &Expr<'_>) -> Option<i64> {
+    match expr {
+        Expr::Literal(l) if l.kind == LiteralKind::Int => l.int_value,
+        _ => None,
     }
 }

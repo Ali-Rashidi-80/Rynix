@@ -1,7 +1,2 @@
-## Filesystem stubs (Phase 9) — backed by portable / uring runtime later.
-
-## def read_file(path: str) -> str
-## end
-
-## def write_file(path: str, data: str)
-## end
+## Filesystem — API reserved; portable open/read/write land with net.
+## Prefer rynix_rt_read / rynix_rt_write on fds for now.

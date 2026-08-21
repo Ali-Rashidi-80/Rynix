@@ -32,6 +32,7 @@ io_uring stubs (`RYNIX_RT_URING`) while keeping the same symbol names.
 | `rynix_rt_fiber_count` | `i64()` | Live fibers (leak check) |
 | `rynix_rt_read` | `i64(i64, ptr, i64)` | Colorless read (portable = blocking) |
 | `rynix_rt_write` | `i64(i64, ptr, i64)` | Colorless write (portable = blocking) |
+| `rynix_rt_now_ms` | `i64()` | Monotonic-ish milliseconds |
 
 ## Backends
 
@@ -49,7 +50,7 @@ experiments; Windows uses the Microsoft fiber API instead.
 |--------|-----------|---------|
 | `NoEscape` | stack | LLVM `alloca` |
 | `ArgEscape` / `RegionEscape` | region | `rynix_rt_region_alloc` |
-| `GlobalEscape` | heap | `rynix_rt_heap_alloc` (+ later `free`) |
+| `GlobalEscape` | heap | `rynix_rt_heap_alloc` + injected `rynix_rt_heap_free` |
 
 ## Linking
 

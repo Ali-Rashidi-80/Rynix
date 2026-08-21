@@ -136,7 +136,7 @@ impl<'arena> Parser<'arena, '_, '_> {
             | TokenKind::Agent
             | TokenKind::Signal
             | TokenKind::Tensor => {
-                let path = self.parse_path();
+                let path = self.parse_path_ext(true);
                 self.arena.alloc(Expr::Path(path))
             }
             TokenKind::LParen => {
@@ -167,9 +167,15 @@ impl<'arena> Parser<'arena, '_, '_> {
 
     fn literal(&mut self, kind: LiteralKind) -> &'arena Expr<'arena> {
         let tok = self.bump();
+        let int_value = if kind == LiteralKind::Int {
+            parse_int_lit(self.text(tok.span))
+        } else {
+            None
+        };
         self.arena.alloc(Expr::Literal(LiteralExpr {
             id: self.arena.next_id(),
             kind,
+            int_value,
             span: tok.span,
         }))
     }
@@ -315,3 +321,17 @@ impl<'arena> Parser<'arena, '_, '_> {
         Some((op, BindingPower { left, right }))
     }
 }
+
+fn parse_int_lit(text: &str) -> Option<i64> {
+    let t = text.trim().replace('_', "");
+    if let Some(rest) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
+        i64::from_str_radix(rest, 16).ok()
+    } else if let Some(rest) = t.strip_prefix("0o").or_else(|| t.strip_prefix("0O")) {
+        i64::from_str_radix(rest, 8).ok()
+    } else if let Some(rest) = t.strip_prefix("0b").or_else(|| t.strip_prefix("0B")) {
+        i64::from_str_radix(rest, 2).ok()
+    } else {
+        t.parse().ok()
+    }
+}
+

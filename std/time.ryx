@@ -1,4 +1,1 @@
-## Time helpers.
-
-## def now_ms() -> i64
-## end
+## Time: `now_ms() -> i64` soft builtin → rynix_rt_now_ms.

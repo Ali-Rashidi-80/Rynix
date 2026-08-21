@@ -9,9 +9,10 @@ use rustc_hash::FxHashSet;
 use crate::ir::{Inst, Module, ValueId};
 use crate::verify::verify_module;
 
-/// Run the standard Phase-5 pipeline. Returns verifier errors if any remain.
+/// Run the standard optimization pipeline. Returns verifier errors if any remain.
 pub fn run_pipeline(module: &mut Module) -> Vec<String> {
     const_fold(module);
+    crate::bounds::eliminate_bounds_checks(module);
     simplify_cfg(module);
     dce(module);
     verify_module(module)
@@ -118,6 +119,7 @@ fn is_effectful(inst: &Inst) -> bool {
     matches!(
         inst,
         Inst::Store { .. }
+            | Inst::BoundsCheck { .. }
             | Inst::Call { .. }
             | Inst::CallExt { .. }
             | Inst::RegionCreate { .. }
@@ -144,11 +146,20 @@ fn mark_used(inst: &Inst, used: &mut FxHashSet<ValueId>) {
         | Inst::FDiv(a, b)
         | Inst::ICmp(_, a, b)
         | Inst::FCmp(_, a, b)
-        | Inst::Store { ptr: a, value: b } => {
+        | Inst::Store { ptr: a, value: b }
+        | Inst::GepI64 { base: a, index: b }
+        | Inst::BoundsCheck { index: a, len: b }
+        | Inst::LoadIndex { base: a, index: b } => {
             used.insert(*a);
             used.insert(*b);
         }
-        Inst::INeg(a) | Inst::FNeg(a) | Inst::BNot(a) | Inst::Load(a) | Inst::Ret(Some(a)) => {
+        Inst::INeg(a)
+        | Inst::FNeg(a)
+        | Inst::BNot(a)
+        | Inst::Load(a)
+        | Inst::ArrayLen(a)
+        | Inst::Ret(Some(a))
+        | Inst::Free { ptr: a, .. } => {
             used.insert(*a);
         }
         Inst::Call { args, .. } | Inst::CallExt { args, .. } => {

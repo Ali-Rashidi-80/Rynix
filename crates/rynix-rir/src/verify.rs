@@ -59,11 +59,20 @@ fn check_inst(
         | Inst::FDiv(a, b)
         | Inst::ICmp(_, a, b)
         | Inst::FCmp(_, a, b)
-        | Inst::Store { ptr: a, value: b } => {
+        | Inst::Store { ptr: a, value: b }
+        | Inst::GepI64 { base: a, index: b }
+        | Inst::BoundsCheck { index: a, len: b }
+        | Inst::LoadIndex { base: a, index: b } => {
             check_v(*a, errors);
             check_v(*b, errors);
         }
-        Inst::INeg(a) | Inst::FNeg(a) | Inst::BNot(a) | Inst::Load(a) | Inst::Ret(Some(a)) => {
+        Inst::INeg(a)
+        | Inst::FNeg(a)
+        | Inst::BNot(a)
+        | Inst::Load(a)
+        | Inst::ArrayLen(a)
+        | Inst::Ret(Some(a))
+        | Inst::Free { ptr: a, .. } => {
             check_v(*a, errors);
         }
         Inst::Call { func, args } => {

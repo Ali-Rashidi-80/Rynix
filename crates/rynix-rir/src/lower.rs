@@ -3,6 +3,9 @@
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::map_unwrap_or)]
 #![allow(clippy::needless_borrow)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_truncation)]
 
 use rynix_ast::{
     AssignOp, BinaryOp, Expr, Item, LiteralKind, Module as AstModule, Stmt, UnaryOp,
@@ -374,24 +377,68 @@ impl LowerCtx<'_, '_> {
                 self.b.iconst(0)
             }
             Expr::Index(i) => {
-                let _ = self.expr(i.base);
-                let _ = self.expr(i.index);
-                self.b.iconst(0)
+                let base = self.expr(i.base);
+                let index = self.expr(i.index);
+                let len = self.b.push_value(Inst::ArrayLen(base));
+                let _ = self.b.push(Inst::BoundsCheck { index, len });
+                self.b.push_value(Inst::LoadIndex { base, index })
             }
             Expr::Field(f) => {
                 let _ = self.expr(f.base);
                 self.b.iconst(0)
             }
             Expr::Array(a) => {
-                for e in a.elems {
-                    let _ = self.expr(e);
+                // Layout: [len | e0 | e1 | …] as contiguous i64 slots via heap_alloc.
+                let n = i64::try_from(a.elems.len()).unwrap_or(0);
+                let bytes = self.b.iconst((n + 1) * 8);
+                let alloc_name = self.interner.intern("rynix_rt_heap_alloc");
+                let base = self.b.call_ext(alloc_name, vec![bytes], IrTy::Ptr);
+                let zero = self.b.iconst(0);
+                let len_slot = self.b.push_value(Inst::GepI64 {
+                    base,
+                    index: zero,
+                });
+                let len_v = self.b.iconst(n);
+                self.b.store(len_slot, len_v);
+                for (i, e) in a.elems.iter().enumerate() {
+                    let val = self.expr(e);
+                    let idx = self.b.iconst(i64::try_from(i).unwrap_or(0) + 1);
+                    let slot = self.b.push_value(Inst::GepI64 { base, index: idx });
+                    self.b.store(slot, val);
                 }
-                // Empty ptr placeholder.
-                self.b.alloc(IrTy::I64, a.span)
+                base
             }
             Expr::Spawn(s) => {
+                // spawn <call-or-path>: schedule fiber; runtime takes fn ptr + null arg.
                 let _ = self.expr(s.callee);
-                self.b.iconst(0)
+                let spawn = self.interner.intern("rynix_rt_spawn");
+                let nil = self.b.push_value(Inst::Nil);
+                // Pass null fn for v0 if we cannot materialize a function pointer from
+                // a path; real fn-pointer emission is codegen's job for named callees.
+                if let Expr::Path(p) = s.callee
+                    && p.segments.len() == 1
+                {
+                    let name = p.segments[0].name;
+                    // Encode as CallExt with the callee name as a second convention:
+                    // codegen maps rynix_rt_spawn + named symbol.
+                    let tag = self.interner.intern("__spawn_fn");
+                    let marker = self.b.sconst(name);
+                    let _ = tag;
+                    self.b.call_ext(spawn, vec![marker, nil], IrTy::Ptr)
+                } else if let Expr::Call(c) = s.callee
+                    && let Expr::Path(p) = c.callee
+                    && p.segments.len() == 1
+                {
+                    // Evaluate args for side effects, then spawn the function.
+                    for a in c.args {
+                        let _ = self.expr(a);
+                    }
+                    let name = p.segments[0].name;
+                    let marker = self.b.sconst(name);
+                    self.b.call_ext(spawn, vec![marker, nil], IrTy::Ptr)
+                } else {
+                    self.b.call_ext(spawn, vec![nil, nil], IrTy::Ptr)
+                }
             }
         }
     }
@@ -471,13 +518,27 @@ impl LowerCtx<'_, '_> {
                 return self.b.call(fid, args, ret);
             }
             // External / builtin.
-            let ret = self
-                .analysis
-                .node_types
-                .get(&c.id)
-                .map(|t| map_ty(self.analysis, *t))
-                .unwrap_or(IrTy::Unit);
-            return self.b.call_ext(name, args, ret);
+            let n = self.interner.resolve(name);
+            if n == "tensor" && args.len() == 2 {
+                return args[1];
+            }
+            let (ext_name, ret) = match n {
+                "sleep_ms" => (self.interner.intern("rynix_rt_sleep_ms"), IrTy::Unit),
+                "yield" => (self.interner.intern("rynix_rt_yield"), IrTy::Unit),
+                "now_ms" => (self.interner.intern("rynix_rt_now_ms"), IrTy::I64),
+                "fiber_run" => (self.interner.intern("rynix_rt_run"), IrTy::Unit),
+                "signal" | "agent" => (name, IrTy::Unit),
+                _ => {
+                    let ret = self
+                        .analysis
+                        .node_types
+                        .get(&c.id)
+                        .map(|t| map_ty(self.analysis, *t))
+                        .unwrap_or(IrTy::Unit);
+                    (name, ret)
+                }
+            };
+            return self.b.call_ext(ext_name, args, ret);
         }
         let _ = self.expr(c.callee);
         self.b.iconst(0)

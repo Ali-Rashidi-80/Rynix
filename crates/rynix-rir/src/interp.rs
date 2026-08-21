@@ -4,6 +4,10 @@
 #![allow(clippy::many_single_char_names)]
 #![allow(clippy::similar_names)]
 #![allow(clippy::match_same_arms)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::manual_let_else)]
 
 use rynix_span::Interner;
 use rustc_hash::FxHashMap;
@@ -18,6 +22,10 @@ pub enum InterpValue {
     F64(f64),
     Str(String),
     Ptr(u32), // index into memory slots
+    /// Heap buffer of i64 slots (array layout).
+    Arr(u32),
+    /// Pointer into an [`InterpValue::Arr`] buffer.
+    Slot { arr: u32, idx: i64 },
 }
 
 #[derive(Debug)]
@@ -38,7 +46,8 @@ pub fn interpret_module(
         .map(|i| FuncId(i as u32))
         .ok_or(InterpError::MissingMain)?;
     let mut mem: Vec<InterpValue> = Vec::new();
-    eval_func(module, interner, main, &[], &mut mem)
+    let mut arrays: Vec<Vec<i64>> = Vec::new();
+    eval_func(module, interner, main, &[], &mut mem, &mut arrays)
 }
 
 fn eval_func(
@@ -47,6 +56,7 @@ fn eval_func(
     fid: FuncId,
     args: &[InterpValue],
     mem: &mut Vec<InterpValue>,
+    arrays: &mut Vec<Vec<i64>>,
 ) -> Result<InterpValue, InterpError> {
     let func = module.func(fid);
     let mut vals: FxHashMap<ValueId, InterpValue> = FxHashMap::default();
@@ -144,23 +154,83 @@ fn eval_func(
                 Inst::RegionCreate { .. } | Inst::RegionReset { .. } | Inst::Free { .. } => {
                     // Runtime markers — no-op in the oracle interpreter.
                 }
-                Inst::Load(p) => {
-                    let InterpValue::Ptr(idx) = get(&vals, *p)? else {
-                        return Err(InterpError::Trap("load".into()));
+                Inst::GepI64 { base, index } => {
+                    let idx = match get(&vals, *index)? {
+                        InterpValue::I64(n) => n,
+                        _ => return Err(InterpError::Trap("gep index".into())),
                     };
-                    vals.insert(result_vid.unwrap(), mem[idx as usize].clone());
-                }
-                Inst::Store { ptr, value } => {
-                    let InterpValue::Ptr(idx) = get(&vals, *ptr)? else {
-                        return Err(InterpError::Trap("store".into()));
+                    let slot = match get(&vals, *base)? {
+                        InterpValue::Arr(a) => InterpValue::Slot { arr: a, idx },
+                        InterpValue::Slot { arr, idx: base_idx } => InterpValue::Slot {
+                            arr,
+                            idx: base_idx + idx,
+                        },
+                        _ => return Err(InterpError::Trap("gep base".into())),
                     };
-                    mem[idx as usize] = get(&vals, *value)?;
+                    vals.insert(result_vid.unwrap(), slot);
                 }
+                Inst::BoundsCheck { index, len } => {
+                    let idx = match get(&vals, *index)? {
+                        InterpValue::I64(n) => n,
+                        _ => return Err(InterpError::Trap("bounds index".into())),
+                    };
+                    let ln = match get(&vals, *len)? {
+                        InterpValue::I64(n) => n,
+                        _ => return Err(InterpError::Trap("bounds len".into())),
+                    };
+                    if idx < 0 || idx >= ln {
+                        return Err(InterpError::Trap("bounds check failed".into()));
+                    }
+                }
+                Inst::ArrayLen(base) => {
+                    let n = match get(&vals, *base)? {
+                        InterpValue::Arr(a) => arrays[a as usize][0],
+                        _ => return Err(InterpError::Trap("array_len".into())),
+                    };
+                    vals.insert(result_vid.unwrap(), InterpValue::I64(n));
+                }
+                Inst::LoadIndex { base, index } => {
+                    let idx = match get(&vals, *index)? {
+                        InterpValue::I64(n) => n,
+                        _ => return Err(InterpError::Trap("load_index".into())),
+                    };
+                    let n = match get(&vals, *base)? {
+                        InterpValue::Arr(a) => arrays[a as usize][(idx + 1) as usize],
+                        _ => return Err(InterpError::Trap("load_index base".into())),
+                    };
+                    vals.insert(result_vid.unwrap(), InterpValue::I64(n));
+                }
+                Inst::Load(p) => match get(&vals, *p)? {
+                    InterpValue::Ptr(idx) => {
+                        vals.insert(result_vid.unwrap(), mem[idx as usize].clone());
+                    }
+                    InterpValue::Slot { arr, idx } => {
+                        vals.insert(
+                            result_vid.unwrap(),
+                            InterpValue::I64(arrays[arr as usize][idx as usize]),
+                        );
+                    }
+                    _ => return Err(InterpError::Trap("load".into())),
+                },
+                Inst::Store { ptr, value } => match get(&vals, *ptr)? {
+                    InterpValue::Ptr(idx) => {
+                        mem[idx as usize] = get(&vals, *value)?;
+                    }
+                    InterpValue::Slot { arr, idx } => {
+                        let v = match get(&vals, *value)? {
+                            InterpValue::I64(n) => n,
+                            InterpValue::Bool(b) => i64::from(b),
+                            _ => return Err(InterpError::Trap("store value".into())),
+                        };
+                        arrays[arr as usize][idx as usize] = v;
+                    }
+                    _ => return Err(InterpError::Trap("store".into())),
+                },
                 Inst::Call { func, args } => {
                     let argv: Result<Vec<_>, _> =
                         args.iter().map(|a| get(&vals, *a)).collect();
                     let argv = argv?;
-                    let ret = eval_func(module, interner, *func, &argv, mem)?;
+                    let ret = eval_func(module, interner, *func, &argv, mem, arrays)?;
                     if let Some(r) = result_vid {
                         vals.insert(r, ret);
                     }
@@ -172,7 +242,18 @@ fn eval_func(
                             let _ = get(&vals, *a)?;
                         }
                     }
-                    if let Some(r) = result_vid {
+                    if n == "rynix_rt_heap_alloc" {
+                        let size = match args.first().map(|a| get(&vals, *a)).transpose()? {
+                            Some(InterpValue::I64(s)) => s,
+                            _ => 0,
+                        };
+                        let slots = (size / 8).max(1) as usize;
+                        let id = arrays.len() as u32;
+                        arrays.push(vec![0; slots]);
+                        if let Some(r) = result_vid {
+                            vals.insert(r, InterpValue::Arr(id));
+                        }
+                    } else if let Some(r) = result_vid {
                         vals.insert(
                             r,
                             match ret {

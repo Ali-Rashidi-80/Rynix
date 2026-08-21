@@ -91,9 +91,27 @@ pub fn inject_regions(module: &mut Module, report: &EscapeReport) {
         frees.sort_by_key(|(at, _)| *at);
         // Insert from the end so indices stay valid.
         for (at, site) in frees.into_iter().rev() {
-            insert_after_inst(func, at, Inst::Free { site });
+            if let Some(ptr) = alloc_ptr_for_site(func, site) {
+                insert_after_inst(func, at, Inst::Free { site, ptr });
+            }
         }
     }
+}
+
+fn alloc_ptr_for_site(func: &crate::ir::Function, site: AllocSite) -> Option<crate::ir::ValueId> {
+    for (ii, inst) in func.insts.iter().enumerate() {
+        if let Inst::Alloc { site: s, .. } = inst
+            && *s == site
+        {
+            let iid = crate::ir::InstId(ii as u32);
+            for (vi, vd) in func.values.iter().enumerate() {
+                if vd.def == Some(iid) {
+                    return Some(crate::ir::ValueId(vi as u32));
+                }
+            }
+        }
+    }
+    None
 }
 
 fn insert_at_block_start(func: &mut crate::ir::Function, block: BlockId, inst: Inst) {
