@@ -1,0 +1,9 @@
+## Portable I/O on top of `rynix_rt_read` / `rynix_rt_write` / `rynix_rt_print`.
+
+## Print a string followed by a newline (soft builtin today).
+## def print(s: str)
+## end
+
+## Sleep the current fiber for at least `ms` milliseconds (colorless).
+## def sleep_ms(ms: i64)
+## end

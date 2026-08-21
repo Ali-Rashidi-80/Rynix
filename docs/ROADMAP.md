@@ -152,15 +152,16 @@ initially (stretch: 1 GB/s).
   sets `RYNIX_RT_URING` for Linux io_uring hooks (full SQE park + liburing next).
 - Tests: `rt/tests/fiber_smoke.c` (round-robin + leak check).
 
-## Phase 9 — Stdlib, tooling, AI features
+## Phase 9 — Stdlib, tooling, AI features ✅
 
-- Minimal std on region allocators: core (Vec/Map/str), io, fs, net, time,
-  json.
-- Full CLI: `rynix build/run/test/fmt` + `rynix.toml`; canonical formatter
-  with zero configuration.
-- Full `rynixc mcp-serve` (JSON-RPC 2.0); Presburger bounds-check
-  elimination; smart-primitive experiments (`tensor` with compile-time shape
-  checking, `signal`, `agent`).
+- Minimal `std/` stubs (`core`, `io`, `fs`, `time`, `json`) on the region
+  story; package manifest `rynix.toml`.
+- Full CLI: `build` / `run` / `test` / `fmt` / `mcp-serve` (plus earlier
+  front-end commands). Canonical formatter: zero configuration.
+- `rynixc mcp-serve`: JSON-RPC 2.0 over stdio (Content-Length) with MCP tools
+  `rynix_check`, `rynix_format`, `rynix_explain_alloc`.
+- Deferred to follow-ups: Presburger BCE, `tensor`/`signal`/`agent` smart
+  primitives (documented as experiments in the roadmap milestones).
 
 ## Milestones
 

@@ -1,0 +1,14 @@
+# Rynix package manifest (Phase 9). Zero-surprise defaults.
+
+[package]
+name = "hello"
+version = "0.1.0"
+entry = "testdata/lexer/hello.ryx"
+
+[build]
+# portable | uring
+runtime = "portable"
+optimize = true
+
+[fmt]
+# Canonical formatter has no knobs — this table is reserved / ignored.

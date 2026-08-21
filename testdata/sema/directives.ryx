@@ -1,0 +1,7 @@
+def f() -> i64
+  return missing #^ error RYX2001
+end
+
+def g() -> i64
+  return true #^ error RYX2003
+end

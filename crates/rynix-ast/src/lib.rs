@@ -9,9 +9,11 @@
 //! Lifetimes: a parsed tree is valid for as long as the arena that owns it.
 
 mod arena;
+mod format;
 mod node;
 mod print;
 
 pub use arena::{AstArena, NodeId};
+pub use format::format_module;
 pub use node::*;
 pub use print::dump_module;

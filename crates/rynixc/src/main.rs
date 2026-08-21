@@ -1,12 +1,7 @@
 //! The Rynix compiler driver.
 //!
 //! ```text
-//! rynixc lex      <file.ryx> [--dump-tokens] [--error-format=human|json]
-//! rynixc parse    <file.ryx> [--dump-ast]    [--error-format=human|json]
-//! rynixc check    <file.ryx>                 [--error-format=human|json]
-//! rynixc dump-rir <file.ryx> [--opt]         [--error-format=human|json]
-//! rynixc emit-ll  <file.ryx> [-o out.ll] [--opt]
-//! rynixc build    <file.ryx> [-o out] [--keep-ll]
+//! rynixc lex | parse | check | dump-rir | emit-ll | build | run | test | fmt | mcp-serve
 //! ```
 
 mod build_cmd;
@@ -16,8 +11,12 @@ mod codegen_pipe;
 mod driver;
 mod dump_rir_cmd;
 mod emit_ll_cmd;
+mod fmt_cmd;
 mod lex_cmd;
+mod mcp_cmd;
 mod parse_cmd;
+mod run_cmd;
+mod test_cmd;
 
 use std::process::ExitCode;
 
@@ -38,6 +37,10 @@ fn main() -> ExitCode {
         Ok(cli::Command::DumpRir(options)) => dump_rir_cmd::run(&options),
         Ok(cli::Command::EmitLl(options)) => emit_ll_cmd::run(&options),
         Ok(cli::Command::Build(options)) => build_cmd::run(&options),
+        Ok(cli::Command::Run(options)) => run_cmd::run(&options),
+        Ok(cli::Command::Test(options)) => test_cmd::run(&options),
+        Ok(cli::Command::Fmt(options)) => fmt_cmd::run(&options),
+        Ok(cli::Command::McpServe) => mcp_cmd::run(),
         Err(message) => {
             eprintln!("error: {message}\n");
             eprint!("{}", cli::USAGE);

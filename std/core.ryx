@@ -1,0 +1,4 @@
+## Core collections allocated in the current bump region when possible.
+## `Vec` / `Map` grow via `rynix_rt_region_alloc` when escape analysis agrees.
+##
+## Generics are not in the type system yet — use slices (`[i64]`) and loops.

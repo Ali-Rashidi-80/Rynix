@@ -766,6 +766,7 @@ dependencies = [
  "rynix-rir",
  "rynix-sema",
  "rynix-span",
+ "serde_json",
 ]
 
 [[package]]

@@ -52,7 +52,9 @@ cargo run -p rynixc -- check testdata/lexer/hello.ryx --explain-alloc
 cargo run -p rynixc -- dump-rir testdata/lexer/hello.ryx
 cargo run -p rynixc -- emit-ll testdata/lexer/hello.ryx
 cargo run -p rynixc -- build testdata/lexer/hello.ryx -o hello --keep-ll
-cargo run -p rynixc -- build testdata/lexer/hello.ryx -o hello --runtime=portable
+cargo run -p rynixc -- fmt testdata/lexer/hello.ryx
+cargo run -p rynixc -- test
+cargo run -p rynixc -- mcp-serve
 ```
 
 Machine-readable diagnostics follow [`docs/schemas/rynix.diag.v1.json`](docs/schemas/rynix.diag.v1.json).

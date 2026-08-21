@@ -16,6 +16,10 @@ Commands:
   dump-rir <file.ryx> Lower to RIR and print textual form
   emit-ll <file.ryx>  Emit textual LLVM IR (.ll)
   build <file.ryx>    Emit .ll and link with clang + rt/portable.c
+  run <file.ryx>      Build then execute
+  test [paths...]     Run #^ directive tests (default: testdata/)
+  fmt <file.ryx>      Canonical-format a source file
+  mcp-serve           JSON-RPC 2.0 MCP server on stdio
 
 Options for `lex`:
   --dump-tokens       Print one line per token: span, kind, text
@@ -31,11 +35,15 @@ Options for `dump-rir`:
   --opt               Run DCE / const-fold / simplify-cfg before dump
   --escape            Run escape analysis and inject region/free markers
 
-Options for `emit-ll` / `build`:
-  -o <path>           Output path (.ll for emit-ll, binary for build)
+Options for `emit-ll` / `build` / `run`:
+  -o <path>           Output path
   --opt               Run RIR optimization pipeline (emit-ll; build always opts)
   --keep-ll           (build) Keep the intermediate .ll next to the binary
-  --runtime=KIND      (build) `portable` (default) or `uring` (Linux)
+  --runtime=KIND      `portable` (default) or `uring` (Linux)
+
+Options for `fmt`:
+  --write             Write result back to the file
+  --check             Exit 1 if the file is not already formatted
 
 Shared options:
   --error-format=FMT  Diagnostic rendering: `human` (default) or `json`
@@ -109,6 +117,27 @@ pub struct BuildOptions {
 }
 
 #[derive(Debug)]
+pub struct RunOptions {
+    pub path: PathBuf,
+    pub output: Option<PathBuf>,
+    pub runtime: RuntimeKind,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct TestOptions {
+    pub paths: Vec<PathBuf>,
+}
+
+#[derive(Debug)]
+pub struct FmtOptions {
+    pub path: PathBuf,
+    pub write: bool,
+    pub check: bool,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
 pub enum Command {
     Help,
     Version,
@@ -118,6 +147,10 @@ pub enum Command {
     DumpRir(DumpRirOptions),
     EmitLl(EmitLlOptions),
     Build(BuildOptions),
+    Run(RunOptions),
+    Test(TestOptions),
+    Fmt(FmtOptions),
+    McpServe,
 }
 
 /// Parses command-line arguments (without the program name).
@@ -134,6 +167,10 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         "dump-rir" => parse_dump_rir(&args[1..]),
         "emit-ll" => parse_emit_ll(&args[1..]),
         "build" => parse_build(&args[1..]),
+        "run" => parse_run(&args[1..]),
+        "test" => parse_test(&args[1..]),
+        "fmt" => parse_fmt(&args[1..]),
+        "mcp-serve" => Ok(Command::McpServe),
         other => Err(format!("unknown command `{other}`")),
     }
 }
@@ -367,6 +404,102 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
         output,
         keep_ll,
         runtime,
+        error_format,
+    }))
+}
+
+fn parse_run(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut output = None;
+    let mut runtime = RuntimeKind::Portable;
+    let mut error_format = ErrorFormat::Human;
+    let mut expect_o = false;
+
+    for arg in args {
+        if expect_o {
+            output = Some(PathBuf::from(arg));
+            expect_o = false;
+            continue;
+        }
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--runtime=portable" => runtime = RuntimeKind::Portable,
+            "--runtime=uring" => runtime = RuntimeKind::Uring,
+            other if other.starts_with("--runtime") => {
+                return Err(
+                    "invalid `--runtime`: expected --runtime=portable or --runtime=uring".into(),
+                );
+            }
+            "-o" => expect_o = true,
+            other if other.starts_with("-o=") => {
+                output = Some(PathBuf::from(&other[3..]));
+            }
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    if expect_o {
+        return Err("missing path after -o".into());
+    }
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::Run(RunOptions {
+        path,
+        output,
+        runtime,
+        error_format,
+    }))
+}
+
+fn parse_test(args: &[String]) -> Result<Command, String> {
+    let mut paths = Vec::new();
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other => paths.push(PathBuf::from(other)),
+        }
+    }
+    Ok(Command::Test(TestOptions { paths }))
+}
+
+fn parse_fmt(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut write = false;
+    let mut check = false;
+    let mut error_format = ErrorFormat::Human;
+
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--write" => write = true,
+            "--check" => check = true,
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::Fmt(FmtOptions {
+        path,
+        write,
+        check,
         error_format,
     }))
 }

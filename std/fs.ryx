@@ -1,0 +1,7 @@
+## Filesystem stubs (Phase 9) — backed by portable / uring runtime later.
+
+## def read_file(path: str) -> str
+## end
+
+## def write_file(path: str, data: str)
+## end

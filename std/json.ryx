@@ -1,0 +1,4 @@
+## JSON stubs — region-backed parse/stringify in a later milestone.
+
+## def json_parse(s: str) -> str
+## end
