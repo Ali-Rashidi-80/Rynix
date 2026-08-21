@@ -22,15 +22,30 @@ expression: dump
 --- diagnostics ---
 error[RYX1002]: expected parameter name, found return
  --> recovery.ryx:2:3
+  |
+2 |   return 1
+  |   ^^^^^^
 error[RYX1002]: expected `:`, found integer literal
  --> recovery.ryx:2:10
+  |
+2 |   return 1
+  |          ^
   = help: insert `:` (confidence 0.90)
 error[RYX1002]: expected a type, found integer literal
  --> recovery.ryx:2:10
+  |
+2 |   return 1
+  |          ^
 error[RYX1002]: expected `)`, found end
  --> recovery.ryx:3:1
+  |
+3 | end
+  | ^^^
   = help: insert `)` (confidence 0.90)
 error[RYX1002]: expected newline after header, found return
  --> recovery.ryx:6:3
+  |
+6 |   return 2
+  |   ^^^^^^
   = help: insert `
 ` (confidence 0.90)

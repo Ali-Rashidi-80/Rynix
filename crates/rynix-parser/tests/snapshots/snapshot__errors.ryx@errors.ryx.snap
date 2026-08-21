@@ -88,87 +88,192 @@ input_file: testdata/lexer/errors.ryx
 --- diagnostics ---
 error[RYX0001]: unknown character `$`
  --> errors.ryx:3:13
+  |
+3 |   let a = 1 $ 2
+  |             ^
 error[RYX1001]: unexpected unknown token
  --> errors.ryx:3:13
+  |
+3 |   let a = 1 $ 2
+  |             ^
 error[RYX1001]: unexpected integer literal
  --> errors.ryx:3:15
+  |
+3 |   let a = 1 $ 2
+  |               ^
 error[RYX0001]: unknown character `;`
  --> errors.ryx:4:13: Rynix has no statement separator
+  |
+4 |   let b = 1 ; 2
+  |             ^
   = help: remove `;` (newlines terminate statements) (confidence 0.90)
 error[RYX1001]: unexpected unknown token
  --> errors.ryx:4:13
+  |
+4 |   let b = 1 ; 2
+  |             ^
 error[RYX1001]: unexpected integer literal
  --> errors.ryx:4:15
+  |
+4 |   let b = 1 ; 2
+  |               ^
 error[RYX0001]: unknown character `&&`
  --> errors.ryx:5:13: logical conjunction is spelled `and`
+  |
+5 |   let c = x && y
+  |             ^^
   = help: replace `&&` with `and` (confidence 0.85)
 error[RYX1001]: unexpected unknown token
  --> errors.ryx:5:13
+  |
+5 |   let c = x && y
+  |             ^^
 error[RYX1001]: unexpected identifier
  --> errors.ryx:5:16
+  |
+5 |   let c = x && y
+  |                ^
 error[RYX0001]: unknown character `||`
  --> errors.ryx:6:13: logical disjunction is spelled `or`
+  |
+6 |   let d = x || z
+  |             ^^
   = help: replace `||` with `or` (confidence 0.85)
 error[RYX1001]: unexpected unknown token
  --> errors.ryx:6:13
+  |
+6 |   let d = x || z
+  |             ^^
 error[RYX1001]: unexpected identifier
  --> errors.ryx:6:16
+  |
+6 |   let d = x || z
+  |                ^
 error[RYX0001]: unknown character `!`
  --> errors.ryx:7:11: logical negation is spelled `not`
+  |
+7 |   let e = !flag
+  |           ^
   = help: replace `!` with `not ` (confidence 0.85)
 error[RYX1001]: unexpected unknown token
  --> errors.ryx:7:11
+  |
+7 |   let e = !flag
+  |           ^
 error[RYX0001]: unknown character `'`
  --> errors.ryx:8:15: strings use double quotes
+  |
+8 |   let wrong = 'single'
+  |               ^
   = help: replace `'` with `"` (confidence 0.70)
 error[RYX1001]: unexpected unknown token
  --> errors.ryx:8:15
+  |
+8 |   let wrong = 'single'
+  |               ^
 error[RYX0001]: unknown character `'`
  --> errors.ryx:8:22: strings use double quotes
+  |
+8 |   let wrong = 'single'
+  |                      ^
   = help: replace `'` with `"` (confidence 0.70)
 error[RYX1001]: unexpected unknown token
  --> errors.ryx:8:22
+  |
+8 |   let wrong = 'single'
+  |                      ^
 error[RYX0003]: identifiers must be ASCII-only in Rynix v0.1
  --> errors.ryx:9:7: non-ASCII characters in this identifier
+  |
+9 |   let café = 1
+  |       ^^^^^
 error[RYX0003]: identifiers must be ASCII-only in Rynix v0.1
  --> errors.ryx:10:7: non-ASCII text is only allowed in strings and comments
+   |
+10 |   let λ = 2
+   |       ^^
 error[RYX1002]: expected binding name, found unknown token
  --> errors.ryx:10:7
+   |
+10 |   let λ = 2
+   |       ^^
 error[RYX1002]: expected `=`, found unknown token
  --> errors.ryx:10:7
+   |
+10 |   let λ = 2
+   |       ^^
   = help: insert `=` (confidence 0.90)
 error[RYX1001]: unexpected unknown token
  --> errors.ryx:10:7
+   |
+10 |   let λ = 2
+   |       ^^
 error[RYX1001]: unexpected =
  --> errors.ryx:10:10
+   |
+10 |   let λ = 2
+   |          ^
 error[RYX1001]: unexpected integer literal
  --> errors.ryx:10:12
+   |
+10 |   let λ = 2
+   |            ^
 error[RYX0004]: base prefix `0X` must be lowercase
  --> errors.ryx:11:18
+   |
+11 |   let bad_hex = 0XFF
+   |                  ^
   = note: in this number literal (errors.ryx:11:17)
   = help: write it lowercase: `x` (confidence 0.95)
 error[RYX0004]: missing digits after base prefix `0x`
  --> errors.ryx:12:19
+   |
+12 |   let no_digits = 0x
+   |                   ^^
 error[RYX0004]: invalid digit `2` for a base-2 literal
  --> errors.ryx:13:20
+   |
+13 |   let bad_bin = 0b12
+   |                    ^
   = note: in this number literal (errors.ryx:13:17)
 error[RYX0004]: `_` in a number literal must separate two digits
  --> errors.ryx:14:17
+   |
+14 |   let bad_us = 1__0
+   |                 ^
   = note: in this number literal (errors.ryx:14:16)
 error[RYX0004]: invalid suffix `abc`: Rynix has no numeric suffixes, use `as` to convert
  --> errors.ryx:15:19
+   |
+15 |   let suffix = 123abc
+   |                   ^^^
   = note: in this number literal (errors.ryx:15:16)
 error[RYX0004]: exponent marker must be the lowercase `e`
  --> errors.ryx:16:18
+   |
+16 |   let bad_exp = 1E5
+   |                  ^
   = note: in this number literal (errors.ryx:16:17)
   = help: write it lowercase: `e` (confidence 0.90)
 error[RYX0005]: unknown escape sequence `\q`
  --> errors.ryx:17:18
+   |
+17 |   let escape = "a\qb"
+   |                  ^^
   = help: remove the backslash to write the character literally (confidence 0.70)
 error[RYX0005]: `\x` must be followed by exactly two hex digits
  --> errors.ryx:18:20
+   |
+18 |   let short_hex = "\x4"
+   |                    ^^^
 error[RYX0005]: `\u{d800}` is not a Unicode scalar value
  --> errors.ryx:19:21
+   |
+19 |   let bad_scalar = "\u{D800}"
+   |                     ^^^^^^^^
 error[RYX0002]: unterminated string literal
  --> errors.ryx:20:14: string literals may not span lines
+   |
+20 |   let open = "never closed
+   |              ^^^^^^^^^^^^^
   = help: insert the closing `"` (confidence 0.90)

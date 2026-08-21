@@ -165,5 +165,11 @@ input_file: testdata/lexer/operators.ryx
 --- diagnostics ---
 error[RYX1001]: unexpected {
  --> operators.ryx:20:17
+   |
+20 |   let mapping = { a: b }
+   |                 ^
 error[RYX1001]: unexpected :
  --> operators.ryx:20:20
+   |
+20 |   let mapping = { a: b }
+   |                    ^
