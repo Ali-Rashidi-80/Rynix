@@ -141,6 +141,9 @@ fn eval_func(
                     mem.push(init);
                     vals.insert(result_vid.unwrap(), InterpValue::Ptr(idx));
                 }
+                Inst::RegionCreate { .. } | Inst::RegionReset { .. } | Inst::Free { .. } => {
+                    // Runtime markers — no-op in the oracle interpreter.
+                }
                 Inst::Load(p) => {
                     let InterpValue::Ptr(idx) = get(&vals, *p)? else {
                         return Err(InterpError::Trap("load".into()));

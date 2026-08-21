@@ -5,8 +5,11 @@
 //! - block parameters instead of φ-nodes (Cranelift-style);
 //! - every `alloc` carries a stable [`AllocSite`] for later escape analysis;
 //! - textual `.rir` for FileCheck-style pass tests.
+//!
+//! Phase 6 adds escape analysis (`escape`) over allocation sites.
 
 mod builder;
+pub mod escape;
 mod interp;
 mod ir;
 mod lower;
@@ -16,6 +19,10 @@ mod print;
 mod verify;
 
 pub use builder::FunctionBuilder;
+pub use escape::{
+    analyze_escape, explain_alloc_human, explain_alloc_json, inject_regions, Escape, EscapeReport,
+    Placement, SiteInfo,
+};
 pub use interp::{interpret_module, InterpError, InterpValue};
 pub use ir::*;
 pub use lower::lower_module;

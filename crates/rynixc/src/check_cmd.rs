@@ -1,13 +1,16 @@
-//! The `rynixc check` subcommand: lex + parse + sema, report diagnostics.
+//! The `rynixc check` subcommand: lex + parse + sema (+ optional escape explain).
 
 use std::process::ExitCode;
 
 use rynix_ast::AstArena;
 use rynix_diag::VecSink;
+use rynix_rir::{
+    analyze_escape, explain_alloc_human, explain_alloc_json, lower_module,
+};
 use rynix_sema::analyze;
 use rynix_span::{Interner, SourceMap};
 
-use crate::cli::CheckOptions;
+use crate::cli::{CheckOptions, ErrorFormat};
 use crate::driver;
 
 pub fn run(options: &CheckOptions) -> ExitCode {
@@ -34,7 +37,24 @@ pub fn run(options: &CheckOptions) -> ExitCode {
 
     // Always run sema on the (possibly recovered) tree so AI agents see the
     // full diagnostic set for a single `check` invocation.
-    let _analysis = analyze(module, &mut interner, &mut sink);
+    let analysis = analyze(module, &mut interner, &mut sink);
 
-    driver::emit_diagnostics(&sink, &sources, options.error_format)
+    let code = driver::emit_diagnostics(&sink, &sources, options.error_format);
+    if code != ExitCode::SUCCESS || !options.explain_alloc {
+        return code;
+    }
+
+    let rir = lower_module(
+        module,
+        &analysis,
+        &mut interner,
+        file.text(),
+        file.start_pos(),
+    );
+    let report = analyze_escape(&rir, &interner);
+    match options.error_format {
+        ErrorFormat::Human => print!("{}", explain_alloc_human(&rir, &report, &interner)),
+        ErrorFormat::Json => print!("{}", explain_alloc_json(&rir, &report, &interner)),
+    }
+    ExitCode::SUCCESS
 }

@@ -21,8 +21,13 @@ Options for `lex`:
 Options for `parse`:
   --dump-ast          Print the AST as an s-expression
 
+Options for `check`:
+  --explain-alloc     After a clean check, print allocation placement
+                      (stack|region|heap) for every RIR alloc site
+
 Options for `dump-rir`:
   --opt               Run DCE / const-fold / simplify-cfg before dump
+  --escape            Run escape analysis and inject region/free markers
 
 Shared options:
   --error-format=FMT  Diagnostic rendering: `human` (default) or `json`
@@ -61,12 +66,14 @@ pub struct ParseOptions {
 pub struct CheckOptions {
     pub path: PathBuf,
     pub error_format: ErrorFormat,
+    pub explain_alloc: bool,
 }
 
 #[derive(Debug)]
 pub struct DumpRirOptions {
     pub path: PathBuf,
     pub optimize: bool,
+    pub escape: bool,
     pub error_format: ErrorFormat,
 }
 
@@ -170,10 +177,12 @@ fn parse_parse(args: &[String]) -> Result<Command, String> {
 fn parse_check(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut error_format = ErrorFormat::Human;
+    let mut explain_alloc = false;
 
     for arg in args {
         match arg.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
+            "--explain-alloc" => explain_alloc = true,
             other if other.starts_with("--error-format") => {
                 error_format = parse_error_format(other)?;
             }
@@ -188,18 +197,24 @@ fn parse_check(args: &[String]) -> Result<Command, String> {
     }
 
     let path = path.ok_or_else(|| "missing input file".to_string())?;
-    Ok(Command::Check(CheckOptions { path, error_format }))
+    Ok(Command::Check(CheckOptions {
+        path,
+        error_format,
+        explain_alloc,
+    }))
 }
 
 fn parse_dump_rir(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut optimize = false;
+    let mut escape = false;
     let mut error_format = ErrorFormat::Human;
 
     for arg in args {
         match arg.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
             "--opt" => optimize = true,
+            "--escape" => escape = true,
             other if other.starts_with("--error-format") => {
                 error_format = parse_error_format(other)?;
             }
@@ -217,6 +232,7 @@ fn parse_dump_rir(args: &[String]) -> Result<Command, String> {
     Ok(Command::DumpRir(DumpRirOptions {
         path,
         optimize,
+        escape,
         error_format,
     }))
 }
@@ -277,18 +293,39 @@ mod tests {
         assert_eq!(options.error_format, ErrorFormat::Json);
     }
 
-#[test]
-fn dump_rir_prints_func() {
-    let Command::DumpRir(options) =
-        parse(&args(&["dump-rir", "a.ryx", "--opt", "--error-format=json"])).unwrap()
-    else {
-        panic!("expected dump-rir");
-    };
-    assert_eq!(options.path.to_str(), Some("a.ryx"));
-    assert!(options.optimize);
-    assert_eq!(options.error_format, ErrorFormat::Json);
-}
+    #[test]
+    fn dump_rir_prints_func() {
+        let Command::DumpRir(options) = parse(&args(&[
+            "dump-rir",
+            "a.ryx",
+            "--opt",
+            "--escape",
+            "--error-format=json",
+        ]))
+        .unwrap() else {
+            panic!("expected dump-rir");
+        };
+        assert_eq!(options.path.to_str(), Some("a.ryx"));
+        assert!(options.optimize);
+        assert!(options.escape);
+        assert_eq!(options.error_format, ErrorFormat::Json);
+    }
 
+    #[test]
+    fn check_accepts_json_and_explain() {
+        let Command::Check(options) = parse(&args(&[
+            "check",
+            "a.ryx",
+            "--explain-alloc",
+            "--error-format=json",
+        ]))
+        .unwrap() else {
+            panic!("expected check");
+        };
+        assert_eq!(options.path.to_str(), Some("a.ryx"));
+        assert!(options.explain_alloc);
+        assert_eq!(options.error_format, ErrorFormat::Json);
+    }
 
     #[test]
     fn invocation_errors_are_specific() {

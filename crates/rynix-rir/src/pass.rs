@@ -120,6 +120,9 @@ fn is_effectful(inst: &Inst) -> bool {
         Inst::Store { .. }
             | Inst::Call { .. }
             | Inst::CallExt { .. }
+            | Inst::RegionCreate { .. }
+            | Inst::RegionReset { .. }
+            | Inst::Free { .. }
             | Inst::Ret(_)
             | Inst::Jump { .. }
             | Inst::Br { .. }

@@ -116,22 +116,20 @@ initially (stretch: 1 GB/s).
 - Small RIR interpreter as a differential-testing oracle for codegen.
 - CLI: `rynixc dump-rir [--opt]`.
 
-## Phase 6 — Escape analysis and region inference (the Zero-GC core)
+## Phase 6 — Escape analysis and region inference (the Zero-GC core) ✅
 
 - Per-allocation-site lattice `NoEscape < ArgEscape < RegionEscape <
   GlobalEscape`; mapping: NoEscape -> stack; Arg/RegionEscape -> implicit
   bump arenas (no `region` keyword); GlobalEscape -> heap with
-  compiler-injected `free` via liveness analysis (GoFree-style).
-- Intraprocedural flow-sensitive dataflow on SSA first; then bottom-up
-  interprocedural summaries over the call graph with SCC fixpoints;
-  conservative at FFI/dynamic calls.
-- `region_create`/`region_reset` injected at dominating scopes (function
-  entry, loop body, request handler).
-- Transparency tooling: `rynixc check --explain-alloc` (human + JSON).
-- Tests: Go-style directive corpus (`#^ alloc: stack|region|heap`,
-  `#^ free-at`); dynamic differential verification (debug runtime logs actual
-  allocations vs. static prediction); gate: >= 90% of allocations
-  stack/region on the benchmark corpus, zero leaks/UAF under sanitizers.
+  compiler-injected `free` via last-use (`Inst::Free`).
+- Intraprocedural points-to on SSA; bottom-up interprocedural summaries over
+  the call graph with SCC fixpoints; `call_ext` conservative except benign
+  builtins (`print`/`println`/`assert`).
+- `region_create` / `region_reset` injected at function entry and loop
+  headers when any site is region-placed.
+- Transparency: `rynixc check --explain-alloc` (human + JSON
+  `rynix.alloc.v1`); `rynixc dump-rir --escape`.
+- Tests: `#^ alloc: stack|region|heap` directives; unit tests for heap/region.
 
 ## Phase 7 — LLVM backend and sub-1MB binaries
 

@@ -315,7 +315,7 @@ fn parse_inst(
         "alloc" => {
             // alloc siteN ty
             let ty = parse_ty(parts.get(2).unwrap_or(&"i64"), lineno)?;
-            bind(lhs, b.alloc(ty), vmap);
+            bind(lhs, b.alloc(ty, rynix_span::Span::empty(0)), vmap);
         }
         "load" => {
             let p = map_v(parts.get(1).unwrap_or(&""), vmap)?;

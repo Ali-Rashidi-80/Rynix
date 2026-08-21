@@ -101,10 +101,11 @@ pub enum Inst {
     ICmp(CmpOp, ValueId, ValueId),
     FCmp(CmpOp, ValueId, ValueId),
     BNot(ValueId),
-    /// `v = alloc site ty` — stack slot; site feeds escape analysis.
+    /// `v = alloc site ty` — storage; site feeds escape analysis.
     Alloc {
         site: AllocSite,
         ty: IrTy,
+        span: rynix_span::Span,
     },
     /// `v = load ptr`
     Load(ValueId),
@@ -123,6 +124,18 @@ pub enum Inst {
         name: Symbol,
         args: Vec<ValueId>,
         ret: IrTy,
+    },
+    /// Begin an implicit bump region (Phase 6).
+    RegionCreate {
+        region: u32,
+    },
+    /// Reset a bump region at a dominating loop/handler scope.
+    RegionReset {
+        region: u32,
+    },
+    /// Compiler-injected heap free (GoFree-style) for a [`AllocSite`].
+    Free {
+        site: AllocSite,
     },
     /// `ret` / `ret val`
     Ret(Option<ValueId>),
@@ -155,6 +168,9 @@ impl Inst {
         !matches!(
             self,
             Inst::Store { .. }
+                | Inst::RegionCreate { .. }
+                | Inst::RegionReset { .. }
+                | Inst::Free { .. }
                 | Inst::Ret(_)
                 | Inst::Jump { .. }
                 | Inst::Br { .. }

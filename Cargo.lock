@@ -716,6 +716,7 @@ dependencies = [
  "rynix-parser",
  "rynix-sema",
  "rynix-span",
+ "serde_json",
 ]
 
 [[package]]

@@ -4,7 +4,9 @@ use std::process::ExitCode;
 
 use rynix_ast::AstArena;
 use rynix_diag::VecSink;
-use rynix_rir::{lower_module, print_module, run_pipeline};
+use rynix_rir::{
+    analyze_escape, inject_regions, lower_module, print_module, run_pipeline,
+};
 use rynix_sema::analyze;
 use rynix_span::{Interner, SourceMap};
 
@@ -53,6 +55,10 @@ pub fn run(options: &DumpRirOptions) -> ExitCode {
         if !errs.is_empty() {
             return ExitCode::from(1);
         }
+    }
+    if options.escape {
+        let report = analyze_escape(&rir, &interner);
+        inject_regions(&mut rir, &report);
     }
 
     print!("{}", print_module(&rir, &interner));

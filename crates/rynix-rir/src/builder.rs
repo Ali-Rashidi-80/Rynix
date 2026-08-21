@@ -127,6 +127,9 @@ impl FunctionBuilder {
             Inst::Call { func: _, args: _ } => IrTy::Unit, // patched by caller via push_call
             Inst::CallExt { ret, .. } => *ret,
             Inst::Store { .. }
+            | Inst::RegionCreate { .. }
+            | Inst::RegionReset { .. }
+            | Inst::Free { .. }
             | Inst::Ret(_)
             | Inst::Jump { .. }
             | Inst::Br { .. }
@@ -150,14 +153,10 @@ impl FunctionBuilder {
         self.push_value(Inst::SConst(s))
     }
 
-    pub fn alloc(&mut self, ty: IrTy) -> ValueId {
+    pub fn alloc(&mut self, ty: IrTy, span: rynix_span::Span) -> ValueId {
         let site = AllocSite(self.func.next_site);
         self.func.next_site += 1;
-        // Represent the pointer as Ptr, but remember payload via a side convention:
-        // we store payload ty on the value by using Alloc's ty field as payload and
-        // tagging the value as Ptr. Load uses a parallel map — simpler: value ty = payload.
-        // Escape analysis only needs AllocSite. Load result = ty.
-        let v = self.push_value(Inst::Alloc { site, ty });
+        let v = self.push_value(Inst::Alloc { site, ty, span });
         // Overwrite value ty to Ptr for the address, keep payload in inst.
         self.func.values[v.0 as usize].ty = IrTy::Ptr;
         v

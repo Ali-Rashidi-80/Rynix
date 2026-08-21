@@ -95,7 +95,7 @@ fn lower_function(
             param_type(analysis, f, param),
         );
         let incoming = b.add_param(ty);
-        let slot = b.alloc(ty);
+        let slot = b.alloc(ty, param.span);
         b.store(slot, incoming);
         locals.insert(param.name.name, slot);
     }
@@ -183,7 +183,7 @@ impl LowerCtx<'_, '_> {
                     .get(&l.id)
                     .map(|t| map_ty(self.analysis, *t))
                     .unwrap_or_else(|| self.b.func.value_ty(init));
-                let slot = self.b.alloc(ty);
+                let slot = self.b.alloc(ty, l.span);
                 self.b.store(slot, init);
                 self.locals.insert(l.name.name, slot);
             }
@@ -257,7 +257,7 @@ impl LowerCtx<'_, '_> {
                 // Better: treat array literal specially; otherwise call body with binder=0 stub.
                 let _iter = self.expr(f.iter);
                 let ty = IrTy::I64;
-                let slot = self.b.alloc(ty);
+                let slot = self.b.alloc(ty, f.span);
                 let zero = self.b.iconst(0);
                 self.b.store(slot, zero);
                 self.locals.insert(f.binder.name, slot);
@@ -387,7 +387,7 @@ impl LowerCtx<'_, '_> {
                     let _ = self.expr(e);
                 }
                 // Empty ptr placeholder.
-                self.b.alloc(IrTy::I64)
+                self.b.alloc(IrTy::I64, a.span)
             }
             Expr::Spawn(s) => {
                 let _ = self.expr(s.callee);

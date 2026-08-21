@@ -84,9 +84,12 @@ fn format_inst(
         Inst::ICmp(op, a, b) => format!("{lhs}icmp {} {}, {}", op.as_str(), v(*a), v(*b)),
         Inst::FCmp(op, a, b) => format!("{lhs}fcmp {} {}, {}", op.as_str(), v(*a), v(*b)),
         Inst::BNot(a) => format!("{lhs}bnot {}", v(*a)),
-        Inst::Alloc { site, ty } => format!("{lhs}alloc site{} {}", site.0, ty.as_str()),
+        Inst::Alloc { site, ty, .. } => format!("{lhs}alloc site{} {}", site.0, ty.as_str()),
         Inst::Load(p) => format!("{lhs}load {}", v(*p)),
         Inst::Store { ptr, value } => format!("store {}, {}", v(*ptr), v(*value)),
+        Inst::RegionCreate { region } => format!("region_create {region}"),
+        Inst::RegionReset { region } => format!("region_reset {region}"),
+        Inst::Free { site } => format!("free site{}", site.0),
         Inst::Call { func, args } => {
             let name = module
                 .funcs

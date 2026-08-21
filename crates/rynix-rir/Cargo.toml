@@ -13,6 +13,7 @@ rynix-diag = { workspace = true }
 rynix-ast = { workspace = true }
 rynix-sema = { workspace = true }
 rustc-hash = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 rynix-parser = { workspace = true }
