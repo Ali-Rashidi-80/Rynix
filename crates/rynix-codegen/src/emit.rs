@@ -358,13 +358,8 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                 .iter()
                 .position(|x| x == s)
                 .expect("string collected");
-            let name = ctx.tmp();
-            let len = s.len() + 1;
-            let _ = writeln!(
-                ctx.out,
-                "  {name} = getelementptr inbounds ([{len} x i8], ptr @.str.{idx}, i64 0, i64 0)"
-            );
-            ctx.bind(result.unwrap(), name);
+            // Globals of array type decay to ptr in calls; bind the global directly.
+            ctx.bind(result.unwrap(), format!("@.str.{idx}"));
         }
         Inst::Nil => {
             let name = ctx.tmp();

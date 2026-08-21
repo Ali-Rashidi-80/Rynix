@@ -43,6 +43,7 @@ pub fn run(options: &BuildOptions) -> ExitCode {
         .arg("-O3")
         .arg("-flto=thin")
         .arg("-ffunction-sections")
+        .arg("-fuse-ld=lld")
         .arg("-Wl,--gc-sections")
         .arg(&ll_path)
         .arg(&rt)
@@ -70,7 +71,16 @@ pub fn run(options: &BuildOptions) -> ExitCode {
 }
 
 fn find_clang() -> Option<PathBuf> {
-    for name in ["clang", "clang.exe", "clang-20", "clang-19", "clang-18"] {
+    // Prefer MinGW-targeted clang on Windows so C headers resolve without MSVC.
+    for name in [
+        "x86_64-w64-mingw32-clang",
+        "x86_64-w64-mingw32-clang.exe",
+        "clang",
+        "clang.exe",
+        "clang-20",
+        "clang-19",
+        "clang-18",
+    ] {
         if let Ok(output) = Command::new(name).arg("--version").output()
             && output.status.success()
         {
