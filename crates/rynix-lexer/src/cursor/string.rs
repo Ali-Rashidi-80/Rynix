@@ -42,18 +42,21 @@ impl<'src> Lexer<'src> {
 
     /// Finds the next byte that can end or interrupt a string body.
     ///
-    /// Two SIMD scans: `memchr3` handles `"`, `\`, and `\n`; a second pass
-    /// catches a lone `\r`, which is also a line terminator (spec 1).
+    /// `memchr3` covers `"`, `\`, and `\n`; a lone `\r` is a line terminator
+    /// too (spec 1), so it needs a second scan. That scan is deliberately
+    /// bounded by the first hit: searching the whole remaining file for `\r`
+    /// on every lookup would make lexing a string-heavy file quadratic.
     fn find_string_stop(&self) -> Option<u32> {
         let from = self.pos as usize;
         let rest = &self.src[from..];
-        let special = memchr::memchr3(b'"', b'\\', b'\n', rest);
-        let carriage = memchr::memchr(b'\r', rest);
-        let hit = match (special, carriage) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (found, None) | (None, found) => found,
-        };
-        hit.map(|i| (from + i) as u32)
+        match memchr::memchr3(b'"', b'\\', b'\n', rest) {
+            Some(hit) => {
+                let carriage = memchr::memchr(b'\r', &rest[..hit]);
+                Some((from + carriage.unwrap_or(hit)) as u32)
+            }
+            // Nothing can close the string: one final scan for `\r`, then EOF.
+            None => memchr::memchr(b'\r', rest).map(|i| (from + i) as u32),
+        }
     }
 
     /// Handles one escape sequence. The current byte is `\`.

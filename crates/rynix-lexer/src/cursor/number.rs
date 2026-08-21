@@ -10,6 +10,14 @@ use super::{is_digit_radix, is_ident_continue, Lexer};
 use crate::errors;
 use crate::token::{Token, TokenKind};
 
+/// File-local bounds of a `[0-9_]` run, plus whether it actually contains an
+/// underscore and therefore needs the placement-validation pass.
+struct DigitRun {
+    start: u32,
+    end: u32,
+    saw_underscore: bool,
+}
+
 impl<'src> Lexer<'src> {
     /// Entry point: the current byte is an ASCII digit.
     pub(super) fn number(&mut self, sink: &mut dyn DiagSink) -> Token {
@@ -114,17 +122,21 @@ impl<'src> Lexer<'src> {
         let whole = self.span_from(start);
 
         let mut ok = true;
-        for (run_start, run_end) in [Some(int_run), frac_run, exp_run].into_iter().flatten() {
+        for run in [Some(int_run), frac_run, exp_run].into_iter().flatten() {
             if !ok {
                 break;
             }
-            ok = self.validate_digit_run(
-                self.slice(run_start, run_end),
-                run_start,
-                10,
-                whole,
-                sink,
-            );
+            // A run without underscores consumed only ASCII digits, so the
+            // second validation pass is provably unnecessary.
+            if run.saw_underscore {
+                ok = self.validate_digit_run(
+                    self.slice(run.start, run.end),
+                    run.start,
+                    10,
+                    whole,
+                    sink,
+                );
+            }
         }
         if ok {
             if let Some(at) = uppercase_e {
@@ -162,16 +174,25 @@ impl<'src> Lexer<'src> {
         ));
     }
 
-    /// Consumes a run of `[0-9_]` and returns its file-local bounds.
-    fn eat_digit_run(&mut self) -> (u32, u32) {
+    /// Consumes a run of `[0-9_]` and returns its file-local bounds plus
+    /// whether any underscore (the only byte that can need a second look)
+    /// was seen.
+    fn eat_digit_run(&mut self) -> DigitRun {
         let start = self.pos;
-        while self
-            .peek()
-            .is_some_and(|b| b.is_ascii_digit() || b == b'_')
-        {
+        let mut saw_underscore = false;
+        while let Some(b) = self.peek() {
+            if b == b'_' {
+                saw_underscore = true;
+            } else if !b.is_ascii_digit() {
+                break;
+            }
             self.pos += 1;
         }
-        (start, self.pos)
+        DigitRun {
+            start,
+            end: self.pos,
+            saw_underscore,
+        }
     }
 
     /// Whether the `e`/`E` at the current position is followed by a valid
