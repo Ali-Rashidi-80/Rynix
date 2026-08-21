@@ -63,7 +63,9 @@ panic = "abort"
 
 [profile.bench]
 inherits = "release"
-debug = true # keep symbols for profiling
+debug = true      # keep symbols for profiling
+lto = "thin"      # fat LTO across criterion costs minutes and buys nothing
+strip = "none"
 
 # Faster test cycles: optimize third-party deps (proptest, insta) even in dev.
 [profile.dev.package."*"]

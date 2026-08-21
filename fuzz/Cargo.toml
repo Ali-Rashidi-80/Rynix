@@ -1,0 +1,38 @@
+[package]
+name = "rynix-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Own workspace on purpose: fuzzing needs nightly + libFuzzer and must stay
+# out of the normal `cargo build` / `cargo test` graph.
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+rynix-span = { path = "../crates/rynix-span" }
+rynix-diag = { path = "../crates/rynix-diag" }
+rynix-lexer = { path = "../crates/rynix-lexer" }
+
+[profile.release]
+debug = true
+debug-assertions = true
+overflow-checks = true
+
+[[bin]]
+name = "lex_total"
+path = "fuzz_targets/lex_total.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lex_diagnostics"
+path = "fuzz_targets/lex_diagnostics.rs"
+test = false
+doc = false
+bench = false
