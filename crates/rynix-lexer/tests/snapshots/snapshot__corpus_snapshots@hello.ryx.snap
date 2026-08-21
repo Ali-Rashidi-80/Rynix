@@ -1,0 +1,25 @@
+---
+source: crates/rynix-lexer/tests/snapshot.rs
+expression: "dump(name, &source)"
+input_file: testdata/lexer/hello.ryx
+---
+== tokens ==
+    0..35    DocComment   "## The canonical Rynix entry point."
+   35..36    Newline      "\n"
+   36..39    Def          "def"
+   39..40    Whitespace   " "
+   40..44    Ident        "main"
+   44..45    LParen       "("
+   45..46    RParen       ")"
+   46..47    Newline      "\n"
+   47..49    Whitespace   "  "
+   49..54    Ident        "print"
+   54..55    LParen       "("
+   55..69    StrLit       "\"Hello, Rynix\""
+   69..70    RParen       ")"
+   70..71    Newline      "\n"
+   71..74    End          "end"
+   74..75    Newline      "\n"
+   75..75    Eof          ""
+
+== diagnostics (0) ==

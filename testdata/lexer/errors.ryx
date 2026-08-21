@@ -1,0 +1,21 @@
+# Every lexical diagnostic, in code order. Do not "fix" this file.
+def broken()
+  let a = 1 $ 2
+  let b = 1 ; 2
+  let c = x && y
+  let d = x || z
+  let e = !flag
+  let wrong = 'single'
+  let café = 1
+  let λ = 2
+  let bad_hex = 0XFF
+  let no_digits = 0x
+  let bad_bin = 0b12
+  let bad_us = 1__0
+  let suffix = 123abc
+  let bad_exp = 1E5
+  let escape = "a\qb"
+  let short_hex = "\x4"
+  let bad_scalar = "\u{D800}"
+  let open = "never closed
+end

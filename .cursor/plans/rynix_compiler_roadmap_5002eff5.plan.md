@@ -16,13 +16,13 @@ todos:
     status: completed
   - id: phase1-token-cursor
     content: "فاز ۱: TokenKind (~۷۰ واریانت) و Cursor صفر-تخصیص با جدول dispatch، کلیدواژه‌ها، اعداد/رشته/کامنت/Newline"
-    status: in_progress
+    status: completed
   - id: phase1-lexer-errors
     content: "فاز ۱: خطاهای ساختاریافته RYX0001..0006 با Fix پیشنهادی و بازیابی total"
-    status: pending
+    status: completed
   - id: phase1-tests
     content: "فاز ۱: تست‌های واحد + snapshot با insta + property با proptest (بی‌اتلافی، totality) + تست شمارنده صفر-تخصیص"
-    status: pending
+    status: in_progress
   - id: phase1-bench-fuzz
     content: "فاز ۱: بنچمارک criterion با baseline کامیت‌شده + تارگت cargo-fuzz (برای CI/WSL)"
     status: pending

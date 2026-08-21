@@ -1,0 +1,26 @@
+# Every operator and delimiter, plus precedence-relevant combinations.
+def operators(a: i64, b: i64) -> bool
+  let sum = a + b
+  let diff = a - b
+  let prod = a * b
+  let quot = a / b
+  let rem = a % b
+  let mut acc = 0
+  acc += 1
+  acc -= 2
+  acc *= 3
+  acc /= 4
+  acc %= 5
+  let neg = -acc
+  let range = 0..10
+  let closed = 0..=10
+  let compare = a == b or a != b and not (a < b)
+  let bounds = a <= b or a >= b or a > b
+  let tuple_like = [a, b]
+  let mapping = { a: b }
+  let path = std::math::abs(neg)
+  let field = point.x
+  let call = point.length()
+  let index = tuple_like[0]
+  return compare and bounds
+end

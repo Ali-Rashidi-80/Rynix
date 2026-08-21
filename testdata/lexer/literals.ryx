@@ -1,0 +1,20 @@
+# Every literal form the lexer accepts, exactly once each.
+def literals()
+  let dec = 42
+  let grouped = 1_000_000
+  let hex = 0xdead_beef
+  let oct = 0o755
+  let bin = 0b1010_0101
+  let zero = 0
+  let float = 3.141_592
+  let exp = 6e23
+  let exp_plus = 1e+9
+  let exp_minus = 2.5e-3
+  let text = "plain"
+  let escapes = "\n\t\r\0\\\"\x41\u{1F680}"
+  let unicode = "میخوانم 漢字 🚀"
+  let empty = ""
+  let flag = true
+  let other = false
+  let nothing = nil
+end

@@ -1,0 +1,29 @@
+---
+source: crates/rynix-lexer/tests/snapshot.rs
+expression: "dump(name, &source)"
+input_file: testdata/lexer/errors_eof.ryx
+---
+== tokens ==
+    0..71    Comment      "# This file must end inside a string literal, with no trailing newline."
+   71..72    Newline      "\n"
+   72..75    Def          "def"
+   75..76    Whitespace   " "
+   76..85    Ident        "truncated"
+   85..86    LParen       "("
+   86..87    RParen       ")"
+   87..88    Newline      "\n"
+   88..90    Whitespace   "  "
+   90..93    Let          "let"
+   93..94    Whitespace   " "
+   94..98    Ident        "open"
+   98..99    Whitespace   " "
+   99..100   Eq           "="
+  100..101   Whitespace   " "
+  101..120   StrLit       "\"the file ends here"
+  120..120   Eof          ""
+
+== diagnostics (1) ==
+error[RYX0006]: end of file inside string literal
+ --> errors_eof.ryx:3:14: this string is never closed
+  = help: append the closing `"` (confidence 0.80)
+      edit 120..120 -> "\""

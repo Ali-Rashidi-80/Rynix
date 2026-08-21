@@ -1,0 +1,4 @@
+## The canonical Rynix entry point.
+def main()
+  print("Hello, Rynix")
+end

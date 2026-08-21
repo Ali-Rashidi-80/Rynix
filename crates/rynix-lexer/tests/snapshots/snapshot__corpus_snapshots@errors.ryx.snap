@@ -1,0 +1,263 @@
+---
+source: crates/rynix-lexer/tests/snapshot.rs
+expression: "dump(name, &source)"
+input_file: testdata/lexer/errors.ryx
+---
+== tokens ==
+    0..66    Comment      "# Every lexical diagnostic, in code order. Do not \"fix\" this file."
+   66..67    Newline      "\n"
+   67..70    Def          "def"
+   70..71    Whitespace   " "
+   71..77    Ident        "broken"
+   77..78    LParen       "("
+   78..79    RParen       ")"
+   79..80    Newline      "\n"
+   80..82    Whitespace   "  "
+   82..85    Let          "let"
+   85..86    Whitespace   " "
+   86..87    Ident        "a"
+   87..88    Whitespace   " "
+   88..89    Eq           "="
+   89..90    Whitespace   " "
+   90..91    IntLit       "1"
+   91..92    Whitespace   " "
+   92..93    Unknown      "$"
+   93..94    Whitespace   " "
+   94..95    IntLit       "2"
+   95..96    Newline      "\n"
+   96..98    Whitespace   "  "
+   98..101   Let          "let"
+  101..102   Whitespace   " "
+  102..103   Ident        "b"
+  103..104   Whitespace   " "
+  104..105   Eq           "="
+  105..106   Whitespace   " "
+  106..107   IntLit       "1"
+  107..108   Whitespace   " "
+  108..109   Unknown      ";"
+  109..110   Whitespace   " "
+  110..111   IntLit       "2"
+  111..112   Newline      "\n"
+  112..114   Whitespace   "  "
+  114..117   Let          "let"
+  117..118   Whitespace   " "
+  118..119   Ident        "c"
+  119..120   Whitespace   " "
+  120..121   Eq           "="
+  121..122   Whitespace   " "
+  122..123   Ident        "x"
+  123..124   Whitespace   " "
+  124..126   Unknown      "&&"
+  126..127   Whitespace   " "
+  127..128   Ident        "y"
+  128..129   Newline      "\n"
+  129..131   Whitespace   "  "
+  131..134   Let          "let"
+  134..135   Whitespace   " "
+  135..136   Ident        "d"
+  136..137   Whitespace   " "
+  137..138   Eq           "="
+  138..139   Whitespace   " "
+  139..140   Ident        "x"
+  140..141   Whitespace   " "
+  141..143   Unknown      "||"
+  143..144   Whitespace   " "
+  144..145   Ident        "z"
+  145..146   Newline      "\n"
+  146..148   Whitespace   "  "
+  148..151   Let          "let"
+  151..152   Whitespace   " "
+  152..153   Ident        "e"
+  153..154   Whitespace   " "
+  154..155   Eq           "="
+  155..156   Whitespace   " "
+  156..157   Unknown      "!"
+  157..161   Ident        "flag"
+  161..162   Newline      "\n"
+  162..164   Whitespace   "  "
+  164..167   Let          "let"
+  167..168   Whitespace   " "
+  168..173   Ident        "wrong"
+  173..174   Whitespace   " "
+  174..175   Eq           "="
+  175..176   Whitespace   " "
+  176..177   Unknown      "'"
+  177..183   Ident        "single"
+  183..184   Unknown      "'"
+  184..185   Newline      "\n"
+  185..187   Whitespace   "  "
+  187..190   Let          "let"
+  190..191   Whitespace   " "
+  191..196   Ident        "café"
+  196..197   Whitespace   " "
+  197..198   Eq           "="
+  198..199   Whitespace   " "
+  199..200   IntLit       "1"
+  200..201   Newline      "\n"
+  201..203   Whitespace   "  "
+  203..206   Let          "let"
+  206..207   Whitespace   " "
+  207..209   Unknown      "λ"
+  209..210   Whitespace   " "
+  210..211   Eq           "="
+  211..212   Whitespace   " "
+  212..213   IntLit       "2"
+  213..214   Newline      "\n"
+  214..216   Whitespace   "  "
+  216..219   Let          "let"
+  219..220   Whitespace   " "
+  220..227   Ident        "bad_hex"
+  227..228   Whitespace   " "
+  228..229   Eq           "="
+  229..230   Whitespace   " "
+  230..234   IntLit       "0XFF"
+  234..235   Newline      "\n"
+  235..237   Whitespace   "  "
+  237..240   Let          "let"
+  240..241   Whitespace   " "
+  241..250   Ident        "no_digits"
+  250..251   Whitespace   " "
+  251..252   Eq           "="
+  252..253   Whitespace   " "
+  253..255   IntLit       "0x"
+  255..256   Newline      "\n"
+  256..258   Whitespace   "  "
+  258..261   Let          "let"
+  261..262   Whitespace   " "
+  262..269   Ident        "bad_bin"
+  269..270   Whitespace   " "
+  270..271   Eq           "="
+  271..272   Whitespace   " "
+  272..276   IntLit       "0b12"
+  276..277   Newline      "\n"
+  277..279   Whitespace   "  "
+  279..282   Let          "let"
+  282..283   Whitespace   " "
+  283..289   Ident        "bad_us"
+  289..290   Whitespace   " "
+  290..291   Eq           "="
+  291..292   Whitespace   " "
+  292..296   IntLit       "1__0"
+  296..297   Newline      "\n"
+  297..299   Whitespace   "  "
+  299..302   Let          "let"
+  302..303   Whitespace   " "
+  303..309   Ident        "suffix"
+  309..310   Whitespace   " "
+  310..311   Eq           "="
+  311..312   Whitespace   " "
+  312..318   IntLit       "123abc"
+  318..319   Newline      "\n"
+  319..321   Whitespace   "  "
+  321..324   Let          "let"
+  324..325   Whitespace   " "
+  325..332   Ident        "bad_exp"
+  332..333   Whitespace   " "
+  333..334   Eq           "="
+  334..335   Whitespace   " "
+  335..338   FloatLit     "1E5"
+  338..339   Newline      "\n"
+  339..341   Whitespace   "  "
+  341..344   Let          "let"
+  344..345   Whitespace   " "
+  345..351   Ident        "escape"
+  351..352   Whitespace   " "
+  352..353   Eq           "="
+  353..354   Whitespace   " "
+  354..360   StrLit       "\"a\\qb\""
+  360..361   Newline      "\n"
+  361..363   Whitespace   "  "
+  363..366   Let          "let"
+  366..367   Whitespace   " "
+  367..376   Ident        "short_hex"
+  376..377   Whitespace   " "
+  377..378   Eq           "="
+  378..379   Whitespace   " "
+  379..384   StrLit       "\"\\x4\""
+  384..385   Newline      "\n"
+  385..387   Whitespace   "  "
+  387..390   Let          "let"
+  390..391   Whitespace   " "
+  391..401   Ident        "bad_scalar"
+  401..402   Whitespace   " "
+  402..403   Eq           "="
+  403..404   Whitespace   " "
+  404..414   StrLit       "\"\\u{D800}\""
+  414..415   Newline      "\n"
+  415..417   Whitespace   "  "
+  417..420   Let          "let"
+  420..421   Whitespace   " "
+  421..425   Ident        "open"
+  425..426   Whitespace   " "
+  426..427   Eq           "="
+  427..428   Whitespace   " "
+  428..441   StrLit       "\"never closed"
+  441..442   Newline      "\n"
+  442..445   End          "end"
+  445..446   Newline      "\n"
+  446..446   Eof          ""
+
+== diagnostics (19) ==
+error[RYX0001]: unknown character `$`
+ --> errors.ryx:3:13
+error[RYX0001]: unknown character `;`
+ --> errors.ryx:4:13: Rynix has no statement separator
+  = help: remove `;` (newlines terminate statements) (confidence 0.90)
+      edit 108..109 -> ""
+error[RYX0001]: unknown character `&&`
+ --> errors.ryx:5:13: logical conjunction is spelled `and`
+  = help: replace `&&` with `and` (confidence 0.85)
+      edit 124..126 -> "and"
+error[RYX0001]: unknown character `||`
+ --> errors.ryx:6:13: logical disjunction is spelled `or`
+  = help: replace `||` with `or` (confidence 0.85)
+      edit 141..143 -> "or"
+error[RYX0001]: unknown character `!`
+ --> errors.ryx:7:11: logical negation is spelled `not`
+  = help: replace `!` with `not ` (confidence 0.85)
+      edit 156..157 -> "not "
+error[RYX0001]: unknown character `'`
+ --> errors.ryx:8:15: strings use double quotes
+  = help: replace `'` with `"` (confidence 0.70)
+      edit 176..177 -> "\""
+error[RYX0001]: unknown character `'`
+ --> errors.ryx:8:22: strings use double quotes
+  = help: replace `'` with `"` (confidence 0.70)
+      edit 183..184 -> "\""
+error[RYX0003]: identifiers must be ASCII-only in Rynix v0.1
+ --> errors.ryx:9:7: non-ASCII characters in this identifier
+error[RYX0003]: identifiers must be ASCII-only in Rynix v0.1
+ --> errors.ryx:10:7: non-ASCII text is only allowed in strings and comments
+error[RYX0004]: base prefix `0X` must be lowercase
+ --> errors.ryx:11:18
+  = note: in this number literal (errors.ryx:11:17)
+  = help: write it lowercase: `x` (confidence 0.95)
+      edit 231..232 -> "x"
+error[RYX0004]: missing digits after base prefix `0x`
+ --> errors.ryx:12:19
+error[RYX0004]: invalid digit `2` for a base-2 literal
+ --> errors.ryx:13:20
+  = note: in this number literal (errors.ryx:13:17)
+error[RYX0004]: `_` in a number literal must separate two digits
+ --> errors.ryx:14:17
+  = note: in this number literal (errors.ryx:14:16)
+error[RYX0004]: invalid suffix `abc`: Rynix has no numeric suffixes, use `as` to convert
+ --> errors.ryx:15:19
+  = note: in this number literal (errors.ryx:15:16)
+error[RYX0004]: exponent marker must be the lowercase `e`
+ --> errors.ryx:16:18
+  = note: in this number literal (errors.ryx:16:17)
+  = help: write it lowercase: `e` (confidence 0.90)
+      edit 336..337 -> "e"
+error[RYX0005]: unknown escape sequence `\q`
+ --> errors.ryx:17:18
+  = help: remove the backslash to write the character literally (confidence 0.70)
+      edit 356..357 -> ""
+error[RYX0005]: `\x` must be followed by exactly two hex digits
+ --> errors.ryx:18:20
+error[RYX0005]: `\u{d800}` is not a Unicode scalar value
+ --> errors.ryx:19:21
+error[RYX0002]: unterminated string literal
+ --> errors.ryx:20:14: string literals may not span lines
+  = help: insert the closing `"` (confidence 0.90)
+      edit 441..441 -> "\""

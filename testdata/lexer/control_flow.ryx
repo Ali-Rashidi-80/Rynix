@@ -1,0 +1,32 @@
+def classify(n: i64) -> i64
+  if n < 0
+    return 0 - 1
+  elif n == 0
+    return 0
+  else
+    return 1
+  end
+end
+
+def scan(limit: i64) -> i64
+  let mut i = 0
+  let mut hits = 0
+  loop
+    if i >= limit
+      break
+    end
+    if i % 2 == 0
+      i += 1
+      continue
+    end
+    hits += classify(i)
+    i += 1
+  end
+  for step in 0..limit
+    hits += step
+  end
+  for step in 0..=limit
+    hits -= step
+  end
+  return hits
+end

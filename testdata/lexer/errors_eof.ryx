@@ -1,0 +1,3 @@
+# This file must end inside a string literal, with no trailing newline.
+def truncated()
+  let open = "the file ends here

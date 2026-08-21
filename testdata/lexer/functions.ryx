@@ -1,0 +1,29 @@
+import std::io
+
+## Sums the slice, ignoring anything above the ceiling.
+pub def sum_below(values: [i64], ceiling: i64) -> i64
+  let mut total = 0
+  for value in values
+    if value < ceiling
+      total += value
+    end
+  end
+  return total
+end
+
+def scale(value: f64) -> f64
+  return value * 1.5
+end
+
+def entry()
+  let numbers = [1, 2, 3, 40, 500]
+  let total = sum_below(numbers, 100)
+  let ratio = scale(total as f64)
+  io::write(ratio)
+  spawn worker(total)
+end
+
+def worker(seed: i64)
+  let handle = seed % 7
+  print(handle)
+end

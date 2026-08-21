@@ -1,0 +1,25 @@
+import std::net
+import std::time
+
+## A point in two dimensions.
+pub struct Point
+  x: f64
+  y: f64
+end
+
+pub enum Shape
+  Empty
+  Circle(f64)
+  Boxed(Point)
+end
+
+type Meters = f64
+
+pub def area(shape: Shape) -> f64
+  loop
+    if true
+      break
+    end
+  end
+  return 0.0
+end
