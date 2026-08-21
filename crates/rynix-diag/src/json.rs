@@ -19,7 +19,7 @@
 //! }
 //! ```
 //!
-//! Offsets (`lo`/`hi`) are *global* SourceMap offsets; `line`/`col` are
+//! Offsets (`lo`/`hi`) are *global* `SourceMap` offsets; `line`/`col` are
 //! 1-based and count bytes.
 
 use rynix_span::{SourceMap, Span};
@@ -82,7 +82,7 @@ fn json_span<'a>(sm: &'a SourceMap, label: &'a Label, primary: bool) -> JsonSpan
     }
 }
 
-fn edit_location<'a>(sm: &'a SourceMap, span: Span) -> &'a str {
+fn edit_location(sm: &SourceMap, span: Span) -> &str {
     sm.line_col(span.lo()).0.name()
 }
 
@@ -127,7 +127,7 @@ pub fn render_json(diag: &Diagnostic, sm: &SourceMap) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{codes, Stage};
+    use crate::{Stage, codes};
     use rynix_span::SourceMap;
 
     #[test]

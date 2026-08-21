@@ -6,11 +6,11 @@
 
 use rynix_diag::DiagSink;
 
-use super::{utf8_len, Lexer};
+use super::{Lexer, utf8_len};
 use crate::errors;
 use crate::token::{Token, TokenKind};
 
-impl<'src> Lexer<'src> {
+impl Lexer<'_> {
     /// Entry point: the current byte is `"`.
     pub(super) fn string(&mut self, sink: &mut dyn DiagSink) -> Token {
         let start = self.pos;
@@ -131,12 +131,10 @@ impl<'src> Lexer<'src> {
             Some("`\\u{...}` is missing its closing `}`".to_string())
         } else {
             let value = digits.iter().fold(0u32, |acc, &b| {
-                acc * 16 + u32::from(char::from(b).to_digit(16).unwrap_or(0))
+                acc * 16 + char::from(b).to_digit(16).unwrap_or(0)
             });
             if char::from_u32(value).is_none() {
-                Some(format!(
-                    "`\\u{{{value:x}}}` is not a Unicode scalar value"
-                ))
+                Some(format!("`\\u{{{value:x}}}` is not a Unicode scalar value"))
             } else {
                 None
             }
@@ -149,8 +147,8 @@ impl<'src> Lexer<'src> {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::TokenKind;
     use crate::Lexer;
+    use crate::token::TokenKind;
     use rynix_diag::VecSink;
     use rynix_span::Span;
 

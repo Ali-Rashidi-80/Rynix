@@ -130,7 +130,9 @@ mod tests {
         let mut i = Interner::new();
         // Force many rotations with strings large enough to overflow the
         // initial 4096-byte buffer repeatedly.
-        let inputs: Vec<String> = (0..200).map(|n| format!("sym_{n}_{}", "x".repeat(97))).collect();
+        let inputs: Vec<String> = (0..200)
+            .map(|n| format!("sym_{n}_{}", "x".repeat(97)))
+            .collect();
         let syms: Vec<Symbol> = inputs.iter().map(|s| i.intern(s)).collect();
         // Pointers captured after all rotations must match what resolve
         // returned before them (stability), and contents must be intact.

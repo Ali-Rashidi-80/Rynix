@@ -55,10 +55,13 @@ fn corpus() -> String {
     let mut sources = Vec::new();
     for entry in std::fs::read_dir(dir).expect("read corpus dir") {
         let path = entry.expect("dir entry").path();
-        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or_default();
         // Skip the deliberately broken files: constructing diagnostics
         // allocates (cold path), which is expected and allowed.
-        if !name.ends_with(".ryx") || name.starts_with("errors") {
+        if path.extension().is_none_or(|ext| ext != "ryx")
+            || path
+                .file_stem()
+                .is_some_and(|stem| stem.to_string_lossy().starts_with("errors"))
+        {
             continue;
         }
         sources.push(std::fs::read_to_string(&path).expect("read corpus file"));

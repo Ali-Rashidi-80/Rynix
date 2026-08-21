@@ -66,7 +66,7 @@ impl DiagSink for CountSink {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{codes, Stage};
+    use crate::{Stage, codes};
     use rynix_span::Span;
 
     #[test]

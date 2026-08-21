@@ -16,7 +16,7 @@
 use std::hint::black_box;
 use std::time::Duration;
 
-use criterion::{criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use rynix_diag::CountSink;
 use rynix_lexer::Lexer;
 
@@ -34,8 +34,11 @@ fn corpus_source() -> String {
     let mut unit = String::new();
     for entry in std::fs::read_dir(dir).expect("read corpus dir") {
         let path = entry.expect("dir entry").path();
-        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or_default();
-        if !name.ends_with(".ryx") || name.starts_with("errors") {
+        if path.extension().is_none_or(|ext| ext != "ryx")
+            || path
+                .file_stem()
+                .is_some_and(|stem| stem.to_string_lossy().starts_with("errors"))
+        {
             continue;
         }
         unit.push_str(&std::fs::read_to_string(&path).expect("read corpus file"));

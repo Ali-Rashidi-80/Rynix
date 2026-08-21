@@ -5,10 +5,11 @@
 
 use proptest::prelude::*;
 use rynix_diag::VecSink;
-use rynix_lexer::{lex_all, Token, TokenKind};
+use rynix_lexer::{Token, TokenKind, lex_all};
 
 /// Random Rynix-ish source: fragments joined by random separators. Much more
 /// likely to hit interesting lexer states than fully random text.
+#[rustfmt::skip] // the fragment table reads better as a dense grid
 fn source_soup() -> impl Strategy<Value = String> {
     let fragment = prop::sample::select(vec![
         "def", "end", "let", "mut", "if", "elif", "else", "loop", "for", "in", "return", "struct",

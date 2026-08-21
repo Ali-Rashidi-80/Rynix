@@ -58,7 +58,7 @@ pub fn render_human(diag: &Diagnostic, sm: &SourceMap) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{codes, Diagnostic, Stage};
+    use crate::{Diagnostic, Stage, codes};
     use rynix_span::{SourceMap, Span};
 
     #[test]

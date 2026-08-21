@@ -251,7 +251,8 @@ impl Token {
 pub(crate) fn keyword_kind(bytes: &[u8]) -> Option<TokenKind> {
     use TokenKind::{
         Agent, And, As, Break, Continue, Def, Elif, Else, End, Enum, False, For, If, Import, In,
-        Let, Loop, Match, Mut, Nil, Not, Or, Pub, Return, Signal, Spawn, Struct, Tensor, True, Type,
+        Let, Loop, Match, Mut, Nil, Not, Or, Pub, Return, Signal, Spawn, Struct, Tensor, True,
+        Type,
     };
     Some(match bytes.len() {
         2 => match bytes {
@@ -373,8 +374,14 @@ mod tests {
     fn classification_helpers() {
         assert!(TokenKind::Whitespace.is_trivia());
         assert!(TokenKind::Comment.is_trivia());
-        assert!(!TokenKind::DocComment.is_trivia(), "doc comments are significant");
-        assert!(!TokenKind::Newline.is_trivia(), "newlines terminate statements");
+        assert!(
+            !TokenKind::DocComment.is_trivia(),
+            "doc comments are significant"
+        );
+        assert!(
+            !TokenKind::Newline.is_trivia(),
+            "newlines terminate statements"
+        );
         assert!(TokenKind::Tensor.is_reserved());
         assert!(!TokenKind::Def.is_reserved());
         assert!(!TokenKind::Ident.is_keyword());

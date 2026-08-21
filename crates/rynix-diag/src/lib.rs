@@ -19,7 +19,7 @@ mod human;
 mod json;
 mod sink;
 
-pub use code::{codes, CodeInfo, DiagCode};
+pub use code::{CodeInfo, DiagCode, codes};
 pub use diagnostic::{Diagnostic, Edit, Fix, Label, Severity, Stage};
 pub use human::render_human;
 pub use json::render_json;

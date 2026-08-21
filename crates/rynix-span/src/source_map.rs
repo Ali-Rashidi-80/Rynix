@@ -192,7 +192,7 @@ impl SourceMap {
         };
         let len = text.as_str().len();
         assert!(
-            (start_pos as u64) + (len as u64) < u64::from(u32::MAX),
+            u64::from(start_pos) + (len as u64) < u64::from(u32::MAX),
             "total source exceeds the 4 GiB global span space (ADR-0003)"
         );
 

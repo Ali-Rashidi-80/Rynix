@@ -4,11 +4,13 @@
 //! itself does not. Fix confidences follow the policy in
 //! `docs/diagnostics.md` (>= 0.9 is auto-applicable by an agent).
 
-use rynix_diag::{codes, Diagnostic, Stage};
+use rynix_diag::{Diagnostic, Stage, codes};
 use rynix_span::Span;
 
 /// Renders bytes for a diagnostic message, escaping control characters.
 fn display_bytes(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+
     let text = String::from_utf8_lossy(bytes);
     let mut out = String::with_capacity(text.len());
     for ch in text.chars() {
@@ -18,7 +20,7 @@ fn display_bytes(bytes: &[u8]) -> String {
             '\n' => out.push_str("\\n"),
             '\0' => out.push_str("\\0"),
             c if c.is_control() => {
-                out.push_str(&format!("\\u{{{:x}}}", c as u32));
+                let _ = write!(out, "\\u{{{:x}}}", c as u32);
             }
             c => out.push(c),
         }
@@ -41,12 +43,7 @@ pub(crate) fn unknown_char(span: Span, bytes: &[u8]) -> Diagnostic {
     match bytes {
         b";" => diag
             .with_primary_label("Rynix has no statement separator")
-            .with_replacement_fix(
-                "remove `;` (newlines terminate statements)",
-                0.90,
-                span,
-                "",
-            ),
+            .with_replacement_fix("remove `;` (newlines terminate statements)", 0.90, span, ""),
         b"!" => diag
             .with_primary_label("logical negation is spelled `not`")
             .with_replacement_fix("replace `!` with `not `", 0.85, span, "not "),
@@ -105,11 +102,7 @@ pub(crate) fn non_ascii_ident(span: Span, extends_ident: bool) -> Diagnostic {
 ///
 /// `span` covers the offending bytes; `whole` covers the entire literal so
 /// the reader sees the context.
-pub(crate) fn malformed_number(
-    span: Span,
-    whole: Span,
-    message: impl Into<String>,
-) -> Diagnostic {
+pub(crate) fn malformed_number(span: Span, whole: Span, message: impl Into<String>) -> Diagnostic {
     let mut diag = Diagnostic::error(codes::MALFORMED_NUMBER, Stage::Lex, message, span);
     if whole != span {
         diag = diag.with_label(whole, "in this number literal");
@@ -134,7 +127,11 @@ pub(crate) fn wrong_case_in_number(
 }
 
 /// `RYX0005` — invalid escape sequence inside a string literal.
-pub(crate) fn invalid_escape(span: Span, message: impl Into<String>, removable: bool) -> Diagnostic {
+pub(crate) fn invalid_escape(
+    span: Span,
+    message: impl Into<String>,
+    removable: bool,
+) -> Diagnostic {
     let diag = Diagnostic::error(codes::INVALID_ESCAPE, Stage::Lex, message, span);
     if removable {
         diag.with_replacement_fix(

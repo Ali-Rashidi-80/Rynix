@@ -6,7 +6,7 @@
 use rynix_diag::DiagSink;
 use rynix_span::Span;
 
-use super::{is_digit_radix, is_ident_continue, Lexer};
+use super::{Lexer, is_digit_radix, is_ident_continue};
 use crate::errors;
 use crate::token::{Token, TokenKind};
 
@@ -18,21 +18,21 @@ struct DigitRun {
     saw_underscore: bool,
 }
 
-impl<'src> Lexer<'src> {
+impl Lexer<'_> {
     /// Entry point: the current byte is an ASCII digit.
     pub(super) fn number(&mut self, sink: &mut dyn DiagSink) -> Token {
         let start = self.pos;
-        if self.src[start as usize] == b'0' {
-            if let Some(marker) = self.peek_at(1) {
-                let radix = match marker {
-                    b'x' | b'X' => Some(16),
-                    b'o' | b'O' => Some(8),
-                    b'b' | b'B' => Some(2),
-                    _ => None,
-                };
-                if let Some(radix) = radix {
-                    return self.radix_number(start, radix, marker, sink);
-                }
+        if self.src[start as usize] == b'0'
+            && let Some(marker) = self.peek_at(1)
+        {
+            let radix = match marker {
+                b'x' | b'X' => Some(16),
+                b'o' | b'O' => Some(8),
+                b'b' | b'B' => Some(2),
+                _ => None,
+            };
+            if let Some(radix) = radix {
+                return self.radix_number(start, radix, marker, sink);
             }
         }
         self.decimal_number(start, sink)
@@ -59,7 +59,10 @@ impl<'src> Lexer<'src> {
             sink.emit(errors::wrong_case_in_number(
                 self.byte_span(start + 1),
                 whole,
-                format!("base prefix `0{marker}` must be lowercase", marker = marker as char),
+                format!(
+                    "base prefix `0{marker}` must be lowercase",
+                    marker = marker as char
+                ),
                 &lowered.to_string(),
                 0.95,
             ));
@@ -99,18 +102,18 @@ impl<'src> Lexer<'src> {
             kind = TokenKind::FloatLit;
         }
 
-        if let Some(marker @ (b'e' | b'E')) = self.peek() {
-            if self.exponent_digits_follow() {
-                if marker == b'E' {
-                    uppercase_e = Some(self.pos);
-                }
-                self.pos += 1;
-                if matches!(self.peek(), Some(b'+' | b'-')) {
-                    self.pos += 1;
-                }
-                exp_run = Some(self.eat_digit_run());
-                kind = TokenKind::FloatLit;
+        if let Some(marker @ (b'e' | b'E')) = self.peek()
+            && self.exponent_digits_follow()
+        {
+            if marker == b'E' {
+                uppercase_e = Some(self.pos);
             }
+            self.pos += 1;
+            if matches!(self.peek(), Some(b'+' | b'-')) {
+                self.pos += 1;
+            }
+            exp_run = Some(self.eat_digit_run());
+            kind = TokenKind::FloatLit;
         }
 
         // Anything identifier-like left over is either a suffix (`123abc`) or
@@ -138,17 +141,15 @@ impl<'src> Lexer<'src> {
                 );
             }
         }
-        if ok {
-            if let Some(at) = uppercase_e {
-                sink.emit(errors::wrong_case_in_number(
-                    self.byte_span(at),
-                    whole,
-                    "exponent marker must be the lowercase `e`",
-                    "e",
-                    0.90,
-                ));
-                ok = false;
-            }
+        if ok && let Some(at) = uppercase_e {
+            sink.emit(errors::wrong_case_in_number(
+                self.byte_span(at),
+                whole,
+                "exponent marker must be the lowercase `e`",
+                "e",
+                0.90,
+            ));
+            ok = false;
         }
         if ok && suffix_start != self.pos {
             self.report_suffix(suffix_start, whole, sink);
@@ -235,16 +236,9 @@ impl<'src> Lexer<'src> {
                 let message = if radix == 10 {
                     "invalid digit in decimal literal".to_string()
                 } else {
-                    format!(
-                        "invalid digit `{}` for a base-{radix} literal",
-                        b as char
-                    )
+                    format!("invalid digit `{}` for a base-{radix} literal", b as char)
                 };
-                sink.emit(errors::malformed_number(
-                    self.byte_span(at),
-                    whole,
-                    message,
-                ));
+                sink.emit(errors::malformed_number(self.byte_span(at), whole, message));
                 return false;
             }
         }
@@ -254,8 +248,8 @@ impl<'src> Lexer<'src> {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::TokenKind;
     use crate::Lexer;
+    use crate::token::TokenKind;
     use rynix_diag::VecSink;
     use rynix_span::Span;
 
@@ -268,7 +262,17 @@ mod tests {
 
     #[test]
     fn valid_integers() {
-        for src in ["0", "7", "42", "1_000", "1_000_000", "0x1F", "0xdead_beef", "0o755", "0b1010_0101"] {
+        for src in [
+            "0",
+            "7",
+            "42",
+            "1_000",
+            "1_000_000",
+            "0x1F",
+            "0xdead_beef",
+            "0o755",
+            "0b1010_0101",
+        ] {
             let (kind, span, sink) = lex_one(src);
             assert_eq!(kind, TokenKind::IntLit, "{src}");
             assert_eq!(span, Span::new(0, src.len() as u32), "{src}");
@@ -278,7 +282,15 @@ mod tests {
 
     #[test]
     fn valid_floats() {
-        for src in ["1.5", "0.0", "3.141_592", "1e10", "1e+10", "1e-10", "2.5e-3"] {
+        for src in [
+            "1.5",
+            "0.0",
+            "3.141_592",
+            "1e10",
+            "1e+10",
+            "1e-10",
+            "2.5e-3",
+        ] {
             let (kind, span, sink) = lex_one(src);
             assert_eq!(kind, TokenKind::FloatLit, "{src}");
             assert_eq!(span, Span::new(0, src.len() as u32), "{src}");
@@ -319,7 +331,11 @@ mod tests {
         let (_, span, sink) = lex_one("0x");
         assert_eq!(span, Span::new(0, 2));
         assert_eq!(sink.diags.len(), 1);
-        assert!(sink.diags[0].message.contains("missing digits"), "{:?}", sink.diags[0].message);
+        assert!(
+            sink.diags[0].message.contains("missing digits"),
+            "{:?}",
+            sink.diags[0].message
+        );
     }
 
     #[test]
@@ -328,7 +344,11 @@ mod tests {
             let (_, _, sink) = lex_one(src);
             assert_eq!(sink.diags.len(), 1, "{src}");
             assert_eq!(sink.diags[0].code.as_str(), "RYX0004", "{src}");
-            assert_eq!(sink.diags[0].primary.span, Span::new(bad_at, bad_at + 1), "{src}");
+            assert_eq!(
+                sink.diags[0].primary.span,
+                Span::new(bad_at, bad_at + 1),
+                "{src}"
+            );
         }
     }
 
@@ -357,7 +377,11 @@ mod tests {
         let (_, span, sink) = lex_one("123abc");
         assert_eq!(span, Span::new(0, 6), "the suffix is part of the literal");
         assert_eq!(sink.diags.len(), 1);
-        assert!(sink.diags[0].message.contains("invalid suffix `abc`"), "{:?}", sink.diags[0].message);
+        assert!(
+            sink.diags[0].message.contains("invalid suffix `abc`"),
+            "{:?}",
+            sink.diags[0].message
+        );
     }
 
     #[test]

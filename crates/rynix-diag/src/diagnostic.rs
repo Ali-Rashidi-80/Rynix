@@ -131,7 +131,12 @@ impl Diagnostic {
 
     /// Attaches a multi-edit fix.
     #[must_use]
-    pub fn with_fix(mut self, message: impl Into<String>, confidence: f32, edits: Vec<Edit>) -> Self {
+    pub fn with_fix(
+        mut self,
+        message: impl Into<String>,
+        confidence: f32,
+        edits: Vec<Edit>,
+    ) -> Self {
         debug_assert!(
             (0.0..=1.0).contains(&confidence),
             "confidence {confidence} out of range"

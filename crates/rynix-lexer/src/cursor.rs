@@ -12,7 +12,7 @@ use rynix_diag::DiagSink;
 use rynix_span::{SourceFile, Span};
 
 use crate::errors;
-use crate::token::{keyword_kind, Token, TokenKind};
+use crate::token::{Token, TokenKind, keyword_kind};
 
 /// First-byte classification. Dispatching through a 256-entry table keeps
 /// the hot loop to one indexed load plus one jump.
@@ -87,12 +87,11 @@ const fn is_digit_radix(b: u8, radix: u32) -> bool {
 #[inline]
 const fn utf8_len(b: u8) -> u32 {
     match b {
-        0x00..=0x7F => 1,
         0xC0..=0xDF => 2,
         0xE0..=0xEF => 3,
         0xF0..=0xFF => 4,
-        // Continuation byte: cannot occur at a character boundary in valid
-        // UTF-8, but stay total and advance by one.
+        // ASCII, or a continuation byte: the latter cannot occur at a
+        // character boundary in valid UTF-8, but stay total and advance one.
         _ => 1,
     }
 }
@@ -221,8 +220,8 @@ impl<'src> Lexer<'src> {
         self.pos += 1;
         let is_doc = self.eat(b'#');
         let rest = &self.src[self.pos as usize..];
-        let end = memchr::memchr2(b'\n', b'\r', rest)
-            .map_or(self.src.len(), |i| self.pos as usize + i);
+        let end =
+            memchr::memchr2(b'\n', b'\r', rest).map_or(self.src.len(), |i| self.pos as usize + i);
         self.pos = end as u32;
         let kind = if is_doc {
             TokenKind::DocComment
@@ -304,19 +303,39 @@ impl<'src> Lexer<'src> {
                 }
             }
             b':' => {
-                if self.eat(b':') { ColonColon } else { Colon }
+                if self.eat(b':') {
+                    ColonColon
+                } else {
+                    Colon
+                }
             }
             b'=' => {
-                if self.eat(b'=') { EqEq } else { Eq }
+                if self.eat(b'=') {
+                    EqEq
+                } else {
+                    Eq
+                }
             }
             b'<' => {
-                if self.eat(b'=') { LtEq } else { Lt }
+                if self.eat(b'=') {
+                    LtEq
+                } else {
+                    Lt
+                }
             }
             b'>' => {
-                if self.eat(b'=') { GtEq } else { Gt }
+                if self.eat(b'=') {
+                    GtEq
+                } else {
+                    Gt
+                }
             }
             b'+' => {
-                if self.eat(b'=') { PlusEq } else { Plus }
+                if self.eat(b'=') {
+                    PlusEq
+                } else {
+                    Plus
+                }
             }
             b'-' => {
                 if self.eat(b'>') {
@@ -328,13 +347,25 @@ impl<'src> Lexer<'src> {
                 }
             }
             b'*' => {
-                if self.eat(b'=') { StarEq } else { Star }
+                if self.eat(b'=') {
+                    StarEq
+                } else {
+                    Star
+                }
             }
             b'/' => {
-                if self.eat(b'=') { SlashEq } else { Slash }
+                if self.eat(b'=') {
+                    SlashEq
+                } else {
+                    Slash
+                }
             }
             b'%' => {
-                if self.eat(b'=') { PercentEq } else { Percent }
+                if self.eat(b'=') {
+                    PercentEq
+                } else {
+                    Percent
+                }
             }
             // `!` only exists as part of `!=`; a lone `!` is `not` in Rynix.
             b'!' => {

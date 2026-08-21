@@ -6,7 +6,7 @@
 
 use std::fmt::Write as _;
 
-use rynix_diag::{render_human, Diagnostic, VecSink};
+use rynix_diag::{Diagnostic, VecSink, render_human};
 use rynix_lexer::lex_all;
 use rynix_span::SourceMap;
 

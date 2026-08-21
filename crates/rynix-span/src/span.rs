@@ -52,6 +52,7 @@ impl Span {
 
     /// The smallest span covering both `self` and `other`.
     #[inline]
+    #[must_use]
     pub fn to(self, other: Span) -> Span {
         Span::new(self.lo.min(other.lo), self.hi.max(other.hi))
     }
