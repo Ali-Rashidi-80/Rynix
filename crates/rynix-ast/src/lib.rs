@@ -1,4 +1,17 @@
-//! Arena-allocated AST for Rynix.
+//! Arena-allocated abstract syntax tree for Rynix.
 //!
-//! Implemented in Phase 2. Nodes live in a bump arena (`AstArena`); no
-//! `Box`/`Rc`/`Drop` types are permitted inside nodes (ADR-0004).
+//! Design (ADR-0004):
+//! - every node lives in a [`AstArena`] (bumpalo newtype);
+//! - identifiers are interned [`Symbol`]s, never owned `String`s;
+//! - no `Box` / `Rc` / `Drop` types inside nodes;
+//! - [`NodeId`] is a dense `u32` handle for `SoA` side tables in later phases.
+//!
+//! Lifetimes: a parsed tree is valid for as long as the arena that owns it.
+
+mod arena;
+mod node;
+mod print;
+
+pub use arena::{AstArena, NodeId};
+pub use node::*;
+pub use print::dump_module;

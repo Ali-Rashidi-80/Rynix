@@ -666,6 +666,11 @@ dependencies = [
 [[package]]
 name = "rynix-ast"
 version = "0.1.0"
+dependencies = [
+ "bumpalo",
+ "rynix-diag",
+ "rynix-span",
+]
 
 [[package]]
 name = "rynix-diag"
@@ -691,6 +696,14 @@ dependencies = [
 [[package]]
 name = "rynix-parser"
 version = "0.1.0"
+dependencies = [
+ "insta",
+ "proptest",
+ "rynix-ast",
+ "rynix-diag",
+ "rynix-lexer",
+ "rynix-span",
+]
 
 [[package]]
 name = "rynix-span"
@@ -705,8 +718,10 @@ dependencies = [
 name = "rynixc"
 version = "0.1.0"
 dependencies = [
+ "rynix-ast",
  "rynix-diag",
  "rynix-lexer",
+ "rynix-parser",
  "rynix-span",
 ]
 
