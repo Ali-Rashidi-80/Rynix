@@ -29,4 +29,8 @@ fn reduce_loop_uses_urem_and_lshr_for_nonneg_i() {
         !text.contains("srem") && !text.contains("ashr"),
         "signed div/rem should not appear for nonneg i:\n{text}"
     );
+    assert!(
+        !text.contains("__incr_mod_"),
+        "incremental mod blocks LLVM vectorization; use direct urem on counter:\n{text}"
+    );
 }

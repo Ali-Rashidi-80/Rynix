@@ -1,13 +1,11 @@
-
-
 ![Rynix — AI-native systems language](assets/logo.png)
 
 # Rynix
 
-**AI-native systems language** — canonical syntax, Zero-GC escape path, colorless  
-fibers, machine-readable diagnostics, textual LLVM backend, honest benchmarks.
+**AI-native systems language** — canonical syntax, Zero-GC escape path, colorless
+fibers, machine-readable diagnostics, textual LLVM backend, **honest** benchmarks.
 
-`.ryx` · `rynixc` · phases **0–10** gated · Roadmap
+`.ryx` · `rynixc` · phases **0–10** gated · [Roadmap](docs/ROADMAP.md)
 
 ![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF.svg)
 ![Version](https://img.shields.io/badge/version-0.1.0-3fb950.svg)
@@ -16,7 +14,7 @@ fibers, machine-readable diagnostics, textual LLVM backend, honest benchmarks.
 ![Memory](https://img.shields.io/badge/memory-Zero--GC%20escape-0B3D4A.svg)
 ![AI](https://img.shields.io/badge/AI-MCP%20+%20LSP%20+%20JSON-3ECFB2.svg)
 
-[What is Rynix?](#what-is-rynix) · [Quick start](#quick-start) · [Pipeline](#compiler-pipeline) · [Runtime](#runtime--fibers) · [Memory](#memory-model) · [Tooling](#tooling-surface) · [Benchmarks](#benchmarks) · [Install](INSTALL.md) · Compare
+[What is Rynix?](#what-is-rynix) · [Quick start](#quick-start) · [Pipeline](#compiler-pipeline) · [Runtime](#runtime--fibers) · [Memory](#memory-model) · [Tooling](#tooling-surface) · [Benchmarks](#benchmarks) · [FAQ](#faq-quick-fixes) · [Install](INSTALL.md) · [Compare](docs/COMPARE.md)
 
 ---
 
@@ -29,13 +27,13 @@ per construct (`def`/`end`, newline statements), structured `rynix.diag.v1` JSON
 and CLI/MCP/LSP surfaces agents can call without scraping stdout.
 
 
-|              |                                                                                             |
+| Field        | Detail                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------- |
-| **Version**  | `0.1.0` — phases **0–10** acceptance-gated                                                  |
-| **Compiler** | Rust (`crates/`)                                                                            |
-| **Runtime**  | C (`rt/`) — fibers, TCP, json/http, io_uring                                                |
-| **Backend**  | Textual LLVM IR → clang ThinLTO ([ADR-0005](docs/adr/0005-textual-llvm-ir-first.md))        |
-| **Proof**    | `[docs/ROADMAP.md](docs/ROADMAP.md)` · `[PRODUCTION_READINESS.md](PRODUCTION_READINESS.md)` |
+| **Version**  | `0.1.0` — phases **0–10** acceptance-gated ([ROADMAP](docs/ROADMAP.md))                     |
+| **Compiler** | Rust workspace (`crates/`) — MSRV **1.98** ([`Cargo.toml`](Cargo.toml))                     |
+| **Runtime**  | C (`rt/`) — fibers, TCP, json/http, io_uring (Linux)                                        |
+| **Backend**  | Textual LLVM IR → clang ThinLTO ([ADR-0005](docs/adr/0005-textual-llvm-ir-first.md))         |
+| **Proof**    | In-tree tests + CI — [PRODUCTION_READINESS](PRODUCTION_READINESS.md)                        |
 
 
 Zig/Go in `[benchmarks/suite5/](benchmarks/suite5/)` are **peer workload implementations**,
@@ -45,12 +43,15 @@ not the compiler host.
 
 ## Why Rynix
 
+Rynix optimizes for **agent-verifiable** delivery: every roadmap ✅ maps to a test or CI job;
+benchmarks gate **checksums before milliseconds**; diagnostics and graph/impact/eval export JSON
+schemas agents can consume without scraping.
 
 | Pillar                  | Shipping today                                   | Proof                                            |
 | ----------------------- | ------------------------------------------------ | ------------------------------------------------ |
 | **Canonical syntax**    | `def`/`end`, newline statements                  | `[docs/SPEC.md](docs/SPEC.md)`, parser snapshots |
 | **Zero-GC path**        | Escape → stack / region / heap + injected `free` | `--explain-alloc`, MCP `rynix_explain_alloc`     |
-| **Colorless I/O**       | Fibers + `PARKED`; io_uring harvest on Linux     | `rt/tests/`*, ASan CI                            |
+| **Colorless I/O**       | Fibers + `PARKED`; io_uring harvest on Linux     | `rt/tests/`, ASan CI                             |
 | **AI-native toolchain** | NDJSON diags, MCP (11 tools), graph/impact/eval  | `[docs/schemas/](docs/schemas/)`, `agent_cli`    |
 | **Editor + arch guard** | VS Code + LSP; `Architecture.toml`               | `phase10_gates`, `editors/vscode/`               |
 | **Small binaries**      | Hello under **300 KiB** (clang gate)             | `size_echo_gates`                                |
@@ -114,9 +115,10 @@ flowchart TB
 ### `rynixc` command surface
 
 ```text
-Core:     lex · parse · check · dump-rir · emit-ll · build · run · test · fmt
+Core:     lex · parse · check · dump-rir [--opt] · emit-ll · build · run · test · fmt
 Agent:    graph · slice · impact · eval · patch · arch check
 Servers:  mcp-serve · lsp-serve
+Config:   rynix.toml (optional project file)
 ```
 
 ---
@@ -162,6 +164,16 @@ where heap escape is proven.
   GlobalEscape ──▶ heap + compiler-injected free
 ```
 
+```mermaid
+flowchart LR
+  ALLOC["allocation site"] --> EA["escape analysis"]
+  EA --> NE["NoEscape → stack"]
+  EA --> AE["ArgEscape → caller region"]
+  EA --> RE["RegionEscape → scoped region"]
+  EA --> GE["GlobalEscape → heap"]
+  GE --> FREE["compiler-injected free"]
+```
+
 ```sh
 rynixc check file.ryx --explain-alloc --error-format=json
 ```
@@ -183,9 +195,9 @@ chmod +x INSTALL.sh && ./INSTALL.sh
 cargo install --path crates/rynixc --force
 ```
 
-**Prerequisites:** Rust (`[rust-toolchain.toml](rust-toolchain.toml)`), `clang` on `PATH`.
-Windows: MinGW `x86_64-w64-mingw32-clang` + `x86_64-pc-windows-gnu`. Details:
-`[INSTALL.md](INSTALL.md)`.
+**Prerequisites:** Rust **1.98+** (see [`Cargo.toml`](Cargo.toml) / [`rust-toolchain.toml`](rust-toolchain.toml)), `clang` on `PATH`.
+Windows: use `--runtime=portable` and MinGW `x86_64-w64-mingw32-clang` + `x86_64-pc-windows-gnu`.
+Linux: optional `--runtime=uring` when built with `RYNIX_RT_URING`. Details: [INSTALL.md](INSTALL.md).
 
 ### First run
 
@@ -200,6 +212,23 @@ rynixc build examples/03_vec.ryx -o target/ex_vec --runtime=portable
 rynixc run examples/05_http_json.ryx    # json_get_i64 → stdout 42
 ```
 
+### Project config (`rynix.toml`)
+
+Optional manifest beside your sources (see repo root for a sample):
+
+```toml
+[package]
+name = "myapp"
+version = "0.1.0"
+entry = "src/main.ryx"
+
+[build]
+runtime = "portable"   # Windows default; Linux may use "uring"
+optimize = true
+```
+
+`rynixc build` / `run` pick up `[build]` when a `rynix.toml` is present in the working tree.
+
 ### Verify (CI-equivalent)
 
 ```sh
@@ -208,6 +237,16 @@ rynixc arch check --error-format=json
 python benchmarks/suite5/run_suite5.py --langs c,rynix
 cd editors/vscode && npm ci && npm run compile
 ```
+
+### FAQ (quick fixes)
+
+| Problem | Fix |
+| ------- | --- |
+| **`clang not found`** (build/run) | Install system `clang` (Linux/macOS) or MinGW `x86_64-w64-mingw32-clang` on PATH (Windows). `check` / `fmt` / MCP work without clang. |
+| **Windows link errors** | Pass `--runtime=portable`; target `x86_64-pc-windows-gnu`. See [INSTALL.md](INSTALL.md). |
+| **Zig column missing in Suite5** | Zig is optional — install `zig` on PATH or run `--langs c,rust,go,rynix` / `--langs c,rynix` (CI subset). |
+| **Checksum mismatch C ↔ Rynix** | Do not change workload constants; run `cargo test -p rynixc --test phase10_gates`. |
+| **Slow or odd benchmark ms** | Re-run `python benchmarks/suite5/run_suite5.py --summary`; ratios vary by machine (±5–15%). |
 
 ---
 
@@ -292,42 +331,61 @@ Full index: `[benchmarks/README.md](benchmarks/README.md)`
 
 ### Suite5 — 12 workloads × 5 languages
 
-Same **integer algorithms** in **Rynix · C · Rust · Go · Zig**. Each binary prints one
-checksum; CI requires **C ↔ Rynix match on all 12** — not a crown-speed claim.
+Same **integer algorithms** in **Rynix · C · Rust · Go · Zig** (Zig optional if not on PATH).
+Each binary prints one checksum; CI requires **C ↔ Rynix match on all 12** — **correctness
+first**, not a crown-speed claim.
+
+```sh
+python benchmarks/suite5/run_suite5.py --summary          # matrix + Rynix/C
+python benchmarks/suite5/run_suite5.py --langs c,rynix    # CI subset (faster)
+python benchmarks/suite5/run_pgo_suite.py --skip-train    # optional PGO delta (local)
+```
+
+**Methodology:** warmup=3, runs=9, reported ms = **trimmed median** (drops min/max when runs≥5).
+Override via `SUITE5_WARMUP` / `SUITE5_RUNS` or `--warmup` / `--runs`.
+Schema: `rynix.suite5.v2` in [`suite5_results.json`](benchmarks/suite5/suite5_results.json).
+
+Sample run (Windows, 2026-08-22; **re-run on your machine** — numbers vary ±5–15%):
+
+**All 12 C ↔ Rynix checksums pass** (`phase10_gates` + CI `suite5-check`).
+
+| Workload | C   | Rust | Go  | Zig | Rynix  | Rynix/C   | Notes        |
+| -------- | --- | ---- | --- | --- | ------ | --------- | ------------ |
+| alu      | 12  | 9    | 11  | 9   | **8**  | 0.68×     | leads vs C   |
+| nested   | 8   | 7    | 9   | 8   | 8      | 0.95×     | near parity  |
+| fib      | 25  | 8    | 12  | 9   | 9      | 0.35×     | leads vs C   |
+| hash     | 20  | 19   | 20  | 19  | **16** | **0.82×** | lazy-or urem |
+| prime    | 12  | 11   | 17  | 11  | 12     | 0.97×     | near parity  |
+| sum      | 7   | 6    | 9   | 7   | 7      | 0.98×     | near parity  |
+| bits     | 465 | 447  | 449 | 474 | **93** | **0.20×** | `@llvm.ctpop` |
+| matrix   | 9   | 8    | 68  | 9   | **7**  | **0.78×** | unrolled inner |
+| scan     | 10  | 15   | 14  | 18  | **9**  | **0.91×** | short-circuit `or` |
+| powmod   | 16  | 15   | 18  | 16  | 16     | 0.98×     | near parity  |
+| gcd      | 165 | 164  | 210 | 164 | 161    | 0.98×     | near parity  |
+| reduce   | 11  | 16   | 21  | 15  | **11** | **0.96×** | LLVM 4-wide SIMD |
+
+Times are rounded trimmed medians from the committed JSON (not marketing). Refresh locally:
 
 ```sh
 python benchmarks/suite5/run_suite5.py --summary
-python benchmarks/suite5/run_suite5.py --langs c,rynix    # CI subset
 ```
 
-Sample local run (Windows, 2026-08-22; **re-run on your machine** — trimmed median ms,
-warmup=3, runs=9; drops min/max when runs≥5).
-**All 12 C ↔ Rynix checksums pass** (`phase10_gates` + CI `suite5-check`).
+Details: [`benchmarks/suite5/README.md`](benchmarks/suite5/README.md)
 
+#### Performance honesty
 
-| Workload | C   | Rust | Go  | Zig | Rynix  | Rynix/C   |
-| -------- | --- | ---- | --- | --- | ------ | --------- |
-| alu      | 9   | 8    | 11  | 9   | 8      | 0.87×     |
-| nested   | 7   | 7    | 10  | 7   | 7      | 1.05×     |
-| fib      | 9   | 9    | 13  | 10  | 10     | 1.10×     |
-| hash     | 20  | 18   | 20  | 20  | 17     | 0.86×     |
-| prime    | 13  | 11   | 17  | 13  | 16     | 1.24×     |
-| sum      | 7   | 7    | 9   | 7   | 7      | 0.98×     |
-| bits     | 459 | 436  | 444 | 479 | **92** | **0.20×** |
-| matrix   | 9   | 8    | 73  | 10  | **7**  | **0.81×** |
-| scan     | 9   | 15   | 15  | 17  | 9      | 1.03×     |
-| powmod   | 16  | 16   | 18  | 17  | 18     | 1.15×     |
-| gcd      | 189 | 167  | 217 | 166 | 163    | 0.86×     |
-| reduce   | 11  | 17   | 21  | 15  | 16     | 1.48×     |
+Rynix is **not** at a performance ceiling. On this run:
 
+- **Leads or ties C:** `bits`, `matrix`, `hash`, `scan`, `fib`, `alu`, `reduce`, several others within ~±10%.
+- **Varies by machine/run:** re-run locally before drawing conclusions (`python benchmarks/suite5/run_suite5.py --summary`).
+- **Not a merge gate:** optional LLVM PGO (`run_pgo_suite.py`) — deltas are machine-local and may regress.
 
-Times are trimmed median ms from `run_suite5.py` (not a crown claim). Your machine → `suite5_results.json`.
-Details: `[benchmarks/suite5/README.md](benchmarks/suite5/README.md)`
-
-**Performance honesty:** Rynix is **not** at a perf ceiling. Most microkernels are within ~±15% of C;
-`bits` leads after `@llvm.ctpop` lowering (~0.20× C on this run). Compiler wins in-tree: counted-loop SSA,
-`urem`, `ctpop`, `×31→lshl`, guarded-loop peel (non-nested), gcd inline + urem, short-circuit `and`/`or` in `if`,
-loop `break` exit phis, `i*j+i` → `i*(j+1)` fold, guarded outer loop when nested loops are simple counted exits, merged guarded-loop exit blocks, loop-invariant `iconst` hoist, LLVM loop vectorizer hints on latch back-edges, small literal-trip loop unroll (≤8). Optional PGO: `python benchmarks/suite5/run_pgo_suite.py` — see `[suite5/README.md](benchmarks/suite5/README.md)`.
+**Compiler wins (in-tree tests):** counted-loop SSA, `urem` for nonneg paths (incl. literal divisors),
+short-circuit `or`/`and` in conditional increments, `@llvm.ctpop`, `×31→lshl`, gcd inline + urem,
+short-circuit `and`/`or` in `if`, loop `break` exit phis, `i*j+i` → `i*(j+1)` fold,
+guarded outer loop (simple nested counted exits), merged guarded-loop exit blocks,
+loop-invariant `iconst` hoist, LLVM loop vectorizer hints on latch back-edges,
+small literal-trip loop unroll (≤8), nonneg symbol tracking for hot `urem`/`lshr` (scalar loops only — avoid extra loop-carried state that blocks LLVM vectorization).
 
 ### vs End [suite12](https://github.com/IrMaho/End/tree/main/benchmarks/suite12)
 
@@ -370,12 +428,13 @@ Every ✅ in `[docs/ROADMAP.md](docs/ROADMAP.md)` maps to a test or CI job.
 
 | Gate                       | Evidence                                              |
 | -------------------------- | ----------------------------------------------------- |
-| Hello under 300 KiB        | `size_echo_gates`                                     |
-| Fiber / TCP / load / uring | `rt/tests/*`                                          |
+| Hello under 300 KiB        | `size_echo_gates` (skipped if clang absent)           |
+| Fiber / TCP / load / uring | `rt/tests/`                                           |
 | JSON unit + smoke          | `json_unit.c`, `json_smoke.c`                         |
 | HTTP connect-fail          | `http_smoke.c`                                        |
 | LLVM ↔ interpreter         | `diff_llvm_vs_interp`                                 |
 | Phase 10 surface           | `phase10_gates` (arch, Suite5×12, http LLVM, VS Code) |
+| RIR lowering patterns      | `gcd_urem`, `matrix_unroll`, `reduce_nonneg`, `scan_hash_lower`, … |
 | LSP hover + goto-def       | `lsp_cmd` unit tests                                  |
 | AI CLI JSON                | `agent_cli`                                           |
 | ASan runtime               | CI Ubuntu sanitizer job                               |
@@ -485,18 +544,23 @@ Rynix/
 
 ## CI & quality
 
-`[/.github/workflows/ci.yml](.github/workflows/ci.yml)`:
-
 ```text
   push / PR
-     ├── test (Ubuntu + Windows)     cargo test --workspace
+     ├── test (Ubuntu + Windows)     cargo test --workspace (incl. phase10_gates)
      ├── clippy                      -D warnings
-     ├── suite5-check                C ↔ Rynix checksum
+     ├── suite5-check                C ↔ Rynix checksum (12 workloads)
      ├── arch-check                  Architecture.toml
      ├── vscode-extension            npm ci && compile
      └── sanitizer (Ubuntu)          ASan: fiber, TCP, json, http, load
            └── uring smokes (Linux)   SQE + TCP + load
+
+  workflow_dispatch (optional)
+     └── Suite5 PGO                    train + benchmark + artifact upload
 ```
+
+Workflows: [`.github/workflows/ci.yml`](.github/workflows/ci.yml),
+[`.github/workflows/suite5-pgo.yml`](.github/workflows/suite5-pgo.yml),
+[`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 ---
 
@@ -505,10 +569,11 @@ Rynix/
 
 | Scope                 | Detail                                                                                        |
 | --------------------- | --------------------------------------------------------------------------------------------- |
-| **Shipping**          | Phases **0–10** — `[docs/ROADMAP.md](docs/ROADMAP.md)`                                        |
+| **Shipping**          | Phases **0–10** — [`docs/ROADMAP.md`](docs/ROADMAP.md) (each ✅ has in-tree tests)            |
 | **Deferred**          | C11 backend — [ADR-0008](docs/adr/0008-deferred-c11-backend.md)                               |
 | **Out of scope v0.1** | UI, hot-reload, canvas — [ADR-0007](docs/adr/0007-deferred-ui-frameworks.md)                  |
-| **Not claimed**       | End-style heavy suite12 sims (SDF/HFT/SHA), inkwell, parametric `Vec[T]`, GPG-signed releases |
+| **Perf gaps (honest)**| no parametric `Vec[T]`; no GPG-signed releases; ms ratios vary by machine/run |
+| **Not claimed**       | End-style suite12 sims (SDF/HFT/SHA), inkwell backend, crown-speed on all 12 workloads          |
 
 
 ---
@@ -518,20 +583,23 @@ Rynix/
 
 | Document                                             | Contents                         |
 | ---------------------------------------------------- | -------------------------------- |
-| `[INSTALL.md](INSTALL.md)`                           | Install, verify, troubleshooting |
-| `[docs/SPEC.md](docs/SPEC.md)`                       | Grammar & builtins               |
-| `[docs/abi.md](docs/abi.md)`                         | Runtime symbols                  |
-| `[docs/diagnostics.md](docs/diagnostics.md)`         | `RYX####` codes                  |
-| `[docs/COMPARE.md](docs/COMPARE.md)`                 | Peer comparison (End, etc.)      |
-| `[PRODUCTION_READINESS.md](PRODUCTION_READINESS.md)` | Subsystem matrix                 |
-| `[SECURITY.md](SECURITY.md)`                         | Vulnerability reporting          |
-| `[CONTRIBUTING.md](CONTRIBUTING.md)`                 | Contribution guide               |
-| `[docs/adr/](docs/adr/)`                             | Architecture decisions           |
+| [`AGENTS.md`](AGENTS.md)                             | Guide for AI agents / MCP        |
+| [`INSTALL.md`](INSTALL.md)                           | Install, verify, troubleshooting |
+| [`docs/SPEC.md`](docs/SPEC.md)                       | Grammar & builtins               |
+| [`docs/abi.md`](docs/abi.md)                         | Runtime symbols                  |
+| [`docs/diagnostics.md`](docs/diagnostics.md)         | `RYX####` codes                  |
+| [`docs/COMPARE.md`](docs/COMPARE.md)                 | Peer comparison (End, etc.)      |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md)                 | Phase gates & evidence           |
+| [`benchmarks/suite5/README.md`](benchmarks/suite5/README.md) | Suite5 harness & PGO       |
+| [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md) | Subsystem matrix                 |
+| [`SECURITY.md`](SECURITY.md)                         | Vulnerability reporting          |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)                 | Contribution guide               |
+| [`docs/adr/`](docs/adr/)                             | Architecture decisions           |
 
 
 ---
 
 
 
-**Rynix v0.1.0** — built to be verified, not merely advertised.
+**Rynix v0.1.0** — built to be verified, not merely advertised. Re-run benchmarks and gates on your machine before trusting any ms ratio.
 

@@ -1395,11 +1395,14 @@ impl LowerCtx<'_, '_> {
     }
 
     fn lower_conditional_add(&mut self, target: Symbol, cond: &Expr<'_>) {
-        let c = self.expr(cond);
+        let c = self.lower_lazy_bool(cond);
         let inc = self.b.push_value(Inst::ZExtI64(c));
         let cur = self.load_sym(target);
         let next = self.b.push_value(Inst::IAdd(cur, inc));
         self.store_sym(target, next);
+        if self.mut_nonneg_syms.contains(&target) && self.value_is_nonneg(next) {
+            self.mut_nonneg_syms.insert(target);
+        }
     }
 
     fn lower_lazy_bool(&mut self, expr: &Expr<'_>) -> ValueId {
@@ -2250,6 +2253,12 @@ impl LowerCtx<'_, '_> {
                 let l = self.expr(bin.lhs);
                 let r = self.expr(bin.rhs);
                 if bin.op == BinaryOp::Percent {
+                    if self.value_is_nonneg(l)
+                        && (self.positive_iconst(r).is_some()
+                            || self.value_is_strictly_positive(r))
+                    {
+                        return self.b.push_value(Inst::URem(l, r));
+                    }
                     if let (Some(lsym), Some(rsym)) = (expr_path(bin.lhs), expr_path(bin.rhs))
                         && self.mut_nonneg_syms.contains(&lsym)
                         && self.mut_positive_syms.contains(&rsym)

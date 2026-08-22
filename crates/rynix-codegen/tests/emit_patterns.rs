@@ -108,6 +108,19 @@ fn counted_loop_latch_emits_vectorize_metadata() {
 }
 
 #[test]
+fn reduce_loop_stays_vectorizable() {
+    let ll = emit(include_str!("../../../benchmarks/suite5/reduce.ryx"));
+    assert!(
+        !ll.contains("__incr_mod_"),
+        "extra loop-carried rem blocks LLVM vectorization:\n{ll}"
+    );
+    assert!(
+        ll.contains("urem") && ll.contains("lshr") && ll.contains("shl"),
+        "expected nonneg strength reductions in reduce:\n{ll}"
+    );
+}
+
+#[test]
 fn mutable_let_uses_stack_alloca() {
     let ll = emit(
         r"
