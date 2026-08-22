@@ -366,6 +366,8 @@ fn find_loop_body<'a>(stmts: &'a [Stmt<'a>]) -> Option<&'a [Stmt<'a>]> {
 enum LoopExitGuard {
     /// `if counter >= bound break` (continue while `counter < bound`).
     CountedGe { counter: Symbol, bound: Symbol },
+    /// `if counter >= lit break` with a compile-time literal bound.
+    CountedGeLit { counter: Symbol, bound: i64 },
     /// `if counter > bound break` (continue while `counter <= bound`).
     CountedGt { counter: Symbol, bound: Symbol },
     /// `if counter == 0 break` (popcount-style).
@@ -390,6 +392,31 @@ fn expr_path(e: &Expr<'_>) -> Option<Symbol> {
 
 fn lit_is_zero(e: &Expr<'_>) -> bool {
     matches!(e, Expr::Literal(l) if l.kind == LiteralKind::Int && l.int_value == Some(0))
+}
+
+fn expr_lit_i64(e: &Expr<'_>) -> Option<i64> {
+    match e {
+        Expr::Literal(l) if l.kind == LiteralKind::Int => l.int_value,
+        _ => None,
+    }
+}
+
+/// Fully unroll `if counter >= bound break` loops when `bound` is a small literal.
+const SMALL_LOOP_UNROLL_TRIP_MAX: i64 = 8;
+
+fn strip_counter_step_one<'a>(body: &'a [Stmt<'a>], counter: Symbol) -> Option<&'a [Stmt<'a>]> {
+    match body.last()? {
+        Stmt::Assign(a) if a.op == AssignOp::PlusEq => {
+            let Expr::Path(p) = a.target else {
+                return None;
+            };
+            if p.segments.last()?.name != counter {
+                return None;
+            }
+            lit_is_one(a.value).then(|| &body[..body.len() - 1])
+        }
+        _ => None,
+    }
 }
 
 fn try_break_only_if(i: &rynix_ast::IfStmt<'_>) -> bool {
@@ -459,13 +486,22 @@ fn try_parse_loop_exit_guard<'a>(
             }
             BinaryOp::GtEq => {
                 let counter = expr_path(b.lhs)?;
-                let bound = expr_path(b.rhs)?;
-                LoopExitGuard::CountedGe { counter, bound }
+                if let Some(lit) = expr_lit_i64(b.rhs) {
+                    LoopExitGuard::CountedGeLit { counter, bound: lit }
+                } else {
+                    let bound = expr_path(b.rhs)?;
+                    LoopExitGuard::CountedGe { counter, bound }
+                }
             }
             BinaryOp::LtEq => {
-                let bound = expr_path(b.lhs)?;
-                let counter = expr_path(b.rhs)?;
-                LoopExitGuard::CountedGe { counter, bound }
+                if let Some(lit) = expr_lit_i64(b.lhs) {
+                    let counter = expr_path(b.rhs)?;
+                    LoopExitGuard::CountedGeLit { counter, bound: lit }
+                } else {
+                    let bound = expr_path(b.lhs)?;
+                    let counter = expr_path(b.rhs)?;
+                    LoopExitGuard::CountedGe { counter, bound }
+                }
             }
             BinaryOp::Lt => {
                 if let Some((counter, bound)) = try_parse_square_gt(cond) {
@@ -1282,6 +1318,7 @@ impl LowerCtx<'_, '_> {
             | LoopExitGuard::CountedGt { counter, bound } => {
                 counter_ok(counter) && matches!(self.locals.get(&bound), Some(Local::Ssa(_)))
             }
+            LoopExitGuard::CountedGeLit { counter, .. } => counter_ok(counter),
             LoopExitGuard::Zero { counter } => counter_ok(counter),
             LoopExitGuard::SquareGt { counter, bound } => {
                 counter_ok(counter)
@@ -1313,6 +1350,12 @@ impl LowerCtx<'_, '_> {
             LoopExitGuard::CountedGe { counter, bound } => {
                 let counter_val = self.load_sym(counter);
                 let bound_val = self.load_sym(bound);
+                self.b
+                    .push_value(Inst::ICmp(CmpOp::Lt, counter_val, bound_val))
+            }
+            LoopExitGuard::CountedGeLit { counter, bound } => {
+                let counter_val = self.load_sym(counter);
+                let bound_val = self.b.iconst(bound);
                 self.b
                     .push_value(Inst::ICmp(CmpOp::Lt, counter_val, bound_val))
             }
@@ -1409,6 +1452,36 @@ impl LowerCtx<'_, '_> {
                 }
             })
             .collect()
+    }
+
+    fn lower_unrolled_counted_ge_loop(
+        &mut self,
+        counter: Symbol,
+        bound: i64,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if bound <= 0 || bound > SMALL_LOOP_UNROLL_TRIP_MAX {
+            return false;
+        }
+        if !self.sym_starts_at_zero(counter) {
+            return false;
+        }
+        if !loop_carried_is_linear(body) || body_has_break(body) || has_loop(body) {
+            return false;
+        }
+        let Some(core) = strip_counter_step_one(body, counter) else {
+            return false;
+        };
+        for trip in 0..bound {
+            self.locals
+                .insert(counter, Local::MutSsa(self.b.iconst(trip)));
+            for s in core {
+                self.stmt(s);
+            }
+        }
+        self.locals
+            .insert(counter, Local::MutSsa(self.b.iconst(bound)));
+        true
     }
 
     fn lower_guarded_loop(
@@ -1832,6 +1905,11 @@ impl LowerCtx<'_, '_> {
                     && self.loop_guard_eligible(guard)
                     && rest_allows_guarded_loop(rest)
                 {
+                    if let LoopExitGuard::CountedGeLit { counter, bound } = guard
+                        && self.lower_unrolled_counted_ge_loop(counter, bound, rest)
+                    {
+                        return;
+                    }
                     self.lower_guarded_loop(l.span, guard, rest);
                     return;
                 }

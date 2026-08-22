@@ -307,18 +307,18 @@ warmup=3, runs=9; drops min/max when runs≥5).
 
 | Workload | C   | Rust | Go  | Zig | Rynix  | Rynix/C   |
 | -------- | --- | ---- | --- | --- | ------ | --------- |
-| alu      | 9   | 8    | 12  | 9   | 8      | 0.92×     |
-| nested   | 7   | 6    | 10  | 8   | 8      | 1.08×     |
-| fib      | 9   | 7    | 11  | 8   | 9      | 1.04×     |
-| hash     | 21  | 19   | 20  | 20  | 17     | 0.80×     |
-| prime    | 12  | 11   | 16  | 12  | 12     | 0.98×     |
-| sum      | 7   | 6    | 10  | 7   | 7      | 1.07×     |
-| bits     | 461 | 440  | 442 | 496 | **93** | **0.20×** |
-| matrix   | 8   | 10   | 68  | 8   | 7      | 0.92×     |
-| scan     | 9   | 16   | 15  | 18  | 9      | 1.00×     |
-| powmod   | 16  | 15   | 18  | 16  | 17     | 1.02×     |
-| gcd      | 174 | 163  | 213 | 167 | 162    | 0.93×     |
-| reduce   | 11  | 16   | 20  | 14  | 11     | 0.99×     |
+| alu      | 9   | 8    | 11  | 9   | 8      | 0.87×     |
+| nested   | 7   | 7    | 10  | 7   | 7      | 1.05×     |
+| fib      | 9   | 9    | 13  | 10  | 10     | 1.10×     |
+| hash     | 20  | 18   | 20  | 20  | 17     | 0.86×     |
+| prime    | 13  | 11   | 17  | 13  | 16     | 1.24×     |
+| sum      | 7   | 7    | 9   | 7   | 7      | 0.98×     |
+| bits     | 459 | 436  | 444 | 479 | **92** | **0.20×** |
+| matrix   | 9   | 8    | 73  | 10  | **7**  | **0.81×** |
+| scan     | 9   | 15   | 15  | 17  | 9      | 1.03×     |
+| powmod   | 16  | 16   | 18  | 17  | 18     | 1.15×     |
+| gcd      | 189 | 167  | 217 | 166 | 163    | 0.86×     |
+| reduce   | 11  | 17   | 21  | 15  | 16     | 1.48×     |
 
 
 Times are trimmed median ms from `run_suite5.py` (not a crown claim). Your machine → `suite5_results.json`.
@@ -327,7 +327,7 @@ Details: `[benchmarks/suite5/README.md](benchmarks/suite5/README.md)`
 **Performance honesty:** Rynix is **not** at a perf ceiling. Most microkernels are within ~±15% of C;
 `bits` leads after `@llvm.ctpop` lowering (~0.20× C on this run). Compiler wins in-tree: counted-loop SSA,
 `urem`, `ctpop`, `×31→lshl`, guarded-loop peel (non-nested), gcd inline + urem, short-circuit `and`/`or` in `if`,
-loop `break` exit phis, `i*j+i` → `i*(j+1)` fold, guarded outer loop when nested loops are simple counted exits, merged guarded-loop exit blocks, loop-invariant `iconst` hoist, LLVM loop vectorizer hints on latch back-edges. Optional PGO: `python benchmarks/suite5/run_pgo_suite.py` — see `[suite5/README.md](benchmarks/suite5/README.md)`.
+loop `break` exit phis, `i*j+i` → `i*(j+1)` fold, guarded outer loop when nested loops are simple counted exits, merged guarded-loop exit blocks, loop-invariant `iconst` hoist, LLVM loop vectorizer hints on latch back-edges, small literal-trip loop unroll (≤8). Optional PGO: `python benchmarks/suite5/run_pgo_suite.py` — see `[suite5/README.md](benchmarks/suite5/README.md)`.
 
 ### vs End [suite12](https://github.com/IrMaho/End/tree/main/benchmarks/suite12)
 
