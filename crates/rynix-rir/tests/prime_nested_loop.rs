@@ -1,4 +1,4 @@
-//! Prime outer loop with nested inner trial division uses phi loop (not nested guarded).
+//! Prime: inner trial division uses square + rem-zero guarded loop; outer stays phi.
 
 use rynix_ast::AstArena;
 use rynix_diag::VecSink;
@@ -10,7 +10,7 @@ use rynix_span::Interner;
 const PRIME_MAIN: &str = include_str!("../../../benchmarks/suite5/prime.ryx");
 
 #[test]
-fn prime_outer_loop_is_phi_not_guarded_with_nested_inner() {
+fn prime_inner_uses_square_guard_and_urem() {
     let arena = AstArena::new();
     let mut interner = Interner::new();
     let mut sink = VecSink::new();
@@ -26,7 +26,7 @@ fn prime_outer_loop_is_phi_not_guarded_with_nested_inner() {
         "inner trial division should use urem:\n{text}"
     );
     assert!(
-        text.contains("block1(%") && text.contains("imul"),
-        "expected outer phi loop + inner j*j guard:\n{text}"
+        text.contains("imul") && text.contains("icmp le"),
+        "expected inner j*j square guard:\n{text}"
     );
 }

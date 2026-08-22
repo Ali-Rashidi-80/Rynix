@@ -719,8 +719,8 @@ fn body_has_break(stmts: &[Stmt<'_>]) -> bool {
     false
 }
 
-/// Guarded-loop peel is safe when nested `loop`s are simple counted exits only
-/// (no `j*j > i`, rem-zero peel, or extra `break` in the inner body — see `prime.ryx`).
+/// Guarded-loop peel is safe when nested `loop`s are counted exits with rem-zero
+/// folded into the inner guard chain (not square-gt inner — see `prime.ryx`).
 fn rest_allows_guarded_loop(rest: &[Stmt<'_>]) -> bool {
     for stmt in rest {
         let Stmt::Loop(l) = stmt else {
@@ -1197,6 +1197,7 @@ impl LowerCtx<'_, '_> {
             AssignOp::Eq => {
                 if self.value_is_iconst(result, 0)
                     || self.value_is_nonneg_rem_result(result)
+                    || self.value_is_nonneg(result)
                 {
                     self.mut_nonneg_syms.insert(sym);
                 } else {
@@ -1206,6 +1207,8 @@ impl LowerCtx<'_, '_> {
             AssignOp::PlusEq => {
                 if !self.value_is_nonneg_iconst(rhs) {
                     self.mut_nonneg_syms.remove(&sym);
+                } else if self.mut_nonneg_syms.contains(&sym) && self.value_is_nonneg(result) {
+                    self.mut_nonneg_syms.insert(sym);
                 }
             }
             AssignOp::MinusEq
