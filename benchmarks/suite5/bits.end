@@ -18,7 +18,8 @@ pub fn popcount(x: i64) i64 {
   for bit in 64 {
     if v == 0 { break }
     c = c + (v & 1)
-    v = v >> 1
+    // End's `>>` is operation-compose on some types; use /2 for nonneg shift.
+    v = v / 2
   }
   ret c
 }

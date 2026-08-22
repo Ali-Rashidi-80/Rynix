@@ -125,10 +125,10 @@ Full backlog: [END_PEER_GAP.md](END_PEER_GAP.md).
 
 | Item | Status | Evidence |
 |------|--------|----------|
-| Suite5 `end` builder + 12× `.end` ports | ✅ sources | `benchmarks/suite5/*.end`, `END_INTEGRATION.md` |
-| End checksum validation on CI | ⬜ needs `endc` | optional job when toolchain available |
+| Suite5 `end` builder + 12× `.end` ports | ✅ | `benchmarks/suite5/*.end`, checksums validated vs C |
+| End checksum validation (local) | ✅ | `endc` + all 12 OK (CI optional) |
 | README domain maturity matrix | ✅ | root `README.md` |
-| Agent contract DSL (Rynix-native) | ⬜ | P1 gap |
+| Agent contracts approach | ✅ design | [ADR-0009](adr/0009-agent-contracts-toolchain.md) |
 | Broader HTTP / frameworks | ⬜ | ADR-0007 |
 | C11 backend | 🔄 deferred | ADR-0008 |
 

@@ -85,7 +85,7 @@ Where End markets “every domain,” Rynix statuses are **evidence-gated** (tes
 | HTTP / JSON helpers | 🔵 Narrow | `json_get_i64`, `http_get_json_i64` smoke |
 | Web frameworks / UI canvas | ⚪ Deferred | [ADR-0007](docs/adr/0007-deferred-ui-frameworks.md) |
 | C11 backend | ⚪ Deferred | [ADR-0008](docs/adr/0008-deferred-c11-backend.md) |
-| Agent contract DSL | ⚪ Gap | [END_PEER_GAP.md](docs/END_PEER_GAP.md) P1 |
+| Agent contract DSL | ⚪ Design only | [ADR-0009](docs/adr/0009-agent-contracts-toolchain.md) — toolchain evidence, not End syntax |
 | WASM / mobile | ⚪ Out of scope v0.1 | ROADMAP |
 
 ---
@@ -399,20 +399,22 @@ Sample run (Windows, 2026-08-22; **re-run on your machine** — numbers vary ±5
 
 **All 12 C ↔ Rynix checksums pass** (`phase10_gates` + CI `suite5-check`).
 
-| Workload | C   | Rust | Go  | Zig | Rynix  | Rynix/C   | Notes        |
-| -------- | --- | ---- | --- | --- | ------ | --------- | ------------ |
-| alu      | 7.6 | 7.5  | 10.1| 8.1 | **7.3**| **0.96×** | leads vs C   |
-| nested   | 6.2 | **5.3** | 8.7 | 6.6 | 6.8 | 1.10×     | near parity  |
-| fib      | 7.6 | **7.2** | 9.6 | 7.8 | 7.5 | 0.98×     | near parity  |
-| hash     | 19.5| 17.8 | 18.8| 18.6| **15.7**| **0.81×**| lazy-or urem |
-| prime    | 11.2| **10.1** | 15.6 | 10.9 | 11.0 | 0.99×  | near parity  |
-| sum      | 6.1 | **5.6** | 8.6 | 6.2 | 6.8 | 1.12×     | near parity  |
-| bits     | 451 | 437  | 436 | 484 | **90** | **0.20×** | `@llvm.ctpop` |
-| matrix   | 8.5 | 7.4  | 65.8| 8.8 | **6.9**| **0.81×** | unrolled inner |
-| scan     | **8.4** | 15.0 | 13.8 | 17.0 | 9.0 | 1.08×  | short-circuit `or` |
-| powmod   | 16.1| **15.1** | 17.6 | 16.8 | 15.9 | 0.99×  | near parity  |
-| gcd      | 167 | 167  | 219 | 168 | 167    | 1.00×     | near parity  |
-| reduce   | 11.0| 15.7 | 20.2| 13.7| **10.9**| **0.99×** | LLVM 4-wide SIMD |
+| Workload | C   | Rust | Go  | Zig | Rynix  | End† | Rynix/C   | Notes        |
+| -------- | --- | ---- | --- | --- | ------ | ---- | --------- | ------------ |
+| alu      | 7.8 | —    | —   | —   | 8.5    | 8.6  | 1.08×     | parity       |
+| nested   | 7.6 | —    | —   | —   | 7.3    | **7.2** | 0.95×  | End edges    |
+| fib      | 10.4| —    | —   | —   | 7.7    | **6.8** | 0.74×  | End edges    |
+| hash     | 19.2| —    | —   | —   | 15.9   | **15.8** | **0.82×** | near End |
+| prime    | **10.8** | — | — | — | 11.0 | 13.0 | 1.02× | |
+| sum      | 6.4 | —    | —   | —   | 6.4    | **5.7** | 1.00×  | End edges    |
+| bits     | 452 | —    | —   | —   | **90** | 374  | **0.20×** | Rynix ctpop  |
+| matrix   | 7.7 | —    | —   | —   | 6.7    | **5.5** | 0.87×  | End edges    |
+| scan     | 9.0 | —    | —   | —   | **8.6**| 10.9 | 0.96×     | Rynix edges  |
+| powmod   | 16.2| —    | —   | —   | 15.6   | **12.9** | 0.96× | End edges    |
+| gcd      | 167 | —    | —   | —   | **160**| 206  | 0.96×     | Rynix edges  |
+| reduce   | 10.6| —    | —   | —   | **10.5**| 14.5 | **0.99×** | Rynix SIMD |
+
+† End column requires local `endc` on PATH (`benchmarks/suite5/END_INTEGRATION.md`). All **12 checksums** match C↔Rynix↔End on this machine. Full 5-lang Rust/Go/Zig rows: re-run `--langs c,rust,go,zig,rynix,end`.
 
 Times are rounded trimmed medians from the committed JSON (not marketing). Refresh locally:
 

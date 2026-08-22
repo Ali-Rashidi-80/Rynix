@@ -9,7 +9,13 @@ suite12 unified binary (different programs).
 |-------|--------|
 | `build_end()` in `run_suite5.py` | ✅ wired (skips if toolchain missing) |
 | 12× `{challenge}.end` sources | ✅ in-tree (ported from Suite5 C/Rynix) |
-| Verified with `endc` on CI | ❌ needs End on PATH locally / optional CI |
+| Status | ✅ sources + harness; **local checksum parity vs C/Rynix on all 12** (needs `endc` on PATH) |
+
+## Safety
+
+`endc` emits a sibling `.c` next to the input `.end`. The harness copies each
+source into `target/suite5/` before building so it **never overwrites**
+`benchmarks/suite5/{name}.c`.
 
 ## Prerequisites
 

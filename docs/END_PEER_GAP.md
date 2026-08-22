@@ -115,17 +115,50 @@ Priority is **evidence-first** (test or CI before README ✅).
 ### P0 — benchmark fairness & End peer slot
 
 - [x] Wire `end` in `run_suite5.py` when `endc`/`end` + `{ch}.end` exist
-- [x] Port 12 Suite5 algorithms to `.end` (same algorithms as C; validate checksums with End installed)
-- [ ] Local/CI run with End toolchain proving checksum parity
-- [ ] Document suite12 vs Suite5 side-by-side (optional wrapper; no ms conflation)
+- [x] Port 12 Suite5 algorithms to `.end` (same algorithms as C)
+- [x] Local run with End toolchain proving **checksum parity on all 12** (2026-08-22)
+- [x] Harness copies `.end` to `target/suite5/` so End C11 emit cannot clobber `{name}.c`
+- [ ] Optional CI job when `endc` available on runners
+
+### Latest local C · Rynix · End (same Suite5 algorithms; trimmed median ms)
+
+| Workload | C | Rynix | End | Best | Notes |
+|----------|--:|------:|----:|------|-------|
+| alu | 7.8 | 8.5 | 8.6 | C | parity |
+| nested | 7.6 | 7.3 | **7.2** | End | parity |
+| fib | 10.4 | 7.7 | **6.8** | End | |
+| hash | 19.2 | 15.9 | **15.8** | End | |
+| prime | **10.8** | 11.0 | 13.0 | C | |
+| sum | 6.4 | 6.4 | **5.7** | End | |
+| bits | 452 | **90** | 374 | **Rynix** | `@llvm.ctpop` |
+| matrix | 7.7 | 6.7 | **5.5** | End | |
+| scan | 9.0 | **8.6** | 10.9 | Rynix | |
+| powmod | 16.2 | 15.6 | **12.9** | End | |
+| gcd | 167 | **160** | 206 | Rynix | |
+| reduce | 10.6 | **10.5** | 14.5 | Rynix | vectorized |
+
+**Checksum:** all 12 rows C ↔ Rynix ↔ End match.  
+**Wins this run:** End 6 · Rynix 4 · C 2 (noise ±10% on short ms). Rynix’s clearest lead remains **`bits`**.
 
 ### P1 — product surface End has, Rynix lacks
 
-- [ ] README parity: “What Rynix is NOT”, domain table, maturity matrix (honest statuses)
-- [ ] Binary size matrix (hello + one Suite5 bin) with reproduced flags
-- [ ] Agent contract / skill / task syntax (Rynix-native design — not End clone)
+- [x] README “What Rynix is NOT”, domain table, maturity matrix
+- [x] Binary size matrix (hello + Suite5 reduce) — see below
+- [x] Agent contract approach as ADR ([0009](adr/0009-agent-contracts-toolchain.md)) — toolchain evidence, not End syntax clone
 - [ ] C11 backend or documented alternative ([ADR-0008](adr/0008-deferred-c11-backend.md))
 
+### Binary size (Windows gnu, local 2026-08-22)
+
+| Binary | Size |
+|--------|-----:|
+| `examples/01_hello.ryx` → rynix | **87.5 KiB** |
+| Suite5 `reduce` C (`clang -O3`) | 86 KiB |
+| Suite5 `reduce` Rynix | 88.5 KiB |
+| Suite5 `reduce` End (`endc --strip`) | **45.5 KiB** |
+| Suite5 `reduce` Zig | 192 KiB |
+| Suite5 `reduce` Go | 1636 KiB |
+
+End still leads strip size on this microbench; Rynix hello gate remains **&lt;300 KiB**.
 ### P2 — frameworks & domains (End’s “every domain” table)
 
 - [ ] HTTP server beyond `http_get_json_i64` smoke

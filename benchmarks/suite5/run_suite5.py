@@ -226,26 +226,40 @@ def build_rynix(name: str, *, bench: bool, pgo_use: Path | None) -> Path | None:
 
 
 def build_end(name: str) -> Path | None:
-    """Build End peer when `endc`/`end` and `{name}.end` exist (see END_INTEGRATION.md)."""
+    """Build End peer when `endc`/`end` and `{name}.end` exist (see END_INTEGRATION.md).
+
+    Copies the source into ``target/suite5/`` first so End's C11 emit does not
+    overwrite ``benchmarks/suite5/{name}.c``.
+    """
     endc = which("endc") or which("end")
     if not endc:
         return None
     src = SUITE / f"{name}.end"
     if not src.is_file():
         return None
+    OUT.mkdir(parents=True, exist_ok=True)
+    work_end = OUT / f"{name}_end_src.end"
+    shutil.copy2(src, work_end)
     dst = OUT / f"{name}_end"
     if os.name == "nt":
         dst = dst.with_suffix(".exe")
-    # Prefer End CLI shape: `end build FILE [--strip] -o OUT`
-    cmd = [endc, "build", str(src), "-o", str(dst)]
-    # Try release/strip flags when present (End suite12 uses --strip).
-    cmd_try = [endc, "build", str(src), "--strip", "-o", str(dst)]
+    cmd_try = [endc, "build", str(work_end), "--strip", "-o", str(dst)]
+    cmd = [endc, "build", str(work_end), "-o", str(dst)]
     try:
         subprocess.check_call(cmd_try, cwd=str(ROOT))
     except subprocess.CalledProcessError:
         subprocess.check_call(cmd, cwd=str(ROOT))
+    # End writes sibling .c next to the .end input — remove scratch artifacts.
+    for junk in (
+        OUT / f"{name}_end_src.c",
+        OUT / f"{name}_end_src.end",
+    ):
+        if junk.is_file():
+            junk.unlink()
     exe = dst.with_suffix(".exe") if dst.with_suffix(".exe").is_file() else dst
-    return exe if exe.is_file() else None
+    if not exe.is_file():
+        raise RuntimeError(f"endc reported success but missing binary: {exe}")
+    return exe
 
 
 BUILDERS = {
