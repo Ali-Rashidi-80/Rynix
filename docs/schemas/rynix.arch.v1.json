@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.arch.v1.json",
+  "title": "rynix.arch.v1",
+  "type": "object",
+  "required": ["schema", "status", "rules_checked", "files_scanned", "violations_count", "violations"],
+  "properties": {
+    "schema": { "const": "rynix.arch.v1" },
+    "status": { "type": "string", "enum": ["passed", "violation_detected"] },
+    "rules_checked": { "type": "integer", "minimum": 0 },
+    "files_scanned": { "type": "integer", "minimum": 0 },
+    "violations_count": { "type": "integer", "minimum": 0 },
+    "violations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_pattern", "file", "line", "message"],
+        "properties": {
+          "rule_pattern": { "type": "string" },
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 0 },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

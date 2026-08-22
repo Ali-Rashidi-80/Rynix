@@ -1,12 +1,15 @@
 //! `rynixc mcp-serve` — JSON-RPC 2.0 over stdio (Content-Length framing).
 //!
 //! Tools: `diagnostics`/`rynix_check`, `rynix_format`, `rynix_explain_alloc`,
-//! `compile`, `ast_query`, `apply_fix`.
+//! `compile`, `ast_query`, `apply_fix`, `rynix_graph`, `rynix_impact`, `rynix_eval`, `rynix_arch`.
 
 #![allow(clippy::too_many_lines)]
 
 use std::io::{self, BufRead, Write};
+use std::path::Path;
 use std::process::ExitCode;
+
+use crate::architecture::ArchitectureEngine;
 
 use rynix_ast::{dump_module, format_module, AstArena};
 use rynix_codegen::emit_llvm;
@@ -132,6 +135,51 @@ fn tool_defs() -> Value {
                 "properties": { "source": { "type": "string" } },
                 "required": ["source"]
             }
+        },
+        {
+            "name": "rynix_graph",
+            "description": "Emit rynix.graph.v1 (functions + static call edges)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string" }
+                },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "rynix_impact",
+            "description": "Blast-radius callers/callees (rynix.impact.v1)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string" },
+                    "fn": { "type": "string" }
+                },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "rynix_eval",
+            "description": "Micro-evaluate a Rynix expression via RIR interpreter",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "expr": { "type": "string" } },
+                "required": ["expr"]
+            }
+        },
+        {
+            "name": "rynix_arch",
+            "description": "Run Architecture.toml layer check (rynix.arch.v1)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "root": { "type": "string", "description": "Project root (default .)" },
+                    "config": { "type": "string", "description": "Path to Architecture.toml" }
+                }
+            }
         }
     ])
 }
@@ -142,6 +190,32 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         .and_then(|n| n.as_str())
         .ok_or_else(|| rpc_error(-32602, "missing tool name"))?;
     let args = params.get("arguments").cloned().unwrap_or(json!({}));
+
+    if name == "rynix_eval" {
+        let expr = args
+            .get("expr")
+            .and_then(|e| e.as_str())
+            .ok_or_else(|| rpc_error(-32602, "missing expr"))?;
+        let result = crate::agent_lib::eval_snippet(expr)
+            .map_err(|e| rpc_error(-32000, e))?;
+        let out = json!({ "schema": "rynix.eval.v1", "result": result });
+        return Ok(json!({ "content": [{ "type": "text", "text": out.to_string() }] }));
+    }
+
+    if name == "rynix_arch" {
+        let root = args
+            .get("root")
+            .and_then(|r| r.as_str())
+            .unwrap_or(".");
+        let config_path = args.get("config").and_then(|c| c.as_str()).map(Path::new);
+        let config = ArchitectureEngine::load_config(config_path)
+            .map_err(|e| rpc_error(-32000, e))?;
+        let report = ArchitectureEngine::check_project(&config, Path::new(root));
+        return Ok(json!({
+            "content": [{ "type": "text", "text": report.to_json().to_string() }]
+        }));
+    }
+
     let source = args
         .get("source")
         .and_then(|s| s.as_str())
@@ -170,8 +244,36 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
             Ok(json!({ "content": [{ "type": "text", "text": dump }] }))
         }
         "apply_fix" => {
-            let fixed = apply_fix_source(source)?;
+            let fixed = apply_fix_source(source);
             Ok(json!({ "content": [{ "type": "text", "text": fixed }] }))
+        }
+        "rynix_graph" => {
+            let path = args
+                .get("path")
+                .and_then(|p| p.as_str())
+                .unwrap_or("mcp.ryx");
+            let arena = AstArena::new();
+            let mut parsed = crate::agent_lib::parse_text(path, source, &arena);
+            if parsed.sink.error_count() > 0 {
+                return Err(rpc_error(-32000, "parse/sema errors"));
+            }
+            let g = crate::agent_lib::graph_json_text(path, &mut parsed);
+            Ok(json!({ "content": [{ "type": "text", "text": g.to_string() }] }))
+        }
+        "rynix_impact" => {
+            let path = args
+                .get("path")
+                .and_then(|p| p.as_str())
+                .unwrap_or("mcp.ryx");
+            let target = args.get("fn").and_then(|f| f.as_str());
+            let arena = AstArena::new();
+            let mut parsed = crate::agent_lib::parse_text(path, source, &arena);
+            if parsed.sink.error_count() > 0 {
+                return Err(rpc_error(-32000, "parse/sema errors"));
+            }
+            let impact = crate::agent_lib::impact_json(path, &mut parsed, target)
+                .map_err(|e| rpc_error(-32000, e))?;
+            Ok(json!({ "content": [{ "type": "text", "text": impact.to_string() }] }))
         }
         other => Err(rpc_error(-32602, format!("unknown tool: {other}"))),
     }
@@ -248,30 +350,8 @@ fn ast_source(source: &str) -> Result<String, Value> {
     Ok(dump_module(module, &interner))
 }
 
-fn apply_fix_source(source: &str) -> Result<String, Value> {
-    let arena = AstArena::new();
-    let mut interner = Interner::new();
-    let mut sink = VecSink::new();
-    let module = rynix_parser::parse(&arena, &mut interner, source, 0, &mut sink);
-    let _ = analyze(module, &mut interner, &mut sink);
-    for d in &sink.diags {
-        if let Some(fix) = d.fixes.first() {
-            let mut bytes = source.as_bytes().to_vec();
-            let mut edits = fix.edits.clone();
-            edits.sort_by_key(|e| std::cmp::Reverse(e.span.lo()));
-            for edit in edits {
-                let lo = edit.span.lo() as usize;
-                let hi = edit.span.hi() as usize;
-                if hi > bytes.len() || lo > hi {
-                    continue;
-                }
-                bytes.splice(lo..hi, edit.replacement.bytes());
-            }
-            return String::from_utf8(bytes)
-                .map_err(|_| rpc_error(-32000, "fix produced non-utf8"));
-        }
-    }
-    Ok(source.to_string())
+fn apply_fix_source(source: &str) -> String {
+    crate::fix::apply_first_fix(source)
 }
 
 fn rpc_error(code: i64, message: impl AsRef<str>) -> Value {

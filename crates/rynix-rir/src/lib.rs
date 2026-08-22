@@ -22,8 +22,8 @@ mod verify;
 pub use bounds::eliminate_bounds_checks;
 pub use builder::FunctionBuilder;
 pub use escape::{
-    analyze_escape, explain_alloc_human, explain_alloc_json, inject_regions, Escape, EscapeReport,
-    Placement, SiteInfo,
+    analyze_escape, explain_alloc_human, explain_alloc_json, inject_regions, module_call_graph,
+    Escape, EscapeReport, Placement, SiteInfo,
 };
 pub use interp::{interpret_module, InterpError, InterpValue};
 pub use ir::*;

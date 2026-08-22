@@ -78,6 +78,8 @@ pub enum TokenKind {
     Star,
     Slash,
     Percent,
+    Amp,
+    Shr,
     PlusEq,
     MinusEq,
     StarEq,
@@ -113,13 +115,12 @@ impl TokenKind {
         (self as u8) >= (TokenKind::Def as u8) && (self as u8) <= (TokenKind::Tensor as u8)
     }
 
-    /// Reserved-for-future-use keywords: lexed as keywords so that using one
-    /// as an identifier is a clear error rather than a confusing parse.
+    /// Reserved-for-future-use keywords (agent/signal/tensor). `match` is live.
     #[inline]
     pub fn is_reserved(self) -> bool {
         matches!(
             self,
-            TokenKind::Match | TokenKind::Agent | TokenKind::Signal | TokenKind::Tensor
+            TokenKind::Agent | TokenKind::Signal | TokenKind::Tensor
         )
     }
 
@@ -131,7 +132,7 @@ impl TokenKind {
             DotDot, DotDotEq, Elif, Else, End, Enum, Eq, EqEq, False, For, Gt, GtEq, If, Import,
             In, LBrace, LBracket, LParen, Let, Loop, Lt, LtEq, Match, Minus, MinusEq, Mut, Nil,
             Not, Or, Percent, PercentEq, Plus, PlusEq, Pub, RBrace, RBracket, RParen, Return,
-            Signal, Slash, SlashEq, Spawn, Star, StarEq, Struct, Tensor, True, Type,
+            Signal, Slash, SlashEq, Spawn, Star, StarEq, Struct, Tensor, True, Type, Amp, Shr,
         };
         Some(match self {
             Def => "def",
@@ -189,6 +190,8 @@ impl TokenKind {
             Star => "*",
             Slash => "/",
             Percent => "%",
+            Amp => "&",
+            Shr => ">>",
             PlusEq => "+=",
             MinusEq => "-=",
             StarEq => "*=",
@@ -353,7 +356,7 @@ mod tests {
             TokenKind::Signal,
             TokenKind::Tensor,
         ];
-        assert_eq!(all.len(), 30, "26 keywords + 4 reserved");
+        assert_eq!(all.len(), 30, "27 keywords + 3 reserved");
         for kind in all {
             let text = kind.spelling().expect("keyword has a spelling");
             assert_eq!(keyword_kind(text.as_bytes()), Some(kind), "{text}");
@@ -378,6 +381,13 @@ mod tests {
             !TokenKind::DocComment.is_trivia(),
             "doc comments are significant"
         );
+        assert!(TokenKind::Def.is_keyword());
+        assert!(TokenKind::Match.is_keyword());
+        assert!(!TokenKind::Match.is_reserved());
+        assert!(TokenKind::Agent.is_reserved());
+        assert!(TokenKind::Signal.is_reserved());
+        assert!(TokenKind::Tensor.is_reserved());
+        assert!(!TokenKind::Def.is_reserved());
         assert!(
             !TokenKind::Newline.is_trivia(),
             "newlines terminate statements"

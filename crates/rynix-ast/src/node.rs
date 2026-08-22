@@ -145,6 +145,12 @@ pub struct Import<'a> {
 #[derive(Debug)]
 pub enum Type<'a> {
     Path(&'a Path<'a>),
+    /// `Vec[i64]` / `Map[i64, i64]` — applied type constructor.
+    App {
+        path: &'a Path<'a>,
+        args: &'a [&'a Type<'a>],
+        span: Span,
+    },
     /// `[T]` — contiguous slice of `T`.
     Slice(&'a Type<'a>, Span),
     Error(ErrorNode),
@@ -154,7 +160,7 @@ impl Type<'_> {
     pub fn span(&self) -> Span {
         match self {
             Type::Path(p) => p.span,
-            Type::Slice(_, span) => *span,
+            Type::App { span, .. } | Type::Slice(_, span) => *span,
             Type::Error(n) => n.span,
         }
     }
@@ -179,6 +185,7 @@ pub enum Stmt<'a> {
     Loop(LoopStmt<'a>),
     For(ForStmt<'a>),
     If(IfStmt<'a>),
+    Match(MatchStmt<'a>),
     Expr(ExprStmt<'a>),
     Error(ErrorNode),
 }
@@ -194,6 +201,7 @@ impl Stmt<'_> {
             Stmt::Loop(n) => n.span,
             Stmt::For(n) => n.span,
             Stmt::If(n) => n.span,
+            Stmt::Match(n) => n.span,
             Stmt::Expr(n) => n.span,
             Stmt::Error(n) => n.span,
         }
@@ -209,6 +217,7 @@ impl Stmt<'_> {
             Stmt::Loop(n) => n.id,
             Stmt::For(n) => n.id,
             Stmt::If(n) => n.id,
+            Stmt::Match(n) => n.id,
             Stmt::Expr(n) => n.id,
             Stmt::Error(n) => n.id,
         }
@@ -306,6 +315,30 @@ pub struct IfStmt<'a> {
 pub struct IfArm<'a> {
     pub cond: &'a Expr<'a>,
     pub body: &'a [Stmt<'a>],
+}
+
+/// `match scrutinee` / pattern arms / optional `else` / `end`.
+#[derive(Debug)]
+pub struct MatchStmt<'a> {
+    pub id: NodeId,
+    pub scrutinee: &'a Expr<'a>,
+    pub arms: &'a [MatchArm<'a>],
+    pub else_body: Option<&'a [Stmt<'a>]>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct MatchArm<'a> {
+    pub pattern: MatchPat<'a>,
+    pub body: &'a [Stmt<'a>],
+}
+
+#[derive(Debug)]
+pub enum MatchPat<'a> {
+    /// Integer / bool / nil literal.
+    Literal(&'a Expr<'a>),
+    /// `_` wildcard.
+    Wildcard(Span),
 }
 
 #[derive(Debug)]
@@ -436,6 +469,8 @@ pub enum BinaryOp {
     Star,
     Slash,
     Percent,
+    Amp,
+    Shr,
 }
 
 impl BinaryOp {
@@ -456,6 +491,8 @@ impl BinaryOp {
             BinaryOp::Star => "*",
             BinaryOp::Slash => "/",
             BinaryOp::Percent => "%",
+            BinaryOp::Amp => "&",
+            BinaryOp::Shr => ">>",
         }
     }
 

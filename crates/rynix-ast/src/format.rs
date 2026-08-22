@@ -12,8 +12,8 @@ use std::fmt::Write as _;
 use rynix_span::Interner;
 
 use crate::node::{
-    AssignOp, BinaryOp, EnumDef, Expr, FnDef, Ident, Item, LiteralKind, Module, Path, Stmt,
-    StructDef, Type, TypeAlias, UnaryOp, Visibility,
+    AssignOp, BinaryOp, EnumDef, Expr, FnDef, Ident, Item, LiteralKind, MatchPat, Module, Path,
+    Stmt, StructDef, Type, TypeAlias, UnaryOp, Visibility,
 };
 
 /// Format `module` as canonical Rynix source.
@@ -223,10 +223,34 @@ impl Formatter<'_> {
                     }
                     self.indent -= 1;
                 }
-                if let Some(else_body) = i.else_body {
+                if let Some(body) = i.else_body {
                     self.line("else");
                     self.indent += 1;
-                    for s in else_body {
+                    for s in body {
+                        self.stmt(s);
+                    }
+                    self.indent -= 1;
+                }
+                self.line("end");
+            }
+            Stmt::Match(m) => {
+                self.line(&format!("match {}", self.expr_str(m.scrutinee)));
+                for arm in m.arms {
+                    let pat = match &arm.pattern {
+                        MatchPat::Wildcard(_) => "_".into(),
+                        MatchPat::Literal(e) => self.expr_str(e),
+                    };
+                    self.line(&pat);
+                    self.indent += 1;
+                    for s in arm.body {
+                        self.stmt(s);
+                    }
+                    self.indent -= 1;
+                }
+                if let Some(body) = m.else_body {
+                    self.line("else");
+                    self.indent += 1;
+                    for s in body {
                         self.stmt(s);
                     }
                     self.indent -= 1;
@@ -305,6 +329,15 @@ impl Formatter<'_> {
     fn type_str(&self, ty: &Type<'_>) -> String {
         match ty {
             Type::Path(p) => self.path_str(p),
+            Type::App { path, args, .. } => {
+                let base = self.path_str(path);
+                let inner = args
+                    .iter()
+                    .map(|a| self.type_str(a))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{base}[{inner}]")
+            }
             Type::Slice(inner, _) => format!("[{}]", self.type_str(inner)),
             Type::Error(_) => "?".into(),
         }

@@ -8,4 +8,9 @@
 /fuzz/target
 /fuzz/corpus
 /fuzz/artifacts
-/fuzz/coverage
+/editors/vscode/node_modules
+
+# Local benchmark binaries and codegen scratch
+/*.exe
+benchmarks/suite5/*_c.ll
+benchmarks/suite5/run_output.txt

@@ -21,6 +21,23 @@ void rynix_rt_print(const char *s) {
   }
 }
 
+void rynix_rt_print_i64(int64_t n) {
+#ifdef RYNIX_BENCH
+  if (getenv("SUITE5_BENCH")) {
+    static volatile int64_t rynix_bench_sink;
+    rynix_bench_sink = n;
+    return;
+  }
+#endif
+  if (getenv("SUITE5_BENCH")) {
+    static volatile int64_t suite5_sink;
+    suite5_sink = n;
+    return;
+  }
+  printf("%lld\n", (long long)n);
+  fflush(stdout);
+}
+
 void rynix_rt_panic(const char *msg) {
   fprintf(stderr, "rynix panic: %s\n", msg ? msg : "(null)");
   fflush(stderr);

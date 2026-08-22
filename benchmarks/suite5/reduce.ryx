@@ -1,0 +1,14 @@
+def main() -> i64
+  let n = 10000000
+  let mut i = 0
+  let mut acc = 0
+  loop
+    if i >= n
+      break
+    end
+    acc = acc + i * 31 - i / 8 + i % 13
+    i += 1
+  end
+  print_i64(acc)
+  return 0
+end

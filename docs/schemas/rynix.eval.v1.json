@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.eval.v1.json",
+  "title": "rynix.eval.v1",
+  "type": "object",
+  "required": ["schema", "result"],
+  "properties": {
+    "schema": { "const": "rynix.eval.v1" },
+    "result": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["i64", "bool", "f64", "str", "unit", "other"] },
+        "value": {}
+      }
+    }
+  }
+}

@@ -105,6 +105,11 @@ struct FuncSummary {
     sites: Vec<(Escape, String, Span, Option<u32>)>,
 }
 
+/// Static call graph: `graph[i]` = callee function indices from function `i`.
+pub fn module_call_graph(module: &Module) -> Vec<Vec<usize>> {
+    call_graph(module)
+}
+
 fn call_graph(module: &Module) -> Vec<Vec<usize>> {
     let n = module.funcs.len();
     let mut g = vec![Vec::new(); n];
@@ -225,6 +230,16 @@ fn analyze_func(
                 points.entry(vid).or_default().insert(*site);
             }
         }
+    }
+    for binding in &func.stack_bindings {
+        if site_escape.contains_key(&binding.site) {
+            continue;
+        }
+        max_site = max_site.max(binding.site.0 + 1);
+        site_escape.insert(binding.site, Escape::NoEscape);
+        site_reason.insert(binding.site, "local only (ssa)".into());
+        site_span.insert(binding.site, binding.span);
+        contents.entry(binding.site).or_default();
     }
 
     // Propagate points-to to a fixpoint (block args + load/store).
@@ -437,13 +452,25 @@ fn analyze_func(
             | Inst::IMul(a, b)
             | Inst::IDiv(a, b)
             | Inst::IRem(a, b)
+            | Inst::URem(a, b)
+            | Inst::IAnd(a, b)
+            | Inst::LShr(a, b)
+            | Inst::LShl(a, b)
             | Inst::FAdd(a, b)
             | Inst::FSub(a, b)
             | Inst::FMul(a, b)
             | Inst::FDiv(a, b)
             | Inst::ICmp(_, a, b)
-            | Inst::FCmp(_, a, b) => {
+            | Inst::FCmp(_, a, b)
+            | Inst::BAnd(a, b)
+            | Inst::BOr(a, b) => {
                 touch_uses(&mut site_last_use, &points, &[*a, *b], ii as u32);
+            }
+            Inst::ZExtI64(a) => {
+                touch_uses(&mut site_last_use, &points, &[*a], ii as u32);
+            }
+            Inst::CtPop(a) => {
+                touch_uses(&mut site_last_use, &points, &[*a], ii as u32);
             }
             _ => {}
         }

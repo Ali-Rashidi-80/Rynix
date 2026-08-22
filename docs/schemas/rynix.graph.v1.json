@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.graph.v1.json",
+  "title": "rynix.graph.v1",
+  "type": "object",
+  "required": ["schema", "path", "functions", "edges"],
+  "properties": {
+    "schema": { "const": "rynix.graph.v1" },
+    "path": { "type": "string" },
+    "functions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "params", "ret", "span"],
+        "properties": {
+          "name": { "type": "string" },
+          "params": { "type": "array", "items": { "type": "string" } },
+          "ret": { "type": "string" },
+          "span": {
+            "type": "object",
+            "required": ["lo", "hi"],
+            "properties": {
+              "lo": { "type": "integer" },
+              "hi": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" }
+        }
+      }
+    }
+  }
+}

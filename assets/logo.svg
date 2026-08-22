@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Rynix">
+  <defs>
+    <linearGradient id="ryx-core" x1="120" y1="100" x2="392" y2="412" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B3D4A"/>
+      <stop offset="0.42" stop-color="#147A8A"/>
+      <stop offset="1" stop-color="#3ECFB2"/>
+    </linearGradient>
+    <linearGradient id="ryx-orbit" x1="88" y1="392" x2="424" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#147A8A"/>
+      <stop offset="1" stop-color="#3ECFB2"/>
+    </linearGradient>
+    <radialGradient id="ryx-halo" cx="258" cy="262" r="188" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3ECFB2" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#3ECFB2" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Canonical frame: rounded square, one chamfered corner -->
+  <path fill="#070D11"
+        d="M 136 64 H 368 L 448 144 V 376 Q 448 448 376 448 H 136 Q 64 448 64 376 V 136 Q 64 64 136 64 Z"/>
+  <path fill="none" stroke="#147A8A" stroke-opacity="0.32" stroke-width="2"
+        d="M 136 64 H 368 L 448 144 V 376 Q 448 448 376 448 H 136 Q 64 448 64 376 V 136 Q 64 64 136 64 Z"/>
+  <path fill="none" stroke="#3ECFB2" stroke-opacity="0.75" stroke-width="2.5" stroke-linecap="square"
+        d="M 368 64 H 448 V 144"/>
+
+  <circle cx="256" cy="256" r="188" fill="url(#ryx-halo)"/>
+
+  <!-- Colorless fiber: one orbit, yield gap at top -->
+  <path fill="none" stroke="url(#ryx-orbit)" stroke-width="8" stroke-linecap="round"
+        stroke-dasharray="900 80"
+        d="M 256 88 A 168 168 0 1 1 255.4 88.2"/>
+  <circle cx="256" cy="88" r="10" fill="#3ECFB2"/>
+
+  <!-- R monogram (single-weight geometry) -->
+  <path fill="url(#ryx-core)"
+        d="M 164 124 H 220 V 388 H 164 V 124 Z
+           M 220 124 H 268 C 328 124 372 168 372 232 C 372 276 344 312 296 324 C 336 334 364 368 364 412 C 364 448 332 388 288 388 H 220 V 124 Z
+           M 220 168 H 260 C 292 168 312 192 312 232 C 312 272 292 296 260 296 H 220 V 168 Z
+           M 296 324 C 328 334 348 360 348 388 H 304 L 264 324 H 296 Z"/>
+
+  <!-- Escape path tiers -->
+  <g stroke="#3ECFB2" stroke-opacity="0.58" stroke-width="4.5" stroke-linecap="round">
+    <line x1="236" y1="192" x2="340" y2="192"/>
+    <line x1="236" y1="232" x2="316" y2="232"/>
+    <line x1="236" y1="272" x2="288" y2="272"/>
+  </g>
+
+  <!-- Pipeline stages -->
+  <g fill="#3ECFB2">
+    <circle cx="192" cy="152" r="5.5"/>
+    <circle cx="192" cy="204" r="5.5"/>
+    <circle cx="192" cy="256" r="5.5"/>
+    <circle cx="192" cy="308" r="5.5"/>
+    <circle cx="192" cy="360" r="5.5"/>
+  </g>
+
+  <!-- Machine-readable diagnostics -->
+  <rect x="112" y="364" width="46" height="46" rx="9" fill="none" stroke="#147A8A" stroke-opacity="0.5" stroke-width="2"/>
+  <g fill="#3ECFB2">
+    <rect x="123" y="375" width="11" height="11" rx="2.5"/>
+    <rect x="138" y="375" width="11" height="11" rx="2.5"/>
+    <rect x="123" y="390" width="11" height="11" rx="2.5"/>
+    <rect x="138" y="390" width="11" height="11" rx="2.5"/>
+  </g>
+</svg>

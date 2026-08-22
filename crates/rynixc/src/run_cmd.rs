@@ -16,6 +16,8 @@ pub fn run(options: &RunOptions) -> ExitCode {
         output: Some(out.clone()),
         keep_ll: false,
         runtime: options.runtime,
+        bench: options.bench,
+        pgo: options.pgo.clone(),
         error_format: options.error_format,
     };
     let code = build_cmd::run(&build);

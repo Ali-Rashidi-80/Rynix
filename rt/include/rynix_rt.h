@@ -13,6 +13,7 @@ extern "C" {
 
 /* ---- panic / print ----------------------------------------------------- */
 void rynix_rt_print(const char *s);
+void rynix_rt_print_i64(int64_t n);
 void rynix_rt_panic(const char *msg);
 
 /* ---- heap / regions ---------------------------------------------------- */
@@ -41,11 +42,19 @@ void rynix_rt_sleep_ms(int64_t ms);
 void rynix_rt_run(void);
 int64_t rynix_rt_fiber_count(void);
 
+/* Fiber parking (used by fiber-aware io_uring). */
+void *rynix_rt_fiber_current(void);
+void rynix_rt_fiber_park(void);
+void rynix_rt_fiber_unpark(void *fiber);
+void rynix_rt_fiber_set_result(void *fiber, int64_t result);
+int64_t rynix_rt_fiber_get_result(void *fiber);
+int rynix_rt_fiber_parked_count(void);
+
 /* ---- colorless I/O ----------------------------------------------------- */
 int64_t rynix_rt_read(int64_t fd, void *buf, int64_t n);
 int64_t rynix_rt_write(int64_t fd, const void *buf, int64_t n);
 
-/* ---- TCP (portable) ---------------------------------------------------- */
+/* ---- TCP (portable / uring-aware) -------------------------------------- */
 int64_t rynix_rt_tcp_listen(int64_t port);
 int64_t rynix_rt_tcp_accept(int64_t listen_fd);
 int64_t rynix_rt_tcp_connect(const char *host, int64_t port);
@@ -53,11 +62,21 @@ void rynix_rt_tcp_close(int64_t fd);
 int64_t rynix_rt_tcp_recv(int64_t fd, void *buf, int64_t n);
 int64_t rynix_rt_tcp_send(int64_t fd, const void *buf, int64_t n);
 
+/* ---- JSON / HTTP (soft std) ------------------------------------------- */
+int64_t rynix_rt_json_get_i64(const char *json, const char *key);
+int64_t rynix_rt_http_get_json_i64(const char *host, int64_t port, const char *path,
+                                   const char *field);
+
 /* ---- io_uring (Linux + RYNIX_RT_URING; else stubs returning -1) -------- */
 void rynix_rt_uring_init(void);
 void rynix_rt_uring_shutdown(void);
+int rynix_rt_uring_ready(void);
+void rynix_rt_uring_poll(void);
+void rynix_rt_uring_wait(void);
 int64_t rynix_rt_uring_read(int64_t fd, void *buf, int64_t n);
 int64_t rynix_rt_uring_write(int64_t fd, const void *buf, int64_t n);
+int64_t rynix_rt_uring_accept(int64_t listen_fd);
+int64_t rynix_rt_uring_connect(int64_t fd, const void *addr, int64_t addrlen);
 
 #ifdef __cplusplus
 }

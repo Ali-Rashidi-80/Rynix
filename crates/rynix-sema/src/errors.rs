@@ -58,6 +58,15 @@ pub(crate) fn unknown_field(span: Span, ty: &str, field: &str) -> Diagnostic {
     )
 }
 
+pub(crate) fn unknown_method(span: Span, ty: &str, method: &str) -> Diagnostic {
+    Diagnostic::error(
+        codes::UNKNOWN_FIELD,
+        Stage::Sema,
+        format!("no method `{method}` on type `{ty}`"),
+        span,
+    )
+}
+
 pub(crate) fn wrong_arity(span: Span, expected: usize, found: usize) -> Diagnostic {
     Diagnostic::error(
         codes::WRONG_ARITY,

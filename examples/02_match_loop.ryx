@@ -1,0 +1,26 @@
+## Control flow + match
+def classify(n: i64) -> i64
+  match n
+    0
+      return 0
+    1
+      return 1
+    _
+      return 2
+  end
+  return -1
+end
+
+def main() -> i64
+  let mut i = 0
+  let mut hits = 0
+  loop
+    if i >= 5
+      break
+    end
+    hits += classify(i)
+    i += 1
+  end
+  print_i64(hits)
+  return hits
+end

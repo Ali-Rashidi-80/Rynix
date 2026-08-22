@@ -1,0 +1,8 @@
+## JSON parse smoke — no network required
+
+def main() -> i64
+  let body = "{\"value\": 42, \"other\": 7}"
+  let v = json_get_i64(body, "value")
+  print_i64(v)
+  return 0
+end

@@ -27,6 +27,7 @@ pub fn emit_llvm(
 
     // Runtime declarations.
     out.push_str("declare void @rynix_rt_print(ptr)\n");
+    out.push_str("declare void @rynix_rt_print_i64(i64)\n");
     out.push_str("declare ptr @rynix_rt_heap_alloc(i64)\n");
     out.push_str("declare void @rynix_rt_heap_free(ptr)\n");
     out.push_str("declare void @rynix_rt_region_create(i32)\n");
@@ -51,7 +52,13 @@ pub fn emit_llvm(
     out.push_str("declare i64 @rynix_rt_map_i64_len(ptr)\n");
     out.push_str("declare i64 @rynix_rt_tcp_listen(i64)\n");
     out.push_str("declare i64 @rynix_rt_tcp_accept(i64)\n");
-    out.push_str("declare void @rynix_rt_tcp_close(i64)\n\n");
+    out.push_str("declare i64 @rynix_rt_tcp_connect(ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_tcp_recv(i64, ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_tcp_send(i64, ptr, i64)\n");
+    out.push_str("declare i64 @llvm.ctpop.i64(i64)\n");
+    out.push_str("declare void @rynix_rt_tcp_close(i64)\n");
+    out.push_str("declare i64 @rynix_rt_json_get_i64(ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_http_get_json_i64(ptr, i64, ptr, ptr)\n\n");
     out.push_str(
         "@.rynix.bounds = private unnamed_addr constant [20 x i8] c\"index out of bounds\\00\", align 1\n\n",
     );
@@ -87,6 +94,16 @@ pub fn emit_llvm(
             &placement,
         );
         out.push('\n');
+    }
+
+    if module
+        .funcs
+        .iter()
+        .any(|f| !loop_latch_blocks(f).is_empty())
+    {
+        out.push_str("; Rynix loop vectorizer hints\n");
+        out.push_str("!0 = distinct !{!0, !1}\n");
+        out.push_str("!1 = !{!\"llvm.loop.vectorize.enable\", i1 true}\n");
     }
 
     out
@@ -169,7 +186,7 @@ fn placement_for(
 }
 
 struct EmitCtx<'a> {
-    out: &'a mut String,
+    final_out: &'a mut String,
     vname: FxHashMap<ValueId, String>,
     strings: &'a [String],
     interner: &'a Interner,
@@ -231,14 +248,22 @@ fn emit_function(
         .map(|(v, ty)| format!("{} %arg{}", llvm_ty(*ty), v.0))
         .collect();
 
+    let attrs = if name != "main" && func.insts.len() <= 64 && func.params.len() <= 4 {
+        " alwaysinline"
+    } else {
+        ""
+    };
+
     let _ = writeln!(
         out,
-        "define {ret_ty} @{name}({params}) {{",
-        params = params.join(", ")
+        "define {ret_ty} @{name}({params}){attrs} {{",
+        params = params.join(", "),
+        attrs = attrs
     );
 
+    let mut block_bufs = vec![String::new(); func.blocks.len()];
     let mut ctx = EmitCtx {
-        out,
+        final_out: out,
         vname: FxHashMap::default(),
         strings,
         interner,
@@ -253,25 +278,51 @@ fn emit_function(
         ctx.bind(*v, format!("%arg{}", v.0));
     }
 
+    // Pre-bind block-param value ids to their phi names before pass 1.
+    for (bi, block) in func.blocks.iter().enumerate() {
+        if bi == 0 {
+            continue;
+        }
+        for (pvid, _) in &block.params {
+            ctx.bind(*pvid, format!("%bp{}_{}", bi, pvid.0));
+        }
+    }
+
+    // Pass 1: emit block bodies so all SSA names exist before phi operands are resolved.
+    let latches = loop_latch_blocks(func);
+    for (bi, block) in func.blocks.iter().enumerate() {
+        let latch = latches.contains(&(bi as u32));
+        for &iid in &block.insts {
+            emit_inst(
+                &mut block_bufs[bi],
+                &mut ctx,
+                func,
+                iid,
+                is_main,
+                latch,
+            );
+        }
+    }
+
     // Predecessor map for phi.
     let preds = collect_preds(func);
 
+    // Pass 2: labels, phi nodes, then buffered bodies.
     for (bi, block) in func.blocks.iter().enumerate() {
         let bid = BlockId(bi as u32);
         if bi == 0 {
-            let _ = writeln!(ctx.out, "entry:");
+            let _ = writeln!(ctx.final_out, "entry:");
         } else {
-            let _ = writeln!(ctx.out, "b{bi}:");
+            let _ = writeln!(ctx.final_out, "b{bi}:");
         }
 
-        // Phi for block params (skip entry — params are function args).
         if bi > 0 && !block.params.is_empty() {
             let pred_list = preds.get(&bid).cloned().unwrap_or_default();
             for (pi, (pvid, pty)) in block.params.iter().enumerate() {
                 let name = format!("%bp{}_{}", bi, pvid.0);
                 if pred_list.is_empty() {
                     let _ = writeln!(
-                        ctx.out,
+                        ctx.final_out,
                         "  {name} = phi {} [ poison, %entry ]",
                         llvm_ty(*pty)
                     );
@@ -286,24 +337,38 @@ fn emit_function(
                         arms.push(format!("[ {arg}, %{plabel} ]"));
                     }
                     let _ = writeln!(
-                        ctx.out,
+                        ctx.final_out,
                         "  {name} = phi {} {}",
                         llvm_ty(*pty),
                         arms.join(", ")
                     );
                 }
-                ctx.bind(*pvid, name);
             }
         }
 
-        for &iid in &block.insts {
-            emit_inst(&mut ctx, func, iid, is_main);
-        }
+        ctx.final_out.push_str(&block_bufs[bi]);
     }
 
-    // If main somehow falls through without ret, add ret i32 0.
-    // (Verifier should ensure terminators.)
-    let _ = writeln!(ctx.out, "}}");
+    let _ = writeln!(ctx.final_out, "}}");
+}
+
+fn loop_latch_blocks(func: &rynix_rir::Function) -> FxHashSet<u32> {
+    let mut latches = FxHashSet::default();
+    let entry = func.entry.0;
+    for (bi, block) in func.blocks.iter().enumerate() {
+        if bi as u32 == entry {
+            continue;
+        }
+        let Some(&term) = block.insts.last() else {
+            continue;
+        };
+        if let Inst::Jump { target, .. } = func.inst(term) {
+            if !func.block(*target).params.is_empty() {
+                latches.insert(bi as u32);
+            }
+        }
+    }
+    latches
 }
 
 fn block_label(b: BlockId) -> String {
@@ -348,26 +413,33 @@ fn collect_preds(
     preds
 }
 
-fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::InstId, is_main: bool) {
+fn emit_inst(
+    out: &mut String,
+    ctx: &mut EmitCtx<'_>,
+    func: &rynix_rir::Function,
+    iid: rynix_rir::InstId,
+    is_main: bool,
+    loop_latch: bool,
+) {
     let inst = func.inst(iid);
     let result = result_of(func, iid);
 
     match inst {
         Inst::IConst(n) => {
             let name = ctx.tmp();
-            let _ = writeln!(ctx.out, "  {name} = add i64 0, {n}");
+            let _ = writeln!(out, "  {name} = add i64 0, {n}");
             ctx.bind(result.unwrap(), name);
         }
         Inst::FConst(n) => {
             let name = ctx.tmp();
             // Debug float formatting is accepted by LLVM's textual parser.
-            let _ = writeln!(ctx.out, "  {name} = fadd double 0.0, {n:?}");
+            let _ = writeln!(out, "  {name} = fadd double 0.0, {n:?}");
             ctx.bind(result.unwrap(), name);
         }
         Inst::BConst(b) => {
             let name = ctx.tmp();
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  {name} = add i1 0, {}",
                 i32::from(*b)
             );
@@ -385,44 +457,81 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
         }
         Inst::Nil => {
             let name = ctx.tmp();
-            let _ = writeln!(ctx.out, "  {name} = add i64 0, 0");
+            let _ = writeln!(out, "  {name} = add i64 0, 0");
             ctx.bind(result.unwrap(), name);
         }
-        Inst::IAdd(a, b) => bin_i(ctx, result, "add", a, b),
-        Inst::ISub(a, b) => bin_i(ctx, result, "sub", a, b),
-        Inst::IMul(a, b) => bin_i(ctx, result, "mul", a, b),
-        Inst::IDiv(a, b) => bin_i(ctx, result, "sdiv", a, b),
-        Inst::IRem(a, b) => bin_i(ctx, result, "srem", a, b),
+        Inst::IAdd(a, b) => bin_i(out, ctx, func, result, "add", a, b),
+        Inst::ISub(a, b) => bin_i(out, ctx, func, result, "sub", a, b),
+        Inst::IMul(a, b) => bin_i(out, ctx, func, result, "mul", a, b),
+        Inst::IDiv(a, b) => {
+            if let Some(shift) = iconst_of(func, *b).and_then(pow2_shift) {
+                emit_signed_sdiv_pow2(out, ctx, result, a, shift);
+            } else {
+                bin_i(out, ctx, func, result, "sdiv", a, b);
+            }
+        }
+        Inst::IRem(a, b) => {
+            if let Some(shift) = iconst_of(func, *b).and_then(pow2_shift) {
+                emit_signed_srem_pow2(out, ctx, result, a, shift);
+            } else {
+                bin_i(out, ctx, func, result, "srem", a, b);
+            }
+        }
+        Inst::URem(a, b) => bin_i(out, ctx, func, result, "urem", a, b),
+        Inst::IAnd(a, b) => bin_i(out, ctx, func, result, "and", a, b),
+        Inst::LShr(a, b) => bin_i(out, ctx, func, result, "lshr", a, b),
+        Inst::LShl(a, b) => bin_i(out, ctx, func, result, "shl", a, b),
         Inst::INeg(a) => {
             let name = ctx.tmp();
-            let _ = writeln!(ctx.out, "  {name} = sub i64 0, {}", ctx.val(*a));
+            let _ = writeln!(out, "  {name} = sub i64 0, {}", ctx.val(*a));
             ctx.bind(result.unwrap(), name);
         }
-        Inst::FAdd(a, b) => bin_f(ctx, result, "fadd", a, b),
-        Inst::FSub(a, b) => bin_f(ctx, result, "fsub", a, b),
-        Inst::FMul(a, b) => bin_f(ctx, result, "fmul", a, b),
-        Inst::FDiv(a, b) => bin_f(ctx, result, "fdiv", a, b),
+        Inst::FAdd(a, b) => bin_f(out, ctx, result, "fadd", a, b),
+        Inst::FSub(a, b) => bin_f(out, ctx, result, "fsub", a, b),
+        Inst::FMul(a, b) => bin_f(out, ctx, result, "fmul", a, b),
+        Inst::FDiv(a, b) => bin_f(out, ctx, result, "fdiv", a, b),
         Inst::FNeg(a) => {
             let name = ctx.tmp();
-            let _ = writeln!(ctx.out, "  {name} = fneg double {}", ctx.val(*a));
+            let _ = writeln!(out, "  {name} = fneg double {}", ctx.val(*a));
             ctx.bind(result.unwrap(), name);
         }
         Inst::ICmp(op, a, b) => {
             let name = ctx.tmp();
             let pred = icmp_pred(*op);
-            let _ = writeln!(
-                ctx.out,
-                "  {name} = icmp {pred} i64 {}, {}",
-                ctx.val(*a),
-                ctx.val(*b)
-            );
+            let ta = func.value_ty(*a);
+            let tb = func.value_ty(*b);
+            // Prefer i1 only when *both* sides are bool; otherwise i64 (zext bools).
+            if ta == IrTy::Bool && tb == IrTy::Bool {
+                let _ = writeln!(
+                    out,
+                    "  {name} = icmp {pred} i1 {}, {}",
+                    ctx.val(*a),
+                    ctx.val(*b)
+                );
+            } else {
+                let va = if ta == IrTy::Bool {
+                    let z = ctx.tmp();
+                    let _ = writeln!(out, "  {z} = zext i1 {} to i64", ctx.val(*a));
+                    z
+                } else {
+                    ctx.val(*a)
+                };
+                let vb = if tb == IrTy::Bool {
+                    let z = ctx.tmp();
+                    let _ = writeln!(out, "  {z} = zext i1 {} to i64", ctx.val(*b));
+                    z
+                } else {
+                    ctx.val(*b)
+                };
+                let _ = writeln!(out, "  {name} = icmp {pred} i64 {va}, {vb}");
+            }
             ctx.bind(result.unwrap(), name);
         }
         Inst::FCmp(op, a, b) => {
             let name = ctx.tmp();
             let pred = fcmp_pred(*op);
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  {name} = fcmp {pred} double {}, {}",
                 ctx.val(*a),
                 ctx.val(*b)
@@ -431,7 +540,45 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
         }
         Inst::BNot(a) => {
             let name = ctx.tmp();
-            let _ = writeln!(ctx.out, "  {name} = xor i1 {}, true", ctx.val(*a));
+            let _ = writeln!(out, "  {name} = xor i1 {}, true", ctx.val(*a));
+            ctx.bind(result.unwrap(), name);
+        }
+        Inst::BAnd(a, b) => {
+            let name = ctx.tmp();
+            let _ = writeln!(
+                out,
+                "  {name} = and i1 {}, {}",
+                ctx.val(*a),
+                ctx.val(*b)
+            );
+            ctx.bind(result.unwrap(), name);
+        }
+        Inst::BOr(a, b) => {
+            let name = ctx.tmp();
+            let _ = writeln!(
+                out,
+                "  {name} = or i1 {}, {}",
+                ctx.val(*a),
+                ctx.val(*b)
+            );
+            ctx.bind(result.unwrap(), name);
+        }
+        Inst::ZExtI64(a) => {
+            let name = ctx.tmp();
+            let _ = writeln!(
+                out,
+                "  {name} = zext i1 {} to i64",
+                ctx.val(*a)
+            );
+            ctx.bind(result.unwrap(), name);
+        }
+        Inst::CtPop(a) => {
+            let name = ctx.tmp();
+            let _ = writeln!(
+                out,
+                "  {name} = call i64 @llvm.ctpop.i64(i64 {})",
+                ctx.val(*a)
+            );
             ctx.bind(result.unwrap(), name);
         }
         Inst::Alloc { site, ty, .. } => {
@@ -446,17 +593,17 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                         IrTy::F64 => "double",
                         IrTy::Str | IrTy::Ptr | IrTy::Unit => "ptr",
                     };
-                    let _ = writeln!(ctx.out, "  {name} = alloca {lty}, align 8");
+                    let _ = writeln!(out, "  {name} = alloca {lty}, align 8");
                 }
                 Placement::Region(rid) => {
                     let _ = writeln!(
-                        ctx.out,
+                        out,
                         "  {name} = call ptr @rynix_rt_region_alloc(i32 {rid}, i64 {size})"
                     );
                 }
                 Placement::Heap => {
                     let _ = writeln!(
-                        ctx.out,
+                        out,
                         "  {name} = call ptr @rynix_rt_heap_alloc(i64 {size})"
                     );
                 }
@@ -468,14 +615,14 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
             // Payload type from alloc if possible.
             let lty = load_ty(func, *p);
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  {name} = load {lty}, ptr {}, align 8",
                 ctx.val(*p)
             );
             // If bool stored as i8, trunc to i1.
             if lty == "i8" {
                 let name2 = ctx.tmp();
-                let _ = writeln!(ctx.out, "  {name2} = trunc i8 {name} to i1");
+                let _ = writeln!(out, "  {name2} = trunc i8 {name} to i1");
                 ctx.bind(result.unwrap(), name2);
             } else {
                 ctx.bind(result.unwrap(), name);
@@ -486,11 +633,11 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
             let mut v = ctx.val(*value);
             if lty == "i8" {
                 let name = ctx.tmp();
-                let _ = writeln!(ctx.out, "  {name} = zext i1 {v} to i8");
+                let _ = writeln!(out, "  {name} = zext i1 {v} to i8");
                 v = name;
             }
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  store {lty} {v}, ptr {}, align 8",
                 ctx.val(*ptr)
             );
@@ -498,7 +645,7 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
         Inst::GepI64 { base, index } => {
             let name = ctx.tmp();
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  {name} = getelementptr inbounds i64, ptr {}, i64 {}",
                 ctx.val(*base),
                 ctx.val(*index)
@@ -513,30 +660,30 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
             let fail = format!("bc_fail.{}", ctx.next_tmp);
             ctx.next_tmp += 1;
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  {ok_lo} = icmp sge i64 {}, 0",
                 ctx.val(*index)
             );
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  {ok_hi} = icmp slt i64 {}, {}",
                 ctx.val(*index),
                 ctx.val(*len)
             );
-            let _ = writeln!(ctx.out, "  {ok} = and i1 {ok_lo}, {ok_hi}");
-            let _ = writeln!(ctx.out, "  br i1 {ok}, label %{cont}, label %{fail}");
-            let _ = writeln!(ctx.out, "{fail}:");
+            let _ = writeln!(out, "  {ok} = and i1 {ok_lo}, {ok_hi}");
+            let _ = writeln!(out, "  br i1 {ok}, label %{cont}, label %{fail}");
+            let _ = writeln!(out, "{fail}:");
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  call void @rynix_rt_panic(ptr @.rynix.bounds)"
             );
-            let _ = writeln!(ctx.out, "  unreachable");
-            let _ = writeln!(ctx.out, "{cont}:");
+            let _ = writeln!(out, "  unreachable");
+            let _ = writeln!(out, "{cont}:");
         }
         Inst::ArrayLen(base) => {
             let name = ctx.tmp();
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  {name} = load i64, ptr {}, align 8",
                 ctx.val(*base)
             );
@@ -547,23 +694,23 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
             let off = ctx.tmp();
             let slot = ctx.tmp();
             let name = ctx.tmp();
-            let _ = writeln!(ctx.out, "  {one} = add i64 0, 1");
+            let _ = writeln!(out, "  {one} = add i64 0, 1");
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  {off} = add i64 {}, {one}",
                 ctx.val(*index)
             );
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  {slot} = getelementptr inbounds i64, ptr {}, i64 {off}",
                 ctx.val(*base)
             );
-            let _ = writeln!(ctx.out, "  {name} = load i64, ptr {slot}, align 8");
+            let _ = writeln!(out, "  {name} = load i64, ptr {slot}, align 8");
             ctx.bind(result.unwrap(), name);
         }
         Inst::Free { ptr, .. } => {
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  call void @rynix_rt_heap_free(ptr {})",
                 ctx.val(*ptr)
             );
@@ -580,19 +727,19 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
             let rty = llvm_abi_ty(cf.ret);
             if cf.ret == IrTy::Unit {
                 let _ = writeln!(
-                    ctx.out,
+                    out,
                     "  call void @{cname}({args})",
                     args = arg_s.join(", ")
                 );
                 if let Some(r) = result {
                     let name = ctx.tmp();
-                    let _ = writeln!(ctx.out, "  {name} = add i64 0, 0");
+                    let _ = writeln!(out, "  {name} = add i64 0, 0");
                     ctx.bind(r, name);
                 }
             } else {
                 let name = ctx.tmp();
                 let _ = writeln!(
-                    ctx.out,
+                    out,
                     "  {name} = call {rty} @{cname}({args})",
                     args = arg_s.join(", ")
                 );
@@ -606,13 +753,24 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                     ctx.val(*a)
                 } else {
                     let t = ctx.tmp();
-                    let _ = writeln!(ctx.out, "  {t} = inttoptr i64 0 to ptr");
+                    let _ = writeln!(out, "  {t} = inttoptr i64 0 to ptr");
                     t
                 };
-                let _ = writeln!(ctx.out, "  call void @rynix_rt_print(ptr {arg})");
+                let _ = writeln!(out, "  call void @rynix_rt_print(ptr {arg})");
                 if let Some(r) = result {
                     let t = ctx.tmp();
-                    let _ = writeln!(ctx.out, "  {t} = add i64 0, 0");
+                    let _ = writeln!(out, "  {t} = add i64 0, 0");
+                    ctx.bind(r, t);
+                }
+            } else if n == "rynix_rt_print_i64" || n == "print_i64" {
+                let arg = args
+                    .first()
+                    .map(|a| ctx.val(*a))
+                    .unwrap_or_else(|| "0".into());
+                let _ = writeln!(out, "  call void @rynix_rt_print_i64(i64 {arg})");
+                if let Some(r) = result {
+                    let t = ctx.tmp();
+                    let _ = writeln!(out, "  {t} = add i64 0, 0");
                     ctx.bind(r, t);
                 }
             } else if n == "rynix_rt_heap_alloc" {
@@ -622,7 +780,7 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                     .unwrap_or_else(|| "0".into());
                 let t = ctx.tmp();
                 let _ = writeln!(
-                    ctx.out,
+                    out,
                     "  {t} = call ptr @rynix_rt_heap_alloc(i64 {size})"
                 );
                 ctx.bind(result.unwrap(), t);
@@ -659,7 +817,7 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                 };
                 let t = ctx.tmp();
                 let _ = writeln!(
-                    ctx.out,
+                    out,
                     "  {t} = call ptr @rynix_rt_spawn(ptr {fn_ptr}, ptr null)"
                 );
                 if let Some(r) = result {
@@ -670,40 +828,40 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                     .first()
                     .map(|a| ctx.val(*a))
                     .unwrap_or_else(|| "0".into());
-                let _ = writeln!(ctx.out, "  call void @rynix_rt_sleep_ms(i64 {ms})");
+                let _ = writeln!(out, "  call void @rynix_rt_sleep_ms(i64 {ms})");
                 if let Some(r) = result {
                     let t = ctx.tmp();
-                    let _ = writeln!(ctx.out, "  {t} = add i64 0, 0");
+                    let _ = writeln!(out, "  {t} = add i64 0, 0");
                     ctx.bind(r, t);
                 }
             } else if n == "yield" || n == "rynix_rt_yield" {
-                let _ = writeln!(ctx.out, "  call void @rynix_rt_yield()");
+                let _ = writeln!(out, "  call void @rynix_rt_yield()");
                 if let Some(r) = result {
                     let t = ctx.tmp();
-                    let _ = writeln!(ctx.out, "  {t} = add i64 0, 0");
+                    let _ = writeln!(out, "  {t} = add i64 0, 0");
                     ctx.bind(r, t);
                 }
             } else if n == "now_ms" || n == "rynix_rt_now_ms" {
                 let t = ctx.tmp();
-                let _ = writeln!(ctx.out, "  {t} = call i64 @rynix_rt_now_ms()");
+                let _ = writeln!(out, "  {t} = call i64 @rynix_rt_now_ms()");
                 ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_vec_i64_new" || n == "rynix_rt_map_i64_new" {
                 let rid = args.first().map(|a| ctx.val(*a)).unwrap_or_else(|| "0".into());
                 let trunc = ctx.tmp();
                 let t = ctx.tmp();
-                let _ = writeln!(ctx.out, "  {trunc} = trunc i64 {rid} to i32");
-                let _ = writeln!(ctx.out, "  {t} = call ptr @{n}(i32 {trunc})");
+                let _ = writeln!(out, "  {trunc} = trunc i64 {rid} to i32");
+                let _ = writeln!(out, "  {t} = call ptr @{n}(i32 {trunc})");
                 ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_vec_i64_push" {
                 let v = ctx.val(args[0]);
                 let x = ctx.val(args[1]);
-                let _ = writeln!(ctx.out, "  call void @rynix_rt_vec_i64_push(ptr {v}, i64 {x})");
+                let _ = writeln!(out, "  call void @rynix_rt_vec_i64_push(ptr {v}, i64 {x})");
             } else if n == "rynix_rt_map_i64_insert" {
                 let m = ctx.val(args[0]);
                 let k = ctx.val(args[1]);
                 let val = ctx.val(args[2]);
                 let _ = writeln!(
-                    ctx.out,
+                    out,
                     "  call void @rynix_rt_map_i64_insert(ptr {m}, i64 {k}, i64 {val})"
                 );
             } else if n == "rynix_rt_vec_i64_get"
@@ -728,14 +886,14 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                     .collect();
                 let t = ctx.tmp();
                 let _ = writeln!(
-                    ctx.out,
+                    out,
                     "  {t} = call i64 @{n}({args})",
                     args = arg_s.join(", ")
                 );
                 ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_tcp_close" {
                 let fd = args.first().map(|a| ctx.val(*a)).unwrap_or_else(|| "0".into());
-                let _ = writeln!(ctx.out, "  call void @rynix_rt_tcp_close(i64 {fd})");
+                let _ = writeln!(out, "  call void @rynix_rt_tcp_close(i64 {fd})");
             } else {
                 // Unknown external: declare on the fly and call.
                 let rty = llvm_abi_ty(*ret);
@@ -745,14 +903,14 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                     .collect();
                 if *ret == IrTy::Unit {
                     let _ = writeln!(
-                        ctx.out,
+                        out,
                         "  call void @{n}({args})",
                         args = arg_s.join(", ")
                     );
                 } else {
                     let t = ctx.tmp();
                     let _ = writeln!(
-                        ctx.out,
+                        out,
                         "  {t} = call {rty} @{n}({args})",
                         args = arg_s.join(", ")
                     );
@@ -762,21 +920,21 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
         }
         Inst::RegionCreate { region } => {
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  call void @rynix_rt_region_create(i32 {region})"
             );
         }
         Inst::RegionReset { region } => {
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  call void @rynix_rt_region_reset(i32 {region})"
             );
         }
         Inst::Ret(None) => {
             if is_main {
-                let _ = writeln!(ctx.out, "  ret i32 0");
+                let _ = writeln!(out, "  ret i32 0");
             } else {
-                let _ = writeln!(ctx.out, "  ret void");
+                let _ = writeln!(out, "  ret void");
             }
         }
         Inst::Ret(Some(v)) => {
@@ -786,23 +944,23 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
                 match ty {
                     IrTy::I64 => {
                         let t = ctx.tmp();
-                        let _ = writeln!(ctx.out, "  {t} = trunc i64 {} to i32", ctx.val(*v));
-                        let _ = writeln!(ctx.out, "  ret i32 {t}");
+                        let _ = writeln!(out, "  {t} = trunc i64 {} to i32", ctx.val(*v));
+                        let _ = writeln!(out, "  ret i32 {t}");
                     }
                     IrTy::Bool => {
                         let t = ctx.tmp();
-                        let _ = writeln!(ctx.out, "  {t} = zext i1 {} to i32", ctx.val(*v));
-                        let _ = writeln!(ctx.out, "  ret i32 {t}");
+                        let _ = writeln!(out, "  {t} = zext i1 {} to i32", ctx.val(*v));
+                        let _ = writeln!(out, "  ret i32 {t}");
                     }
                     _ => {
-                        let _ = writeln!(ctx.out, "  ret i32 0");
+                        let _ = writeln!(out, "  ret i32 0");
                     }
                 }
             } else if func.ret == IrTy::Unit {
-                let _ = writeln!(ctx.out, "  ret void");
+                let _ = writeln!(out, "  ret void");
             } else {
                 let _ = writeln!(
-                    ctx.out,
+                    out,
                     "  ret {} {}",
                     llvm_abi_ty(func.ret),
                     ctx.val(*v)
@@ -810,7 +968,11 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
             }
         }
         Inst::Jump { target, .. } => {
-            let _ = writeln!(ctx.out, "  br label %{}", block_label(*target));
+            if loop_latch {
+                let _ = writeln!(out, "  br label %{}, !llvm.loop !0", block_label(*target));
+            } else {
+                let _ = writeln!(out, "  br label %{}", block_label(*target));
+            }
         }
         Inst::Br {
             cond,
@@ -819,7 +981,7 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
             ..
         } => {
             let _ = writeln!(
-                ctx.out,
+                out,
                 "  br i1 {}, label %{}, label %{}",
                 ctx.val(*cond),
                 block_label(*then_target),
@@ -827,30 +989,108 @@ fn emit_inst(ctx: &mut EmitCtx<'_>, func: &rynix_rir::Function, iid: rynix_rir::
             );
         }
         Inst::Unreachable => {
-            let _ = writeln!(ctx.out, "  unreachable");
+            let _ = writeln!(out, "  unreachable");
         }
     }
 }
 
-fn bin_i(ctx: &mut EmitCtx<'_>, result: Option<ValueId>, op: &str, a: &ValueId, b: &ValueId) {
+fn bin_i(
+    out: &mut String,
+    ctx: &mut EmitCtx<'_>,
+    func: &rynix_rir::Function,
+    result: Option<ValueId>,
+    op: &str,
+    a: &ValueId,
+    b: &ValueId,
+) {
+    let av = i64_operand(func, ctx, *a);
+    let bv = i64_operand(func, ctx, *b);
     let name = ctx.tmp();
-    let _ = writeln!(
-        ctx.out,
-        "  {name} = {op} i64 {}, {}",
-        ctx.val(*a),
-        ctx.val(*b)
-    );
+    let _ = writeln!(out, "  {name} = {op} i64 {av}, {bv}");
     ctx.bind(result.unwrap(), name);
 }
 
-fn bin_f(ctx: &mut EmitCtx<'_>, result: Option<ValueId>, op: &str, a: &ValueId, b: &ValueId) {
+fn i64_operand(func: &rynix_rir::Function, ctx: &EmitCtx<'_>, v: ValueId) -> String {
+    iconst_of(func, v)
+        .map(|n| n.to_string())
+        .unwrap_or_else(|| ctx.val(v))
+}
+
+fn iconst_of(func: &rynix_rir::Function, v: ValueId) -> Option<i64> {
+    let def = func.values.get(v.0 as usize)?.def?;
+    match func.inst(def) {
+        Inst::IConst(n) => Some(*n),
+        _ => None,
+    }
+}
+
+fn pow2_shift(n: i64) -> Option<u32> {
+    if n > 0 && (n & (n - 1)) == 0 {
+        Some(n.trailing_zeros())
+    } else {
+        None
+    }
+}
+
+/// Signed `sdiv` by `2^shift` without a variable divisor (LLVM-friendly, trunc toward zero).
+fn emit_signed_sdiv_pow2(
+    out: &mut String,
+    ctx: &mut EmitCtx<'_>,
+    result: Option<ValueId>,
+    a: &ValueId,
+    shift: u32,
+) {
+    let x = ctx.val(*a);
+    let sign = ctx.tmp();
+    let _ = writeln!(out, "  {sign} = ashr i64 {x}, 63");
+    let adj = ctx.tmp();
+    let mask = (1i64 << shift) - 1;
+    let _ = writeln!(out, "  {adj} = and i64 {sign}, {mask}");
+    let t = ctx.tmp();
+    let _ = writeln!(out, "  {t} = add i64 {x}, {adj}");
+    let q = ctx.tmp();
+    let _ = writeln!(out, "  {q} = ashr i64 {t}, {shift}");
+    ctx.bind(result.unwrap(), q);
+}
+
+/// Signed `srem` by `2^shift` via quotient reconstruction (matches Rynix `/` + `%` semantics).
+fn emit_signed_srem_pow2(
+    out: &mut String,
+    ctx: &mut EmitCtx<'_>,
+    result: Option<ValueId>,
+    a: &ValueId,
+    shift: u32,
+) {
+    let x = ctx.val(*a);
+    let sign = ctx.tmp();
+    let _ = writeln!(out, "  {sign} = ashr i64 {x}, 63");
+    let adj = ctx.tmp();
+    let mask = (1i64 << shift) - 1;
+    let _ = writeln!(out, "  {adj} = and i64 {sign}, {mask}");
+    let t = ctx.tmp();
+    let _ = writeln!(out, "  {t} = add i64 {x}, {adj}");
+    let q = ctx.tmp();
+    let _ = writeln!(out, "  {q} = ashr i64 {t}, {shift}");
+    let divisor = 1i64 << shift;
+    let prod = ctx.tmp();
+    let _ = writeln!(out, "  {prod} = mul i64 {q}, {divisor}");
+    let r = ctx.tmp();
+    let _ = writeln!(out, "  {r} = sub i64 {x}, {prod}");
+    ctx.bind(result.unwrap(), r);
+}
+
+fn bin_f(
+    out: &mut String,
+    ctx: &mut EmitCtx<'_>,
+    result: Option<ValueId>,
+    op: &str,
+    a: &ValueId,
+    b: &ValueId,
+) {
+    let av = ctx.val(*a);
+    let bv = ctx.val(*b);
     let name = ctx.tmp();
-    let _ = writeln!(
-        ctx.out,
-        "  {name} = {op} double {}, {}",
-        ctx.val(*a),
-        ctx.val(*b)
-    );
+    let _ = writeln!(out, "  {name} = {op} double {av}, {bv}");
     ctx.bind(result.unwrap(), name);
 }
 

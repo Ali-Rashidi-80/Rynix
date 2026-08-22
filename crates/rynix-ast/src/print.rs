@@ -205,6 +205,31 @@ impl Dumper<'_> {
                 }
                 self.close();
             }
+            Stmt::Match(m) => {
+                self.open("match");
+                self.expr(m.scrutinee);
+                for arm in m.arms {
+                    self.open("arm");
+                    match &arm.pattern {
+                        crate::MatchPat::Wildcard(_) => self.atom("_"),
+                        crate::MatchPat::Literal(e) => self.expr(e),
+                    }
+                    self.open("body");
+                    for s in arm.body {
+                        self.stmt(s);
+                    }
+                    self.close();
+                    self.close();
+                }
+                if let Some(body) = m.else_body {
+                    self.open("else");
+                    for s in body {
+                        self.stmt(s);
+                    }
+                    self.close();
+                }
+                self.close();
+            }
             Stmt::Expr(e) => {
                 self.open("expr");
                 self.expr(e.expr);
@@ -298,6 +323,15 @@ impl Dumper<'_> {
     fn type_str(&self, ty: &Type<'_>) -> String {
         match ty {
             Type::Path(p) => self.path_str(p),
+            Type::App { path, args, .. } => {
+                let base = self.path_str(path);
+                let inner = args
+                    .iter()
+                    .map(|a| self.type_str(a))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{base}[{inner}]")
+            }
             Type::Slice(inner, _) => format!("[{}]", self.type_str(inner)),
             Type::Error(_) => "<error>".to_string(),
         }

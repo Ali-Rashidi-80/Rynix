@@ -76,6 +76,16 @@ fn dump_stmts(
                     dump_stmts(body, analysis, interner, out, indent + 1);
                 }
             }
+            Stmt::Match(m) => {
+                let _ = writeln!(out, "{pad}match:");
+                for arm in m.arms {
+                    dump_stmts(arm.body, analysis, interner, out, indent + 1);
+                }
+                if let Some(body) = m.else_body {
+                    let _ = writeln!(out, "{pad}else:");
+                    dump_stmts(body, analysis, interner, out, indent + 1);
+                }
+            }
             _ => {}
         }
     }

@@ -312,6 +312,20 @@ fn parse_inst(
             let bv = map_v(parts.get(3).unwrap_or(&""), vmap)?;
             bind(lhs, b.push_value(Inst::ICmp(cmp, a, bv)), vmap);
         }
+        "band" | "bor" => {
+            let a = map_v(parts.get(1).unwrap_or(&"").trim_end_matches(','), vmap)?;
+            let bv = map_v(parts.get(2).unwrap_or(&""), vmap)?;
+            let v = if op == "band" {
+                b.push_value(Inst::BAnd(a, bv))
+            } else {
+                b.push_value(Inst::BOr(a, bv))
+            };
+            bind(lhs, v, vmap);
+        }
+        "bnot" => {
+            let a = map_v(parts.get(1).unwrap_or(&""), vmap)?;
+            bind(lhs, b.push_value(Inst::BNot(a)), vmap);
+        }
         "alloc" => {
             // alloc siteN ty
             let ty = parse_ty(parts.get(2).unwrap_or(&"i64"), lineno)?;

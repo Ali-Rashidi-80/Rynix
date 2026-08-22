@@ -1,0 +1,15 @@
+## Bool and/or + match
+def main() -> i64
+  let ok = true and true
+  let no = true and false
+  if ok or no
+    match no
+      false
+        print_i64(42)
+        return 42
+      true
+        return 0
+    end
+  end
+  return -1
+end

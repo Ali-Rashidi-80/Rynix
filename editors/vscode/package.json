@@ -1,0 +1,58 @@
+{
+  "name": "rynix-lang",
+  "displayName": "Rynix",
+  "description": "Rynix language support — syntax, LSP diagnostics, go-to-definition",
+  "version": "0.1.0",
+  "publisher": "rynix",
+  "license": "MIT OR Apache-2.0",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": ["Programming Languages"],
+  "activationEvents": ["onLanguage:rynix"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "rynix",
+        "aliases": ["Rynix", "rynix"],
+        "extensions": [".ryx"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rynix",
+        "scopeName": "source.rynix",
+        "path": "./syntaxes/rynix.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Rynix",
+      "properties": {
+        "rynix.compilerPath": {
+          "type": "string",
+          "default": "rynixc",
+          "description": "Path to the rynixc compiler (must support lsp-serve)"
+        },
+        "rynix.enableLsp": {
+          "type": "boolean",
+          "default": true,
+          "description": "Start rynixc lsp-serve for diagnostics and navigation"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.3.3"
+  }
+}

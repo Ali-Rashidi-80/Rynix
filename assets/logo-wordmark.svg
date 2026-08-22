@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 168" role="img" aria-label="Rynix">
+  <defs>
+    <linearGradient id="ryx-mark" x1="20" y1="148" x2="148" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B3D4A"/>
+      <stop offset="0.5" stop-color="#147A8A"/>
+      <stop offset="1" stop-color="#3ECFB2"/>
+    </linearGradient>
+    <linearGradient id="ryx-word" x1="176" y1="24" x2="620" y2="144" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B3D4A"/>
+      <stop offset="0.62" stop-color="#147A8A"/>
+      <stop offset="1" stop-color="#3ECFB2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon -->
+  <path fill="#070D11"
+        d="M 28 28 H 120 L 148 56 V 120 Q 148 148 120 148 H 28 Q 0 148 0 120 V 56 Q 0 28 28 28 Z"/>
+  <path fill="none" stroke="#147A8A" stroke-opacity="0.32" stroke-width="1.5"
+        d="M 28 28 H 120 L 148 56 V 120 Q 148 148 120 148 H 28 Q 0 148 0 120 V 56 Q 0 28 28 28 Z"/>
+  <path fill="none" stroke="#3ECFB2" stroke-opacity="0.75" stroke-width="2" stroke-linecap="square"
+        d="M 120 28 H 148 V 56"/>
+
+  <path fill="none" stroke="url(#ryx-mark)" stroke-width="5.5" stroke-linecap="round"
+        stroke-dasharray="330 26"
+        d="M 74 36 A 50 50 0 1 1 73.7 35.9"/>
+  <circle cx="74" cy="36" r="4.5" fill="#3ECFB2"/>
+
+  <path fill="url(#ryx-mark)"
+        d="M 46 44 H 58 V 132 H 46 V 44 Z
+           M 58 44 H 78 C 96 44 108 56 108 72 C 108 86 98 96 84 100 C 98 104 108 116 108 130 C 108 144 96 132 82 132 H 58 V 44 Z
+           M 58 58 H 74 C 84 58 90 64 90 72 C 90 80 84 86 74 86 H 58 V 58 Z
+           M 84 100 C 94 104 102 114 102 128 H 88 L 74 100 H 84 Z"/>
+
+  <g stroke="#3ECFB2" stroke-opacity="0.55" stroke-width="2.5" stroke-linecap="round">
+    <line x1="66" y1="68" x2="98" y2="68"/>
+    <line x1="66" y1="82" x2="92" y2="82"/>
+    <line x1="66" y1="96" x2="86" y2="96"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="168" y="108" fill="url(#ryx-word)"
+        font-family="Segoe UI, Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif"
+        font-size="88" font-weight="700" letter-spacing="-2">Rynix</text>
+
+  <!-- Escape-tier accent -->
+  <rect x="168" y="124" width="96" height="4" rx="2" fill="#3ECFB2" opacity="0.9"/>
+  <rect x="272" y="124" width="64" height="4" rx="2" fill="#147A8A" opacity="0.45"/>
+  <rect x="346" y="124" width="40" height="4" rx="2" fill="#147A8A" opacity="0.28"/>
+</svg>

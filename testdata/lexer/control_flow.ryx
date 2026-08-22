@@ -8,6 +8,18 @@ def classify(n: i64) -> i64
   end
 end
 
+def by_match(n: i64) -> i64
+  match n
+    0
+      return 0
+    1
+      return 1
+    _
+      return 2
+  end
+  return -1
+end
+
 def scan(limit: i64) -> i64
   let mut i = 0
   let mut hits = 0

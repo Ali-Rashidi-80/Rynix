@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
-use crate::cli::{BuildOptions, RuntimeKind};
+use crate::cli::{BuildOptions, PgoMode, RuntimeKind};
 use crate::codegen_pipe;
 
 pub fn run(options: &BuildOptions) -> ExitCode {
@@ -58,19 +58,32 @@ pub fn run(options: &BuildOptions) -> ExitCode {
         .arg("-flto=thin")
         .arg("-ffunction-sections")
         .arg("-fuse-ld=lld")
-        .arg("-Wl,--gc-sections")
-        .arg(format!("-I{}", include.display()))
+        .arg("-Wl,--gc-sections");
+    if std::env::var("CI").is_err() && std::env::var("GITHUB_ACTIONS").is_err() {
+        cmd.arg("-march=native");
+    }
+    cmd.arg(format!("-I{}", include.display()))
         .arg(&ll_path)
         .arg(&rt_c)
         .arg("-o")
         .arg(&out_bin);
 
-    if options.runtime == RuntimeKind::Uring {
-        cmd.arg("-DRYNIX_RT_URING");
+    if options.bench {
+        cmd.arg("-DRYNIX_BENCH");
     }
 
-    if cfg!(windows) {
-        cmd.arg("-lws2_32");
+    match &options.pgo {
+        PgoMode::None => {}
+        PgoMode::Generate => {
+            cmd.arg("-fprofile-instr-generate");
+        }
+        PgoMode::Use(path) => {
+            cmd.arg(format!("-fprofile-use={}", path.display()));
+        }
+    }
+
+    if options.runtime == RuntimeKind::Uring {
+        cmd.arg("-DRYNIX_RT_URING");
     }
 
     if cfg!(windows) {

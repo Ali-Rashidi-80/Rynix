@@ -47,7 +47,8 @@ input_file: testdata/lexer/errors.ryx
   121..122   Whitespace   " "
   122..123   Ident        "x"
   123..124   Whitespace   " "
-  124..126   Unknown      "&&"
+  124..125   Amp          "&"
+  125..126   Amp          "&"
   126..127   Whitespace   " "
   127..128   Ident        "y"
   128..129   Newline      "\n"
@@ -197,7 +198,7 @@ input_file: testdata/lexer/errors.ryx
   445..446   Newline      "\n"
   446..446   Eof          ""
 
-== diagnostics (19) ==
+== diagnostics (18) ==
 error[RYX0001]: unknown character `$`
  --> errors.ryx:3:13
   |
@@ -210,13 +211,6 @@ error[RYX0001]: unknown character `;`
   |             ^
   = help: remove `;` (newlines terminate statements) (confidence 0.90)
       edit 108..109 -> ""
-error[RYX0001]: unknown character `&&`
- --> errors.ryx:5:13: logical conjunction is spelled `and`
-  |
-5 |   let c = x && y
-  |             ^^
-  = help: replace `&&` with `and` (confidence 0.85)
-      edit 124..126 -> "and"
 error[RYX0001]: unknown character `||`
  --> errors.ryx:6:13: logical disjunction is spelled `or`
   |

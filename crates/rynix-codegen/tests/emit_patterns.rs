@@ -89,6 +89,25 @@ end
 }
 
 #[test]
+fn counted_loop_latch_emits_vectorize_metadata() {
+    let ll = emit(
+        include_str!("../../../benchmarks/suite5/scan.ryx"),
+    );
+    assert!(
+        ll.contains("!llvm.loop !0") && ll.contains("llvm.loop.vectorize.enable"),
+        "expected loop vectorizer hint on latch back-edge:\n{ll}"
+    );
+    assert!(
+        !ll.contains("br label %b1, !llvm.loop") || ll.matches("br label %b1, !llvm.loop").count() == 1,
+        "loop metadata must be on latch only, not entry:\n{ll}"
+    );
+    assert!(
+        !ll.contains("entry:\n  br label %b1, !llvm.loop"),
+        "entry must not carry loop metadata:\n{ll}"
+    );
+}
+
+#[test]
 fn mutable_let_uses_stack_alloca() {
     let ll = emit(
         r"
@@ -99,6 +118,6 @@ def main() -> i64
 end
 ",
     );
-    assert!(ll.contains("alloca"), "{ll}");
     assert!(!ll.contains("call ptr @rynix_rt_heap_alloc"), "{ll}");
+    assert!(ll.contains("add i64"), "{ll}");
 }

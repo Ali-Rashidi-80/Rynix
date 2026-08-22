@@ -1,1 +1,9 @@
-## JSON parse/stringify — not yet executable; region-backed TBD.
+## JSON — soft builtin `json_get_i64(body, key) -> i64`
+
+Parses a minimal JSON object and returns an integer field:
+
+```
+let v = json_get_i64("{\"n\": 42}", "n")
+```
+
+See `examples/05_http_json.ryx`.

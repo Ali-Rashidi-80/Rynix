@@ -20,6 +20,32 @@ impl<'arena> Parser<'arena, '_, '_> {
         }
         if self.at(TokenKind::Ident) || self.peek().kind.is_reserved() {
             let path = self.parse_path();
+            if self.at(TokenKind::LBracket) {
+                let open = self.bump().span;
+                let mut args = Vec::new();
+                if !self.at(TokenKind::RBracket) {
+                    loop {
+                        args.push(self.parse_type());
+                        if self.eat(TokenKind::Comma).is_none() {
+                            break;
+                        }
+                        if self.at(TokenKind::RBracket) {
+                            break;
+                        }
+                    }
+                }
+                let end = if self.at(TokenKind::RBracket) {
+                    self.bump().span
+                } else {
+                    self.sink.emit(parse_errors::unclosed_delimiter(open, "]"));
+                    Span::empty(self.peek().span.lo())
+                };
+                return self.arena.alloc(Type::App {
+                    path,
+                    args: self.arena.alloc_slice(args),
+                    span: path.span.to(end),
+                });
+            }
             return self.arena.alloc(Type::Path(path));
         }
         let tok = self.peek();
@@ -39,7 +65,7 @@ impl<'arena> Parser<'arena, '_, '_> {
         self.parse_path_ext(false)
     }
 
-    /// When `allow_reserved`, `tensor`/`signal`/`agent`/`match` may appear as
+    /// When `allow_reserved`, `tensor`/`signal`/`agent` may appear as
     /// path segments without emitting `RYX1005` (smart-primitive experiments).
     pub(crate) fn parse_path_ext(&mut self, allow_reserved: bool) -> &'arena rynix_ast::Path<'arena> {
         let first = self.expect_ident_ext("identifier", allow_reserved);

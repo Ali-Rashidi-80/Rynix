@@ -1,0 +1,16 @@
+def main() -> i64
+  let n = 8000000
+  let mut acc = 0
+  let mut i = 0
+  loop
+    if i >= n
+      break
+    end
+    if i % 3 == 0 or i % 7 == 0
+      acc += 1
+    end
+    i += 1
+  end
+  print_i64(acc)
+  return 0
+end

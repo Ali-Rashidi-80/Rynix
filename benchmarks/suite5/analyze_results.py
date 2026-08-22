@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+import json
+from pathlib import Path
+
+d = json.loads(Path("benchmarks/suite5/suite5_results.json").read_text())
+all_langs = ["c", "rust", "go", "zig", "rynix"]
+langs = [l for l in all_langs if any(x["lang"] == l for x in d["rows"])]
+challenges = d["challenges"]
+
+
+def row_for(rows, ch: str, lang: str):
+    return next((x for x in rows if x["challenge"] == ch and x["lang"] == lang), None)
+
+print("### CoV (stdev/median) — lower = more stable")
+print("| Challenge | " + " | ".join(langs) + " |")
+print("|---|" + "|".join(["---:"] * len(langs)) + "|")
+for ch in challenges:
+    row = []
+    for lang in langs:
+        r = row_for(d["rows"], ch, lang)
+        if not r or not r.get("ok") or "timing" not in r:
+            row.append("—")
+            continue
+        t = r["timing"]
+        cv = 100 * t["ms_stdev"] / t["ms_median"] if t["ms_median"] else 0
+        row.append(f"{cv:.0f}%")
+    print(f"| {ch} | " + " | ".join(row) + " |")
+
+print("\n### Full median ms matrix")
+print("| Workload | C | Rust | Go | Zig | Rynix | Best |")
+print("|---|--:|--:|--:|--:|--:|---|")
+for ch in challenges:
+    row = []
+    best = ("", 1e9)
+    for lang in langs:
+        r = row_for(d["rows"], ch, lang)
+        ms = r.get("ms") if r else None
+        if ms is None:
+            row.append("—")
+            continue
+        row.append(f"{ms:.2f}")
+        if ms < best[1]:
+            best = (lang, ms)
+    print(f"| {ch} | " + " | ".join(row) + f" | {best[0]} {best[1]:.2f} |")
+
+print("\n### Rynix vs C ratio")
+for ch in challenges:
+    c_row = row_for(d["rows"], ch, "c")
+    r_row = row_for(d["rows"], ch, "rynix")
+    if not c_row or c_row.get("ms") is None:
+        print(f"{ch:8} rynix/c = — (no C row)")
+        continue
+    r_ms = r_row.get("ms") if r_row else None
+    if r_ms is None:
+        print(f"{ch:8} rynix/c = — (build fail)")
+        continue
+    print(f"{ch:8} rynix/c = {r_ms/c_row['ms']:.3f}x")
+
+print("\n### Rynix rank & gap to fastest")
+for ch in challenges:
+    times = []
+    for lang in langs:
+        r = row_for(d["rows"], ch, lang)
+        if r and r.get("ok"):
+            times.append((r["ms"], lang, r.get("timing", {})))
+    if not times:
+        continue
+    ryn = next(((ms, t) for ms, lang, t in times if lang == "rynix"), None)
+    if ryn is None:
+        print(f"{ch:8} rank —/5  rynix missing")
+        continue
+    ryn_ms, _ = ryn
+    times.sort(key=lambda x: x[0])
+    rank = next(i + 1 for i, (_, l, _) in enumerate(times) if l == "rynix")
+    best_ms, best_lang, _ = times[0]
+    gap = (ryn_ms / best_ms - 1) * 100
+    print(f"{ch:8} rank {rank}/5  rynix={ryn_ms:7.2f}  best={best_lang:5} {best_ms:7.2f}  gap={gap:+5.1f}%")
+
+pgo_path = Path("benchmarks/suite5/suite5_results_pgo.json")
+if pgo_path.is_file():
+    pgo = json.loads(pgo_path.read_text())
+    print("\n### PGO delta (rynix baseline -> pgo-use)")
+    print("| Workload | baseline | pgo | delta |")
+    print("|---|--:|--:|--:|")
+    for ch in challenges:
+        base = next(
+            (x for x in d["rows"] if x["challenge"] == ch and x["lang"] == "rynix" and x.get("ok")),
+            None,
+        )
+        opt = next(
+            (x for x in pgo["rows"] if x["challenge"] == ch and x["lang"] == "rynix" and x.get("ok")),
+            None,
+        )
+        if base and opt:
+            delta = (opt["ms"] / base["ms"] - 1) * 100
+            print(f"| {ch} | {base['ms']:.2f} | {opt['ms']:.2f} | {delta:+.1f}% |")
+

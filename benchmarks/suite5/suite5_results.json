@@ -1,0 +1,1820 @@
+{
+  "schema": "rynix.suite5.v2",
+  "challenges": [
+    "alu",
+    "nested",
+    "fib",
+    "hash",
+    "prime",
+    "sum",
+    "bits",
+    "matrix",
+    "scan",
+    "powmod",
+    "gcd",
+    "reduce"
+  ],
+  "note": "Checksum verified with full stdout; timed runs use SUITE5_BENCH=1 (warmup=3, runs=9, reported ms=trimmed median when runs>=5).",
+  "rows": [
+    {
+      "challenge": "alu",
+      "lang": "c",
+      "checksum": "5000003999995",
+      "ms": 7.819,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 7.819,
+        "ms_median_raw": 7.819,
+        "ms_min": 7.148,
+        "ms_max": 9.107,
+        "ms_mean": 8.039,
+        "ms_stdev": 0.641,
+        "ms_samples": [
+          7.148,
+          7.437,
+          7.503,
+          7.649,
+          7.819,
+          8.362,
+          8.536,
+          8.789,
+          9.107
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "alu",
+      "lang": "rust",
+      "checksum": "5000003999995",
+      "ms": 7.838,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 7.838,
+        "ms_median_raw": 7.838,
+        "ms_min": 7.321,
+        "ms_max": 8.405,
+        "ms_mean": 7.886,
+        "ms_stdev": 0.4,
+        "ms_samples": [
+          7.321,
+          7.345,
+          7.539,
+          7.768,
+          7.838,
+          8.169,
+          8.236,
+          8.355,
+          8.405
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "alu",
+      "lang": "go",
+      "checksum": "5000003999995",
+      "ms": 10.857,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 10.857,
+        "ms_median_raw": 10.857,
+        "ms_min": 10.027,
+        "ms_max": 11.552,
+        "ms_mean": 10.787,
+        "ms_stdev": 0.466,
+        "ms_samples": [
+          10.027,
+          10.083,
+          10.548,
+          10.831,
+          10.857,
+          11.004,
+          11.088,
+          11.092,
+          11.552
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "alu",
+      "lang": "zig",
+      "checksum": "5000003999995",
+      "ms": 8.977,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 8.977,
+        "ms_median_raw": 8.977,
+        "ms_min": 7.855,
+        "ms_max": 9.818,
+        "ms_mean": 8.863,
+        "ms_stdev": 0.666,
+        "ms_samples": [
+          7.855,
+          7.973,
+          8.235,
+          8.808,
+          8.977,
+          9.152,
+          9.355,
+          9.597,
+          9.818
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "alu",
+      "lang": "rynix",
+      "checksum": "5000003999995",
+      "ms": 7.596,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 7.596,
+        "ms_median_raw": 7.596,
+        "ms_min": 7.076,
+        "ms_max": 8.086,
+        "ms_mean": 7.517,
+        "ms_stdev": 0.306,
+        "ms_samples": [
+          7.076,
+          7.132,
+          7.224,
+          7.508,
+          7.596,
+          7.637,
+          7.669,
+          7.727,
+          8.086
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "nested",
+      "lang": "c",
+      "checksum": "9623703",
+      "ms": 6.903,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 6.903,
+        "ms_median_raw": 6.903,
+        "ms_min": 6.422,
+        "ms_max": 12.417,
+        "ms_mean": 8.001,
+        "ms_stdev": 1.917,
+        "ms_samples": [
+          6.422,
+          6.544,
+          6.825,
+          6.888,
+          6.903,
+          7.278,
+          8.709,
+          10.026,
+          12.417
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "nested",
+      "lang": "rust",
+      "checksum": "9623703",
+      "ms": 7.365,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 7.365,
+        "ms_median_raw": 7.365,
+        "ms_min": 6.375,
+        "ms_max": 10.451,
+        "ms_mean": 7.628,
+        "ms_stdev": 1.278,
+        "ms_samples": [
+          6.375,
+          6.387,
+          6.902,
+          6.966,
+          7.365,
+          7.393,
+          7.588,
+          9.22,
+          10.451
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "nested",
+      "lang": "go",
+      "checksum": "9623703",
+      "ms": 9.081,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 9.081,
+        "ms_median_raw": 9.081,
+        "ms_min": 8.301,
+        "ms_max": 10.81,
+        "ms_mean": 9.376,
+        "ms_stdev": 0.896,
+        "ms_samples": [
+          8.301,
+          8.368,
+          8.77,
+          8.958,
+          9.081,
+          9.353,
+          9.944,
+          10.803,
+          10.81
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "nested",
+      "lang": "zig",
+      "checksum": "9623703",
+      "ms": 6.768,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 6.768,
+        "ms_median_raw": 6.768,
+        "ms_min": 6.2,
+        "ms_max": 7.881,
+        "ms_mean": 6.949,
+        "ms_stdev": 0.607,
+        "ms_samples": [
+          6.2,
+          6.358,
+          6.418,
+          6.582,
+          6.768,
+          7.007,
+          7.488,
+          7.839,
+          7.881
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "nested",
+      "lang": "rynix",
+      "checksum": "9623703",
+      "ms": 7.057,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 7.057,
+        "ms_median_raw": 7.057,
+        "ms_min": 6.34,
+        "ms_max": 7.367,
+        "ms_mean": 6.922,
+        "ms_stdev": 0.339,
+        "ms_samples": [
+          6.34,
+          6.391,
+          6.723,
+          7.0,
+          7.057,
+          7.074,
+          7.146,
+          7.197,
+          7.367
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "fib",
+      "lang": "c",
+      "checksum": "-2038371929568609723",
+      "ms": 8.238,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 8.238,
+        "ms_median_raw": 8.238,
+        "ms_min": 7.47,
+        "ms_max": 8.846,
+        "ms_mean": 8.116,
+        "ms_stdev": 0.403,
+        "ms_samples": [
+          7.47,
+          7.547,
+          7.879,
+          8.143,
+          8.238,
+          8.241,
+          8.324,
+          8.354,
+          8.846
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "fib",
+      "lang": "rust",
+      "checksum": "-2038371929568609723",
+      "ms": 7.171,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 7.171,
+        "ms_median_raw": 7.171,
+        "ms_min": 7.005,
+        "ms_max": 13.03,
+        "ms_mean": 8.117,
+        "ms_stdev": 1.844,
+        "ms_samples": [
+          7.005,
+          7.046,
+          7.075,
+          7.095,
+          7.171,
+          7.502,
+          8.204,
+          8.93,
+          13.03
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "fib",
+      "lang": "go",
+      "checksum": "-2038371929568609723",
+      "ms": 9.911,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 9.911,
+        "ms_median_raw": 9.911,
+        "ms_min": 9.201,
+        "ms_max": 11.213,
+        "ms_mean": 10.091,
+        "ms_stdev": 0.563,
+        "ms_samples": [
+          9.201,
+          9.608,
+          9.81,
+          9.812,
+          9.911,
+          10.299,
+          10.359,
+          10.611,
+          11.213
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "fib",
+      "lang": "zig",
+      "checksum": "-2038371929568609723",
+      "ms": 8.299,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 8.299,
+        "ms_median_raw": 8.299,
+        "ms_min": 7.784,
+        "ms_max": 10.675,
+        "ms_mean": 8.612,
+        "ms_stdev": 0.818,
+        "ms_samples": [
+          7.784,
+          7.979,
+          8.241,
+          8.278,
+          8.299,
+          8.364,
+          8.781,
+          9.106,
+          10.675
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "fib",
+      "lang": "rynix",
+      "checksum": "-2038371929568609723",
+      "ms": 8.647,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 8.647,
+        "ms_median_raw": 8.647,
+        "ms_min": 7.904,
+        "ms_max": 9.412,
+        "ms_mean": 8.633,
+        "ms_stdev": 0.416,
+        "ms_samples": [
+          7.904,
+          8.214,
+          8.42,
+          8.605,
+          8.647,
+          8.683,
+          8.761,
+          9.051,
+          9.412
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "hash",
+      "lang": "c",
+      "checksum": "372427640",
+      "ms": 19.536,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 19.536,
+        "ms_median_raw": 19.536,
+        "ms_min": 19.349,
+        "ms_max": 20.519,
+        "ms_mean": 19.741,
+        "ms_stdev": 0.388,
+        "ms_samples": [
+          19.349,
+          19.394,
+          19.447,
+          19.509,
+          19.536,
+          19.706,
+          19.976,
+          20.229,
+          20.519
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "hash",
+      "lang": "rust",
+      "checksum": "372427640",
+      "ms": 18.186,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 18.186,
+        "ms_median_raw": 18.186,
+        "ms_min": 17.9,
+        "ms_max": 20.057,
+        "ms_mean": 18.493,
+        "ms_stdev": 0.718,
+        "ms_samples": [
+          17.9,
+          17.936,
+          17.946,
+          18.132,
+          18.186,
+          18.236,
+          18.581,
+          19.463,
+          20.057
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "hash",
+      "lang": "go",
+      "checksum": "372427640",
+      "ms": 20.693,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 20.693,
+        "ms_median_raw": 20.693,
+        "ms_min": 19.166,
+        "ms_max": 71.083,
+        "ms_mean": 26.504,
+        "ms_stdev": 15.852,
+        "ms_samples": [
+          19.166,
+          19.621,
+          20.323,
+          20.609,
+          20.693,
+          20.712,
+          20.888,
+          25.442,
+          71.083
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "hash",
+      "lang": "zig",
+      "checksum": "372427640",
+      "ms": 20.12,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 20.12,
+        "ms_median_raw": 20.12,
+        "ms_min": 18.982,
+        "ms_max": 21.891,
+        "ms_mean": 20.095,
+        "ms_stdev": 0.891,
+        "ms_samples": [
+          18.982,
+          19.15,
+          19.167,
+          19.733,
+          20.12,
+          20.49,
+          20.622,
+          20.695,
+          21.891
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "hash",
+      "lang": "rynix",
+      "checksum": "372427640",
+      "ms": 16.498,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 16.498,
+        "ms_median_raw": 16.498,
+        "ms_min": 15.703,
+        "ms_max": 16.965,
+        "ms_mean": 16.428,
+        "ms_stdev": 0.394,
+        "ms_samples": [
+          15.703,
+          16.068,
+          16.082,
+          16.354,
+          16.498,
+          16.557,
+          16.739,
+          16.883,
+          16.965
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "prime",
+      "lang": "c",
+      "checksum": "9592",
+      "ms": 11.566,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 11.566,
+        "ms_median_raw": 11.566,
+        "ms_min": 11.07,
+        "ms_max": 12.532,
+        "ms_mean": 11.674,
+        "ms_stdev": 0.476,
+        "ms_samples": [
+          11.07,
+          11.272,
+          11.397,
+          11.478,
+          11.566,
+          11.581,
+          11.693,
+          12.474,
+          12.532
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "prime",
+      "lang": "rust",
+      "checksum": "9592",
+      "ms": 10.583,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 10.583,
+        "ms_median_raw": 10.583,
+        "ms_min": 10.037,
+        "ms_max": 11.43,
+        "ms_mean": 10.676,
+        "ms_stdev": 0.409,
+        "ms_samples": [
+          10.037,
+          10.334,
+          10.35,
+          10.528,
+          10.583,
+          10.73,
+          11.025,
+          11.068,
+          11.43
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "prime",
+      "lang": "go",
+      "checksum": "9592",
+      "ms": 19.829,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 19.829,
+        "ms_median_raw": 19.829,
+        "ms_min": 17.577,
+        "ms_max": 22.029,
+        "ms_mean": 19.527,
+        "ms_stdev": 1.515,
+        "ms_samples": [
+          17.577,
+          17.836,
+          18.009,
+          18.866,
+          19.829,
+          19.908,
+          20.038,
+          21.648,
+          22.029
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "prime",
+      "lang": "zig",
+      "checksum": "9592",
+      "ms": 11.215,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 11.215,
+        "ms_median_raw": 11.215,
+        "ms_min": 10.731,
+        "ms_max": 13.573,
+        "ms_mean": 11.468,
+        "ms_stdev": 0.793,
+        "ms_samples": [
+          10.731,
+          10.86,
+          11.142,
+          11.171,
+          11.215,
+          11.34,
+          11.502,
+          11.681,
+          13.573
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "prime",
+      "lang": "rynix",
+      "checksum": "9592",
+      "ms": 11.53,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 11.53,
+        "ms_median_raw": 11.53,
+        "ms_min": 11.034,
+        "ms_max": 12.269,
+        "ms_mean": 11.583,
+        "ms_stdev": 0.389,
+        "ms_samples": [
+          11.034,
+          11.202,
+          11.255,
+          11.396,
+          11.53,
+          11.619,
+          11.947,
+          11.993,
+          12.269
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "sum",
+      "lang": "c",
+      "checksum": "1124998875000250000",
+      "ms": 7.881,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 7.881,
+        "ms_median_raw": 7.881,
+        "ms_min": 7.112,
+        "ms_max": 8.483,
+        "ms_mean": 7.767,
+        "ms_stdev": 0.427,
+        "ms_samples": [
+          7.112,
+          7.303,
+          7.388,
+          7.536,
+          7.881,
+          8.018,
+          8.052,
+          8.128,
+          8.483
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "sum",
+      "lang": "rust",
+      "checksum": "1124998875000250000",
+      "ms": 6.167,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 6.167,
+        "ms_median_raw": 6.167,
+        "ms_min": 5.497,
+        "ms_max": 8.412,
+        "ms_mean": 6.514,
+        "ms_stdev": 0.955,
+        "ms_samples": [
+          5.497,
+          5.553,
+          5.907,
+          5.971,
+          6.167,
+          6.223,
+          7.318,
+          7.582,
+          8.412
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "sum",
+      "lang": "go",
+      "checksum": "1124998875000250000",
+      "ms": 9.73,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 9.73,
+        "ms_median_raw": 9.73,
+        "ms_min": 8.748,
+        "ms_max": 11.016,
+        "ms_mean": 9.844,
+        "ms_stdev": 0.622,
+        "ms_samples": [
+          8.748,
+          9.385,
+          9.52,
+          9.528,
+          9.73,
+          10.08,
+          10.196,
+          10.39,
+          11.016
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "sum",
+      "lang": "zig",
+      "checksum": "1124998875000250000",
+      "ms": 6.967,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 6.967,
+        "ms_median_raw": 6.967,
+        "ms_min": 6.329,
+        "ms_max": 7.35,
+        "ms_mean": 6.917,
+        "ms_stdev": 0.297,
+        "ms_samples": [
+          6.329,
+          6.533,
+          6.901,
+          6.922,
+          6.967,
+          6.977,
+          7.063,
+          7.211,
+          7.35
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "sum",
+      "lang": "rynix",
+      "checksum": "1124998875000250000",
+      "ms": 6.983,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 6.983,
+        "ms_median_raw": 6.983,
+        "ms_min": 6.542,
+        "ms_max": 7.932,
+        "ms_mean": 7.051,
+        "ms_stdev": 0.434,
+        "ms_samples": [
+          6.542,
+          6.565,
+          6.626,
+          6.913,
+          6.983,
+          7.171,
+          7.3,
+          7.428,
+          7.932
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "bits",
+      "lang": "c",
+      "checksum": "371161905",
+      "ms": 473.369,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 473.369,
+        "ms_median_raw": 473.369,
+        "ms_min": 436.239,
+        "ms_max": 513.203,
+        "ms_mean": 476.322,
+        "ms_stdev": 27.472,
+        "ms_samples": [
+          436.239,
+          440.055,
+          462.051,
+          462.61,
+          473.369,
+          482.589,
+          505.764,
+          511.016,
+          513.203
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "bits",
+      "lang": "rust",
+      "checksum": "371161905",
+      "ms": 444.611,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 444.611,
+        "ms_median_raw": 444.611,
+        "ms_min": 430.855,
+        "ms_max": 544.834,
+        "ms_mean": 456.403,
+        "ms_stdev": 33.13,
+        "ms_samples": [
+          430.855,
+          435.651,
+          438.052,
+          441.528,
+          444.611,
+          449.38,
+          451.891,
+          470.826,
+          544.834
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "bits",
+      "lang": "go",
+      "checksum": "371161905",
+      "ms": 443.912,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 443.912,
+        "ms_median_raw": 443.912,
+        "ms_min": 435.124,
+        "ms_max": 473.155,
+        "ms_mean": 446.307,
+        "ms_stdev": 11.172,
+        "ms_samples": [
+          435.124,
+          436.92,
+          438.558,
+          442.448,
+          443.912,
+          444.614,
+          445.471,
+          456.56,
+          473.155
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "bits",
+      "lang": "zig",
+      "checksum": "371161905",
+      "ms": 499.858,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 499.858,
+        "ms_median_raw": 499.858,
+        "ms_min": 480.283,
+        "ms_max": 558.713,
+        "ms_mean": 511.494,
+        "ms_stdev": 23.801,
+        "ms_samples": [
+          480.283,
+          492.034,
+          494.159,
+          497.599,
+          499.858,
+          516.614,
+          529.629,
+          534.558,
+          558.713
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "bits",
+      "lang": "rynix",
+      "checksum": "371161905",
+      "ms": 97.094,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 97.094,
+        "ms_median_raw": 97.094,
+        "ms_min": 92.311,
+        "ms_max": 103.074,
+        "ms_mean": 97.061,
+        "ms_stdev": 3.756,
+        "ms_samples": [
+          92.311,
+          92.774,
+          94.077,
+          94.139,
+          97.094,
+          98.121,
+          100.447,
+          101.511,
+          103.074
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "matrix",
+      "lang": "c",
+      "checksum": "48600000",
+      "ms": 8.109,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 8.109,
+        "ms_median_raw": 8.109,
+        "ms_min": 7.103,
+        "ms_max": 9.08,
+        "ms_mean": 8.152,
+        "ms_stdev": 0.616,
+        "ms_samples": [
+          7.103,
+          7.47,
+          7.891,
+          7.962,
+          8.109,
+          8.332,
+          8.372,
+          9.044,
+          9.08
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "matrix",
+      "lang": "rust",
+      "checksum": "48600000",
+      "ms": 11.173,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 11.173,
+        "ms_median_raw": 11.173,
+        "ms_min": 8.474,
+        "ms_max": 15.12,
+        "ms_mean": 11.296,
+        "ms_stdev": 2.235,
+        "ms_samples": [
+          8.474,
+          8.514,
+          9.415,
+          10.975,
+          11.173,
+          11.186,
+          12.382,
+          14.421,
+          15.12
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "matrix",
+      "lang": "go",
+      "checksum": "48600000",
+      "ms": 68.956,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 68.956,
+        "ms_median_raw": 68.956,
+        "ms_min": 66.044,
+        "ms_max": 85.777,
+        "ms_mean": 70.945,
+        "ms_stdev": 5.77,
+        "ms_samples": [
+          66.044,
+          66.835,
+          67.501,
+          67.617,
+          68.956,
+          69.489,
+          73.001,
+          73.285,
+          85.777
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "matrix",
+      "lang": "zig",
+      "checksum": "48600000",
+      "ms": 8.363,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 8.363,
+        "ms_median_raw": 8.363,
+        "ms_min": 7.68,
+        "ms_max": 9.782,
+        "ms_mean": 8.501,
+        "ms_stdev": 0.638,
+        "ms_samples": [
+          7.68,
+          7.693,
+          8.221,
+          8.315,
+          8.363,
+          8.479,
+          8.781,
+          9.194,
+          9.782
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "matrix",
+      "lang": "rynix",
+      "checksum": "48600000",
+      "ms": 7.188,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 7.188,
+        "ms_median_raw": 7.188,
+        "ms_min": 6.266,
+        "ms_max": 9.168,
+        "ms_mean": 7.256,
+        "ms_stdev": 0.859,
+        "ms_samples": [
+          6.266,
+          6.383,
+          6.399,
+          7.003,
+          7.188,
+          7.576,
+          7.639,
+          7.685,
+          9.168
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "scan",
+      "lang": "c",
+      "checksum": "3428572",
+      "ms": 9.972,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 9.972,
+        "ms_median_raw": 9.972,
+        "ms_min": 9.226,
+        "ms_max": 11.173,
+        "ms_mean": 10.097,
+        "ms_stdev": 0.598,
+        "ms_samples": [
+          9.226,
+          9.439,
+          9.667,
+          9.96,
+          9.972,
+          10.243,
+          10.341,
+          10.848,
+          11.173
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "scan",
+      "lang": "rust",
+      "checksum": "3428572",
+      "ms": 15.497,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 15.497,
+        "ms_median_raw": 15.497,
+        "ms_min": 15.169,
+        "ms_max": 17.513,
+        "ms_mean": 15.866,
+        "ms_stdev": 0.717,
+        "ms_samples": [
+          15.169,
+          15.262,
+          15.27,
+          15.471,
+          15.497,
+          16.057,
+          16.12,
+          16.431,
+          17.513
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "scan",
+      "lang": "go",
+      "checksum": "3428572",
+      "ms": 15.087,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 15.087,
+        "ms_median_raw": 15.087,
+        "ms_min": 14.56,
+        "ms_max": 16.154,
+        "ms_mean": 15.174,
+        "ms_stdev": 0.607,
+        "ms_samples": [
+          14.56,
+          14.589,
+          14.615,
+          14.658,
+          15.087,
+          15.246,
+          15.528,
+          16.131,
+          16.154
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "scan",
+      "lang": "zig",
+      "checksum": "3428572",
+      "ms": 17.591,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 17.591,
+        "ms_median_raw": 17.591,
+        "ms_min": 16.967,
+        "ms_max": 22.257,
+        "ms_mean": 18.317,
+        "ms_stdev": 1.679,
+        "ms_samples": [
+          16.967,
+          17.089,
+          17.195,
+          17.289,
+          17.591,
+          17.928,
+          18.343,
+          20.194,
+          22.257
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "scan",
+      "lang": "rynix",
+      "checksum": "3428572",
+      "ms": 9.313,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 9.313,
+        "ms_median_raw": 9.313,
+        "ms_min": 8.459,
+        "ms_max": 10.03,
+        "ms_mean": 9.324,
+        "ms_stdev": 0.52,
+        "ms_samples": [
+          8.459,
+          8.827,
+          8.94,
+          8.981,
+          9.313,
+          9.677,
+          9.754,
+          9.931,
+          10.03
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "powmod",
+      "lang": "c",
+      "checksum": "112980862",
+      "ms": 15.492,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 15.492,
+        "ms_median_raw": 15.492,
+        "ms_min": 15.148,
+        "ms_max": 16.626,
+        "ms_mean": 15.696,
+        "ms_stdev": 0.489,
+        "ms_samples": [
+          15.148,
+          15.268,
+          15.368,
+          15.4,
+          15.492,
+          15.558,
+          16.069,
+          16.336,
+          16.626
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "powmod",
+      "lang": "rust",
+      "checksum": "112980862",
+      "ms": 15.357,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 15.357,
+        "ms_median_raw": 15.357,
+        "ms_min": 14.56,
+        "ms_max": 16.824,
+        "ms_mean": 15.57,
+        "ms_stdev": 0.669,
+        "ms_samples": [
+          14.56,
+          15.09,
+          15.181,
+          15.349,
+          15.357,
+          15.543,
+          15.682,
+          16.544,
+          16.824
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "powmod",
+      "lang": "go",
+      "checksum": "112980862",
+      "ms": 17.938,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 17.938,
+        "ms_median_raw": 17.938,
+        "ms_min": 16.773,
+        "ms_max": 18.867,
+        "ms_mean": 17.779,
+        "ms_stdev": 0.596,
+        "ms_samples": [
+          16.773,
+          17.145,
+          17.24,
+          17.82,
+          17.938,
+          17.995,
+          18.04,
+          18.188,
+          18.867
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "powmod",
+      "lang": "zig",
+      "checksum": "112980862",
+      "ms": 16.724,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 16.724,
+        "ms_median_raw": 16.724,
+        "ms_min": 15.57,
+        "ms_max": 18.27,
+        "ms_mean": 16.706,
+        "ms_stdev": 0.817,
+        "ms_samples": [
+          15.57,
+          15.826,
+          16.001,
+          16.587,
+          16.724,
+          16.735,
+          16.985,
+          17.657,
+          18.27
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "powmod",
+      "lang": "rynix",
+      "checksum": "112980862",
+      "ms": 16.607,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 16.607,
+        "ms_median_raw": 16.607,
+        "ms_min": 15.489,
+        "ms_max": 19.33,
+        "ms_mean": 16.661,
+        "ms_stdev": 1.118,
+        "ms_samples": [
+          15.489,
+          15.627,
+          15.724,
+          16.062,
+          16.607,
+          16.93,
+          17.09,
+          17.092,
+          19.33
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "gcd",
+      "lang": "c",
+      "checksum": "23254412",
+      "ms": 171.098,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 171.098,
+        "ms_median_raw": 171.098,
+        "ms_min": 160.968,
+        "ms_max": 228.048,
+        "ms_mean": 182.225,
+        "ms_stdev": 21.989,
+        "ms_samples": [
+          160.968,
+          166.11,
+          168.475,
+          168.714,
+          171.098,
+          175.481,
+          187.792,
+          213.344,
+          228.048
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "gcd",
+      "lang": "rust",
+      "checksum": "23254412",
+      "ms": 163.895,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 163.895,
+        "ms_median_raw": 163.895,
+        "ms_min": 162.244,
+        "ms_max": 176.903,
+        "ms_mean": 166.215,
+        "ms_stdev": 4.41,
+        "ms_samples": [
+          162.244,
+          163.171,
+          163.367,
+          163.515,
+          163.895,
+          165.317,
+          167.979,
+          169.544,
+          176.903
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "gcd",
+      "lang": "go",
+      "checksum": "23254412",
+      "ms": 211.661,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 211.661,
+        "ms_median_raw": 211.661,
+        "ms_min": 206.218,
+        "ms_max": 266.397,
+        "ms_mean": 219.192,
+        "ms_stdev": 18.388,
+        "ms_samples": [
+          206.218,
+          207.033,
+          208.905,
+          210.937,
+          211.661,
+          213.01,
+          214.855,
+          233.713,
+          266.397
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "gcd",
+      "lang": "zig",
+      "checksum": "23254412",
+      "ms": 179.937,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 179.937,
+        "ms_median_raw": 179.937,
+        "ms_min": 161.721,
+        "ms_max": 202.909,
+        "ms_mean": 179.974,
+        "ms_stdev": 12.059,
+        "ms_samples": [
+          161.721,
+          165.047,
+          174.468,
+          177.279,
+          179.937,
+          180.625,
+          185.029,
+          192.754,
+          202.909
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "gcd",
+      "lang": "rynix",
+      "checksum": "23254412",
+      "ms": 164.634,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 164.634,
+        "ms_median_raw": 164.634,
+        "ms_min": 160.331,
+        "ms_max": 176.269,
+        "ms_mean": 165.494,
+        "ms_stdev": 4.249,
+        "ms_samples": [
+          160.331,
+          162.795,
+          163.222,
+          163.475,
+          164.634,
+          165.832,
+          165.906,
+          166.981,
+          176.269
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "reduce",
+      "lang": "c",
+      "checksum": "1543749909999985",
+      "ms": 11.483,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 11.483,
+        "ms_median_raw": 11.483,
+        "ms_min": 10.524,
+        "ms_max": 12.12,
+        "ms_mean": 11.423,
+        "ms_stdev": 0.502,
+        "ms_samples": [
+          10.524,
+          10.806,
+          11.237,
+          11.276,
+          11.483,
+          11.507,
+          11.831,
+          12.023,
+          12.12
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "reduce",
+      "lang": "rust",
+      "checksum": "1543749909999985",
+      "ms": 21.398,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 21.398,
+        "ms_median_raw": 21.398,
+        "ms_min": 17.942,
+        "ms_max": 26.85,
+        "ms_mean": 21.969,
+        "ms_stdev": 2.841,
+        "ms_samples": [
+          17.942,
+          19.22,
+          19.828,
+          20.311,
+          21.398,
+          22.378,
+          24.71,
+          25.084,
+          26.85
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "reduce",
+      "lang": "go",
+      "checksum": "1543749909999985",
+      "ms": 20.418,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 20.418,
+        "ms_median_raw": 20.418,
+        "ms_min": 19.358,
+        "ms_max": 29.535,
+        "ms_mean": 21.76,
+        "ms_stdev": 3.201,
+        "ms_samples": [
+          19.358,
+          19.421,
+          20.045,
+          20.332,
+          20.418,
+          20.621,
+          20.925,
+          25.189,
+          29.535
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "reduce",
+      "lang": "zig",
+      "checksum": "1543749909999985",
+      "ms": 15.338,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 15.338,
+        "ms_median_raw": 15.338,
+        "ms_min": 13.573,
+        "ms_max": 79.667,
+        "ms_mean": 26.948,
+        "ms_stdev": 22.879,
+        "ms_samples": [
+          13.573,
+          13.847,
+          14.181,
+          14.505,
+          15.338,
+          15.91,
+          18.096,
+          57.42,
+          79.667
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "reduce",
+      "lang": "rynix",
+      "checksum": "1543749909999985",
+      "ms": 11.738,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 11.738,
+        "ms_median_raw": 11.738,
+        "ms_min": 10.839,
+        "ms_max": 15.655,
+        "ms_mean": 12.05,
+        "ms_stdev": 1.397,
+        "ms_samples": [
+          10.839,
+          10.914,
+          11.085,
+          11.486,
+          11.738,
+          11.858,
+          12.18,
+          12.694,
+          15.655
+        ],
+        "warmup": 3,
+        "runs": 9,
+        "trimmed": true
+      }
+    }
+  ]
+}

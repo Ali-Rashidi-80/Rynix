@@ -123,7 +123,7 @@ impl<'arena> Parser<'arena, '_, '_> {
         }
     }
 
-    fn parse_primary(&mut self) -> &'arena Expr<'arena> {
+    pub(crate) fn parse_primary(&mut self) -> &'arena Expr<'arena> {
         match self.peek().kind {
             TokenKind::IntLit => self.literal(LiteralKind::Int),
             TokenKind::FloatLit => self.literal(LiteralKind::Float),
@@ -132,7 +132,6 @@ impl<'arena> Parser<'arena, '_, '_> {
             TokenKind::False => self.literal(LiteralKind::False),
             TokenKind::Nil => self.literal(LiteralKind::Nil),
             TokenKind::Ident
-            | TokenKind::Match
             | TokenKind::Agent
             | TokenKind::Signal
             | TokenKind::Tensor => {
@@ -316,6 +315,8 @@ impl<'arena> Parser<'arena, '_, '_> {
             TokenKind::Star => (BinaryOp::Star, 11, 12),
             TokenKind::Slash => (BinaryOp::Slash, 11, 12),
             TokenKind::Percent => (BinaryOp::Percent, 11, 12),
+            TokenKind::Shr => (BinaryOp::Shr, 13, 14),
+            TokenKind::Amp => (BinaryOp::Amp, 15, 16),
             _ => return None,
         };
         Some((op, BindingPower { left, right }))

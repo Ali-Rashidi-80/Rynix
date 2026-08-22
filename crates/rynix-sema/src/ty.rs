@@ -28,6 +28,12 @@ pub enum TypeKind {
     Float,
     Str,
     Nil,
+    /// Opaque runtime pointer (generic heap/region handle).
+    Ptr,
+    /// Region Vec[i64] handle (ADR-0006).
+    Vec,
+    /// Region Map[i64, i64] handle (ADR-0006).
+    Map,
     Slice(TypeId),
     Fn {
         params: Vec<TypeId>,
@@ -53,6 +59,9 @@ pub struct TypeCtx {
     pub ty_float: TypeId,
     pub ty_str: TypeId,
     pub ty_nil: TypeId,
+    pub ty_ptr: TypeId,
+    pub ty_vec: TypeId,
+    pub ty_map: TypeId,
     pub ty_module: TypeId,
 }
 
@@ -75,6 +84,9 @@ impl TypeCtx {
             ty_float: TypeId(0),
             ty_str: TypeId(0),
             ty_nil: TypeId(0),
+            ty_ptr: TypeId(0),
+            ty_vec: TypeId(0),
+            ty_map: TypeId(0),
             ty_module: TypeId(0),
         };
         ctx.ty_error = ctx.intern(TypeKind::Error);
@@ -85,6 +97,9 @@ impl TypeCtx {
         ctx.ty_float = ctx.intern(TypeKind::Float);
         ctx.ty_str = ctx.intern(TypeKind::Str);
         ctx.ty_nil = ctx.intern(TypeKind::Nil);
+        ctx.ty_ptr = ctx.intern(TypeKind::Ptr);
+        ctx.ty_vec = ctx.intern(TypeKind::Vec);
+        ctx.ty_map = ctx.intern(TypeKind::Map);
         ctx.ty_module = ctx.intern(TypeKind::Module);
         ctx
     }
@@ -162,6 +177,9 @@ impl TypeCtx {
             TypeKind::Float => "f64".into(),
             TypeKind::Str => "str".into(),
             TypeKind::Nil => "nil".into(),
+            TypeKind::Ptr => "ptr".into(),
+            TypeKind::Vec => "Vec[i64]".into(),
+            TypeKind::Map => "Map[i64, i64]".into(),
             TypeKind::Module => "<module>".into(),
             TypeKind::Slice(e) => format!("[{}]", self.display(*e, resolve_name, interner)),
             TypeKind::Fn { params, ret } => {

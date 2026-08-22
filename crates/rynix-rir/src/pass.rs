@@ -6,12 +6,13 @@
 
 use rustc_hash::FxHashSet;
 
-use crate::ir::{Inst, Module, ValueId};
+use crate::ir::{BlockId, Inst, InstId, Module, ValueId};
 use crate::verify::verify_module;
 
 /// Run the standard optimization pipeline. Returns verifier errors if any remain.
 pub fn run_pipeline(module: &mut Module) -> Vec<String> {
     const_fold(module);
+    hoist_loop_iconsts(module);
     crate::bounds::eliminate_bounds_checks(module);
     simplify_cfg(module);
     dce(module);
@@ -32,10 +33,30 @@ pub fn const_fold(module: &mut Module) {
                 .map(|(i, _)| i);
             let folded = match *inst {
                 Inst::IConst(n) => Some(n),
-                Inst::BConst(b) => Some(i64::from(b)),
+                Inst::BConst(b) => {
+                    // Track the bit for dependent folds, but never rewrite
+                    // `BConst` → `IConst`: Value.ty stays Bool and codegen
+                    // would emit `icmp i1` against an `i64` SSA name.
+                    if let Some(ri) = result {
+                        known[ri] = Some(i64::from(b));
+                    }
+                    None
+                }
                 Inst::IAdd(a, b) => bin(&known, a, b, |x, y| x.wrapping_add(y)),
                 Inst::ISub(a, b) => bin(&known, a, b, |x, y| x.wrapping_sub(y)),
                 Inst::IMul(a, b) => bin(&known, a, b, |x, y| x.wrapping_mul(y)),
+                Inst::URem(a, b) => match (
+                    known.get(a.0 as usize).copied().flatten(),
+                    known.get(b.0 as usize).copied().flatten(),
+                ) {
+                    (Some(x), Some(y)) if y != 0 => Some(x.rem_euclid(y)),
+                    _ => None,
+                },
+                Inst::CtPop(a) => known
+                    .get(a.0 as usize)
+                    .copied()
+                    .flatten()
+                    .map(|x| x.count_ones() as i64),
                 Inst::INeg(a) => known.get(a.0 as usize).copied().flatten().map(|x| -x),
                 _ => None,
             };
@@ -140,12 +161,18 @@ fn mark_used(inst: &Inst, used: &mut FxHashSet<ValueId>) {
         | Inst::IMul(a, b)
         | Inst::IDiv(a, b)
         | Inst::IRem(a, b)
+        | Inst::URem(a, b)
+        | Inst::IAnd(a, b)
+        | Inst::LShr(a, b)
+        | Inst::LShl(a, b)
         | Inst::FAdd(a, b)
         | Inst::FSub(a, b)
         | Inst::FMul(a, b)
         | Inst::FDiv(a, b)
         | Inst::ICmp(_, a, b)
         | Inst::FCmp(_, a, b)
+        | Inst::BAnd(a, b)
+        | Inst::BOr(a, b)
         | Inst::Store { ptr: a, value: b }
         | Inst::GepI64 { base: a, index: b }
         | Inst::BoundsCheck { index: a, len: b }
@@ -156,6 +183,8 @@ fn mark_used(inst: &Inst, used: &mut FxHashSet<ValueId>) {
         Inst::INeg(a)
         | Inst::FNeg(a)
         | Inst::BNot(a)
+        | Inst::ZExtI64(a)
+        | Inst::CtPop(a)
         | Inst::Load(a)
         | Inst::ArrayLen(a)
         | Inst::Ret(Some(a))
@@ -225,4 +254,52 @@ pub fn simplify_cfg(module: &mut Module) {
             }
         }
     }
+}
+
+/// Hoist loop-invariant `iconst` from back-edge latch blocks to function entry.
+pub fn hoist_loop_iconsts(module: &mut Module) {
+    for func in &mut module.funcs {
+        hoist_func_loop_iconsts(func);
+    }
+}
+
+fn hoist_func_loop_iconsts(func: &mut crate::ir::Function) {
+    let entry = func.entry;
+    let mut hoist: Vec<InstId> = Vec::new();
+    for (bi, block) in func.blocks.iter().enumerate() {
+        if bi == entry.0 as usize {
+            continue;
+        }
+        let bid = BlockId(bi as u32);
+        if !block_is_loop_latch(func, bid) {
+            continue;
+        }
+        for &iid in &block.insts {
+            if matches!(func.inst(iid), Inst::IConst(_)) {
+                hoist.push(iid);
+            }
+        }
+    }
+    if hoist.is_empty() {
+        return;
+    }
+    let hoist_set: FxHashSet<InstId> = hoist.iter().copied().collect();
+    for block in &mut func.blocks {
+        block.insts.retain(|iid| !hoist_set.contains(iid));
+    }
+    let entry_block = func.block_mut(entry);
+    let term = entry_block.insts.pop().expect("entry has terminator");
+    entry_block.insts.extend(hoist);
+    entry_block.insts.push(term);
+}
+
+fn block_is_loop_latch(func: &crate::ir::Function, bid: BlockId) -> bool {
+    let block = func.block(bid);
+    let Some(&term) = block.insts.last() else {
+        return false;
+    };
+    let Inst::Jump { target, .. } = func.inst(term) else {
+        return false;
+    };
+    !func.block(*target).params.is_empty()
 }

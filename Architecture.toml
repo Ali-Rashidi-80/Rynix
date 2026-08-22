@@ -1,0 +1,9 @@
+# Rynix architecture invariants — checked by `rynixc arch check`
+
+[layout]
+required_dirs = ["crates", "rt", "std", "docs", "benchmarks/suite5", "examples"]
+
+[invariants]
+"std/json/**" = { cannot_import = ["std/net"], forbidden_call = ["tcp_"] }
+"std/core/**" = { cannot_import = ["std/net"], forbidden_call = ["tcp_"] }
+"examples/**" = { cannot_import = ["std/fs"] }

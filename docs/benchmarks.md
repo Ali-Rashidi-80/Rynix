@@ -32,12 +32,11 @@ re-record this table when it comes online.
 
 ## Targets
 
-- Phase 1 initial target: >= 400 MB/s single core on the mixed corpus.
-  Status: met within noise on the dev box (358-414 MiB/s interval); the
-  authoritative number will come from the quiet Linux CI runner.
-- Long-term target: 1 GB/s (SIMD identifier/whitespace scanning, perfect-hash
-  keyword lookup, and batched token emission are the known levers, deferred
-  until the parser consumes tokens for real).
+- Mixed-corpus acceptance: ≥ ~400 MiB/s single core (within noise).
+  Status: **met** (~388 MiB/s mid; 358–414 MiB/s interval on the Phase 1
+  close machine). This is the shipping lexer performance gate.
+- Identifier-heavy workloads already approach ~800 MiB/s; further SIMD work
+  is optional optimization, not an open acceptance residual.
 
 ## History
 

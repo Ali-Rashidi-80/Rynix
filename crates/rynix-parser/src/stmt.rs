@@ -1,6 +1,6 @@
 use rynix_ast::{
     AssignOp, AssignStmt, BreakStmt, ContinueStmt, ExprStmt, ForStmt, IfArm, IfStmt, LetStmt,
-    LoopStmt, ReturnStmt, Stmt,
+    LoopStmt, MatchArm, MatchPat, MatchStmt, ReturnStmt, Stmt,
 };
 use rynix_lexer::TokenKind;
 use rynix_span::Span;
@@ -63,6 +63,7 @@ impl<'arena> Parser<'arena, '_, '_> {
             TokenKind::Loop => Stmt::Loop(self.parse_loop()),
             TokenKind::For => Stmt::For(self.parse_for()),
             TokenKind::If => Stmt::If(self.parse_if()),
+            TokenKind::Match => Stmt::Match(self.parse_match()),
             _ => self.parse_expr_or_assign(),
         }
     }
@@ -166,6 +167,97 @@ impl<'arena> Parser<'arena, '_, '_> {
             else_body,
             span: start.to(end),
         }
+    }
+
+    fn parse_match(&mut self) -> MatchStmt<'arena> {
+        let start = self.bump().span; // `match`
+        let scrutinee = self.parse_expr();
+        self.expect_newline_or_end_header();
+        let mut arms = Vec::new();
+        let mut else_body = None;
+        loop {
+            while self.at(TokenKind::Newline) {
+                self.bump();
+            }
+            if self.at(TokenKind::End) || self.at(TokenKind::Eof) {
+                break;
+            }
+            if self.at(TokenKind::Else) {
+                self.bump();
+                self.expect_newline_or_end_header();
+                else_body = Some(self.parse_block_until_end(start));
+                break;
+            }
+            if self.at_match_pattern() {
+                let pattern = self.parse_match_pattern();
+                self.expect_newline_or_end_header();
+                let body = self.parse_block_until_match_boundary(start);
+                arms.push(MatchArm { pattern, body });
+                continue;
+            }
+            let found = self.peek();
+            self.sink
+                .emit(parse_errors::unexpected_token(found.span, found.kind));
+            self.sync_stmt();
+            break;
+        }
+        let end = self.expect_end(start);
+        MatchStmt {
+            id: self.arena.next_id(),
+            scrutinee,
+            arms: self.arena.alloc_slice(arms),
+            else_body,
+            span: start.to(end),
+        }
+    }
+
+    fn at_match_pattern(&mut self) -> bool {
+        matches!(
+            self.peek().kind,
+            TokenKind::IntLit | TokenKind::True | TokenKind::False
+        ) || (self.at(TokenKind::Ident) && self.text(self.peek().span) == "_")
+    }
+
+    fn parse_match_pattern(&mut self) -> MatchPat<'arena> {
+        if self.at(TokenKind::Ident) && self.text(self.peek().span) == "_" {
+            let tok = self.bump();
+            return MatchPat::Wildcard(tok.span);
+        }
+        // Literals only (primary) — not full expressions.
+        let expr = self.parse_primary();
+        MatchPat::Literal(expr)
+    }
+
+    /// Block body for a match arm — stops before the next pattern / else / end.
+    fn parse_block_until_match_boundary(&mut self, open: Span) -> &'arena [Stmt<'arena>] {
+        let mut stmts = Vec::new();
+        while !self.at_any(&[TokenKind::End, TokenKind::Else, TokenKind::Eof]) {
+            if self.at(TokenKind::Newline) {
+                self.bump();
+                // After newline, a pattern starts a sibling arm.
+                if self.at_match_pattern() {
+                    break;
+                }
+                continue;
+            }
+            if self.at_match_pattern() {
+                break;
+            }
+            if self.at_any(&[
+                TokenKind::Def,
+                TokenKind::Struct,
+                TokenKind::Enum,
+                TokenKind::Type,
+                TokenKind::Import,
+                TokenKind::Pub,
+                TokenKind::DocComment,
+            ]) {
+                break;
+            }
+            let _ = open;
+            stmts.push(self.parse_stmt());
+        }
+        self.arena.alloc_slice(stmts)
     }
 
     fn parse_expr_or_assign(&mut self) -> Stmt<'arena> {

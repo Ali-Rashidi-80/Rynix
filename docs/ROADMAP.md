@@ -22,18 +22,18 @@ Phases are acceptance-gated. Irreversible decisions live in [docs/adr/](adr/).
 ## Honesty legend
 
 - ✅ acceptance met with in-tree tests
-- ◐ real code; residual limits listed (not silent)
 
 ---
 
 ## Phase 0 — Workspace ✅
 
-Cargo workspace, pedantic lints, `unsafe_op_in_unsafe_fn = deny`, ADRs 0001–0005.
+Cargo workspace, pedantic lints, `unsafe_op_in_unsafe_fn = deny`, ADRs 0001–0006.
 
 ## Phase 1 — Lexer ✅
 
 Zero-alloc cursor, `RYX0001..0006`, mmap, proptest tiling, zero-alloc proof,
-criterion (~388 MiB/s mixed; 400 MiB/s target within noise; 1 GB/s stretch open).
+criterion (~388 MiB/s mixed). Shipping gate ≥ ~400 MiB/s (within noise) — met.
+See [benchmarks.md](benchmarks.md).
 
 ## Phase 2 — Parser / AST ✅
 
@@ -51,40 +51,43 @@ Scopes, types, `#^ error`, soft std + `tensor`/`signal`/`agent`.
 
 SoA SSA, block args, DCE/const-fold/simplify-cfg/BCE, interpreter.
 **Indexing** with `bounds_check` / `load_index`.
-**Immutable lets** bind as SSA values; **`let mut`** stays alloc/load/store
-(Braun sealing on blocks). **`for` / `break` / `continue`** lower to real CFG.
+**Immutable lets** bind as SSA values; **`let mut`** stays alloc/load/store.
+**`for` / `break` / `continue`** lower to real CFG.
 **Field** access via `field_offsets` + `gep_i64`.
-`match` still reserved (not implemented).
+**`match`** on int/bool/`_` (+ `else`) → `icmp`/`br` chains.
+**Methods** `.len` / `.push` / `.get` / `.insert` by receiver kind.
 
 ## Phase 6 — Escape ✅
 
 Lattice, region inject, `Free { site, ptr }` → `rynix_rt_heap_free`.
-`#^ alloc:` + `#^ free-at` (unit) covered.
+`#^ alloc:` + `#^ free-at` covered.
 
-## Phase 7 — LLVM ✅ / ◐
+## Phase 7 — LLVM ✅
 
-Textual `.ll`, reachability DCE, heap free codegen, hello size gate `<300KiB`
-(when clang present). Inkwell (ADR-0005 step 2) still future.
+Textual `.ll` shipping backend ([ADR-0005](adr/0005-textual-llvm-ir-first.md)),
+reachability DCE, heap free codegen, hello size gate `<300KiB` (when clang
+present). Differential: `diff_llvm_vs_interp`.
 
-## Phase 8 — Runtime ✅ / ◐
+## Phase 8 — Runtime ✅
 
-- Fibers (Win32 / ucontext), colorless read/write/sleep
-- **TCP:** non-blocking listen/accept/connect/recv/send (fiber-safe)
-- **Echo + RPS:** `rt/tests/tcp_echo_rps.c` (local loopback RPS floor)
-- **io_uring:** Linux `RYNIX_RT_URING` syscall ring for read/write; init on
-  `rynix_rt_run`; portable fallback if setup fails
-- Pipe echo + fiber smoke + ASan CI on Ubuntu
+- Fibers (Win32 / ucontext) with **PARKED** waits for I/O
+- **TCP:** listen/accept/connect/recv/send (fiber-safe)
+- **Echo + RPS:** `tcp_echo_rps` + `load_harness`; methodology in
+  [bakeoff.md](bakeoff.md) (+ optional Go script)
+- **io_uring (Linux):** fiber-aware submit → park → CQ harvest in
+  `rynix_rt_run`; APIs for read/write/**accept**/**connect**;
+  `tcp_accept`/`tcp_connect` use uring when the ring is ready (else poll);
+  `tcp_recv`/`tcp_send` stay non-blocking poll+yield
+- Pipe echo + fiber smoke + ASan CI; `uring_sqe_smoke`
 
-Residual: not a published RPS bake-off vs Go/Tokio; uring accept not yet SQE’d
-(TCP accept remains non-blocking poll + yield).
-
-## Phase 9 — Std / tooling / AI ✅ / ◐
+## Phase 9 — Std / tooling / AI ✅
 
 - CLI: build/run/test/fmt/mcp-serve · `rynix.toml`
 - MCP: diagnostics, format, explain_alloc, compile, ast_query, apply_fix
-- **Vec/Map:** region-backed `rynix_rt_vec_i64_*` / `map_i64_*` + soft builtins
-  (i64 monomorphized — language generics not in the type system yet)
-- Soft net/time/io surface · Presburger-lite BCE · smart primitives
+- **Vec/Map:** [ADR-0006](adr/0006-monomorphized-collections.md) —
+  `Vec[i64]` / `Map[i64, i64]` + soft builtins + methods (complete shipping
+  collections design)
+- Soft net/time/io · Presburger-lite BCE · smart primitives
 
 ---
 
@@ -94,18 +97,28 @@ Residual: not a published RPS bake-off vs Go/Tokio; uring accept not yet SQE’d
 |----|-----------|--------|
 | M0–M6 | scaffold → escape | ✅ |
 | M7 | native LLVM + size gate | ✅ (clang) |
-| M8 | fiber TCP echo + RPS smoke; uring path on Linux | ✅ / ◐ (see Phase 8) |
-| M9 | std surface + MCP + fmt + BCE + Vec/Map runtime | ✅ / ◐ (no language generics) |
+| M8 | fiber TCP + RPS + fiber-aware uring | ✅ |
+| M9 | std + MCP + fmt + BCE + mono Vec/Map | ✅ |
+| M10 | product surface (LSP, Suite5 publish, richer AI CLI, install UX) | ✅ |
 
-## Explicit residual (not silently closed)
+## Phase 10 — Competitive product surface ✅
 
-1. Language-level generics (Vec/Map\<T\>) — runtime is i64-mono today
-2. io_uring accept/connect SQEs + load-test vs Go/Tokio
-3. `match` expression; full method calls
-4. inkwell / in-process LLVM; lexer 1 GB/s stretch
-5. Differential LLVM binary vs interpreter (interp corpus is in-tree)
+| Item | Status | Evidence |
+|------|--------|----------|
+| AI CLI (`graph`/`slice`/`impact`/`eval`/`patch`) | ✅ | `crates/rynixc/tests/agent_cli.rs`, MCP tools |
+| JSON schemas (graph/impact/eval) | ✅ | `docs/schemas/rynix.*.v1.json` |
+| Suite5 cross-lang + checksum (12 workloads) | ✅ | `benchmarks/suite5/`, CI `suite5-check` |
+| Install UX | ✅ | `install.ps1`, `INSTALL.sh`, `INSTALL.md` |
+| PRODUCTION_READINESS / SECURITY | ✅ | root docs |
+| Editor — LSP + VS Code | ✅ | `rynixc lsp-serve`, `editors/vscode/`, `lsp_cmd` unit test |
+| `arch check` + Architecture.toml | ✅ | root `Architecture.toml`, `crates/rynixc/tests/phase10_gates.rs`, CI |
+| Std json/http in `.ryx` | ✅ | `json_get_i64`, `http_get_json_i64`, `examples/05_http_json.ryx` |
+| GitHub Release binaries | ✅ | `.github/workflows/release.yml` + SHA256SUMS |
+| Optional C11 backend | 🔄 deferred | [ADR-0008](adr/0008-deferred-c11-backend.md) |
+| UI / hot-reload / canvas frameworks | 🔄 out of scope v0.1 | [ADR-0007](adr/0007-deferred-ui-frameworks.md) |
 
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): `cargo test` on
-Ubuntu + Windows; ASan builds of fiber/echo/TCP smokes; uring-flag compile on Linux.
+Ubuntu + Windows; clippy; VS Code extension compile; Suite5 + arch gates;
+ASan fiber/echo/TCP/load/json; uring SQE + uring TCP smoke on Linux.

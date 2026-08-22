@@ -1,0 +1,38 @@
+# Optional Suite5 PGO benchmark (manual). Not a merge gate.
+name: Suite5 PGO
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pgo-bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install clang and llvm-profdata
+        run: sudo apt-get update && sudo apt-get install -y clang llvm
+      - name: Build rynixc (release)
+        run: cargo build -p rynixc --release
+      - name: Baseline Suite5 (C + Rynix, no PGO)
+        run: python benchmarks/suite5/run_suite5.py --langs c,rynix --summary
+      - name: Train LLVM PGO profile (12 workloads)
+        run: python benchmarks/suite5/pgo_train.py
+      - name: Benchmark Rynix with --pgo-use
+        run: |
+          python benchmarks/suite5/run_suite5.py --langs rynix \
+            --pgo-use target/suite5/pgo \
+            --json-out benchmarks/suite5/suite5_results_pgo.json \
+            --summary
+      - name: PGO vs baseline analysis
+        run: python benchmarks/suite5/analyze_results.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: suite5-pgo-results
+          path: |
+            benchmarks/suite5/suite5_results_pgo.json
+            benchmarks/suite5/suite5_results.json
+            target/suite5/pgo/

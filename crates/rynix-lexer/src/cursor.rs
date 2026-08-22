@@ -59,7 +59,7 @@ const fn build_class_table() -> [Class; 256] {
                 b'"' => Class::Quote,
                 b'#' => Class::Hash,
                 b'(' | b')' | b'[' | b']' | b'{' | b'}' | b',' | b'.' | b':' | b'=' | b'<'
-                | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'!' => Class::Punct,
+                | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'!' | b'&' => Class::Punct,
                 _ => Class::Unknown,
             }
         };
@@ -280,9 +280,9 @@ impl<'src> Lexer<'src> {
 
     fn punct(&mut self, sink: &mut dyn DiagSink) -> Token {
         use TokenKind::{
-            Arrow, BangEq, Colon, ColonColon, Comma, Dot, DotDot, DotDotEq, Eq, EqEq, Gt, GtEq,
+            Amp, Arrow, BangEq, Colon, ColonColon, Comma, Dot, DotDot, DotDotEq, Eq, EqEq, Gt, GtEq,
             LBrace, LBracket, LParen, Lt, LtEq, Minus, MinusEq, Percent, PercentEq, Plus, PlusEq,
-            RBrace, RBracket, RParen, Slash, SlashEq, Star, StarEq,
+            RBrace, RBracket, RParen, Shr, Slash, SlashEq, Star, StarEq,
         };
         let start = self.pos;
         let b = self.src[start as usize];
@@ -326,6 +326,8 @@ impl<'src> Lexer<'src> {
             b'>' => {
                 if self.eat(b'=') {
                     GtEq
+                } else if self.eat(b'>') {
+                    Shr
                 } else {
                     Gt
                 }
@@ -367,6 +369,7 @@ impl<'src> Lexer<'src> {
                     Percent
                 }
             }
+            b'&' => Amp,
             // `!` only exists as part of `!=`; a lone `!` is `not` in Rynix.
             b'!' => {
                 if self.eat(b'=') {
@@ -557,17 +560,22 @@ mod tests {
     }
 
     #[test]
-    fn double_ampersand_and_pipe_are_single_tokens() {
+    fn double_pipe_is_unknown_ampersand_is_bitwise_and() {
         let (tokens, sink) = lex("a && b || c");
+        let amps: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind == TokenKind::Amp)
+            .map(|t| (t.span.lo(), t.span.hi()))
+            .collect();
+        assert_eq!(amps, vec![(2, 3), (3, 4)]);
         let unknowns: Vec<_> = tokens
             .iter()
             .filter(|t| t.kind == TokenKind::Unknown)
             .map(|t| (t.span.lo(), t.span.hi()))
             .collect();
-        assert_eq!(unknowns, vec![(2, 4), (7, 9)]);
-        assert_eq!(sink.diags.len(), 2);
-        assert_eq!(sink.diags[0].fixes[0].edits[0].replacement, "and");
-        assert_eq!(sink.diags[1].fixes[0].edits[0].replacement, "or");
+        assert_eq!(unknowns, vec![(7, 9)]);
+        assert_eq!(sink.diags.len(), 1);
+        assert_eq!(sink.diags[0].fixes[0].edits[0].replacement, "or");
     }
 
     #[test]

@@ -152,16 +152,21 @@ fn missing_end_recovers() {
 }
 
 #[test]
-fn reserved_keyword_as_name() {
-    let arena = AstArena::new();
-    let mut interner = Interner::new();
-    let mut sink = VecSink::new();
-    let _ = parse(&arena, &mut interner, "def match()\nend\n", 0, &mut sink);
-    assert!(
-        sink.diags.iter().any(|d| d.code.as_str() == "RYX1005"),
-        "{:?}",
-        sink.diags
+fn parse_match_stmt() {
+    let dump = parse_ok(
+        "\
+def f(x: i64) -> i64
+  match x
+    1
+      return 10
+    _
+      return 0
+  end
+end
+",
     );
+    assert!(dump.contains("(match"), "{dump}");
+    assert!(dump.contains("(arm"), "{dump}");
 }
 
 #[test]

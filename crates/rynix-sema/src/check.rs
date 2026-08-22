@@ -132,6 +132,7 @@ impl<'a> Checker<'a> {
             .fn_type(vec![self.types.ty_error], self.types.ty_unit);
         self.def_types.insert(print_def, print_ty);
         self.fn_sigs.insert(print_def, print_ty);
+        self.soft_fn("print_i64", vec![self.types.ty_int], self.types.ty_unit);
 
         // Soft std / runtime prelude (Phase 9+).
         self.soft_fn("sleep_ms", vec![self.types.ty_int], self.types.ty_unit);
@@ -146,22 +147,41 @@ impl<'a> Checker<'a> {
         self.soft_fn("agent", vec![self.types.ty_str], self.types.ty_unit);
 
         // Region Vec/Map (i64 monomorphized) — soft std surface.
-        let ptr = self.types.ty_error; // opaque handle
         let unit = self.types.ty_unit;
         let i = self.types.ty_int;
-        self.soft_fn("vec_new", vec![i], ptr);
-        self.soft_fn("vec_push", vec![ptr, i], unit);
-        self.soft_fn("vec_get", vec![ptr, i], i);
-        self.soft_fn("vec_len", vec![ptr], i);
-        self.soft_fn("map_new", vec![i], ptr);
-        self.soft_fn("map_insert", vec![ptr, i, i], unit);
-        self.soft_fn("map_get", vec![ptr, i], i);
-        self.soft_fn("map_len", vec![ptr], i);
+        let v = self.types.ty_vec;
+        let m = self.types.ty_map;
+        self.soft_fn("vec_new", vec![i], v);
+        self.soft_fn("vec_push", vec![v, i], unit);
+        self.soft_fn("vec_get", vec![v, i], i);
+        self.soft_fn("vec_len", vec![v], i);
+        self.soft_fn("map_new", vec![i], m);
+        self.soft_fn("map_insert", vec![m, i, i], unit);
+        self.soft_fn("map_get", vec![m, i], i);
+        self.soft_fn("map_len", vec![m], i);
 
-        // TCP soft surface.
+        let vec_sym = self.interner.intern("Vec");
+        let vec_def = self.alloc_def(DefKind::BuiltinType { name: vec_sym });
+        self.scopes.define(self.module_scope, vec_sym, vec_def);
+        self.def_types.insert(vec_def, v);
+        let map_sym = self.interner.intern("Map");
+        let map_def = self.alloc_def(DefKind::BuiltinType { name: map_sym });
+        self.scopes.define(self.module_scope, map_sym, map_def);
+        self.def_types.insert(map_def, m);
+
+        // TCP soft surface (recv/send take ptr buffers — soft args are i64 slots).
+        let s = self.types.ty_str;
         self.soft_fn("tcp_listen", vec![i], i);
         self.soft_fn("tcp_accept", vec![i], i);
+        self.soft_fn("tcp_connect", vec![s, i], i);
+        self.soft_fn("tcp_recv", vec![i, i, i], i);
+        self.soft_fn("tcp_send", vec![i, i, i], i);
         self.soft_fn("tcp_close", vec![i], unit);
+
+        // JSON / HTTP soft std (v0.1).
+        let s = self.types.ty_str;
+        self.soft_fn("json_get_i64", vec![s, s], i);
+        self.soft_fn("http_get_json_i64", vec![s, i, s, s], i);
     }
 
     fn soft_fn(&mut self, name: &str, params: Vec<TypeId>, ret: TypeId) {
@@ -339,6 +359,57 @@ impl<'a> Checker<'a> {
                 self.types.slice(elem)
             }
             Type::Path(path) => self.resolve_type_path(path, scope),
+            Type::App { path, args, span } => {
+                let name = path.segments.last().map_or_else(
+                    || "?".into(),
+                    |s| self.interner.resolve(s.name).to_string(),
+                );
+                for a in *args {
+                    let _ = self.lower_type(a, scope);
+                }
+                match name.as_str() {
+                    "Vec" if args.len() == 1 => {
+                        let elem = self.lower_type(args[0], scope);
+                        if !self.types.compatible(elem, self.types.ty_int)
+                            && !matches!(self.types.kind(elem), TypeKind::Error)
+                        {
+                            self.sink.emit(errors::type_mismatch(
+                                *span,
+                                "Vec[i64]",
+                                &format!("Vec[{}]", self.display_ty(elem)),
+                            ));
+                        }
+                        self.types.ty_vec
+                    }
+                    "Map" if args.len() == 2 => {
+                        let k = self.lower_type(args[0], scope);
+                        let v = self.lower_type(args[1], scope);
+                        if (!self.types.compatible(k, self.types.ty_int)
+                            || !self.types.compatible(v, self.types.ty_int))
+                            && !matches!(self.types.kind(k), TypeKind::Error)
+                            && !matches!(self.types.kind(v), TypeKind::Error)
+                        {
+                            self.sink.emit(errors::type_mismatch(
+                                *span,
+                                "Map[i64, i64]",
+                                &format!(
+                                    "Map[{}, {}]",
+                                    self.display_ty(k),
+                                    self.display_ty(v)
+                                ),
+                            ));
+                        }
+                        self.types.ty_map
+                    }
+                    _ => {
+                        self.sink.emit(errors::unresolved_name(
+                            *span,
+                            &format!("{name}[...]"),
+                        ));
+                        self.types.ty_error
+                    }
+                }
+            }
         }
     }
 
@@ -560,6 +631,37 @@ impl<'a> Checker<'a> {
                     }
                 }
             }
+            Stmt::Match(m) => {
+                let scrut = self.check_expr(m.scrutinee, scope, None);
+                for arm in m.arms {
+                    match &arm.pattern {
+                        rynix_ast::MatchPat::Wildcard(_) => {}
+                        rynix_ast::MatchPat::Literal(e) => {
+                            let pty = self.check_expr(e, scope, Some(scrut));
+                            if !self.types.compatible(scrut, pty)
+                                && !matches!(self.types.kind(scrut), TypeKind::Error)
+                                && !matches!(self.types.kind(pty), TypeKind::Error)
+                            {
+                                self.sink.emit(errors::type_mismatch(
+                                    e.span(),
+                                    &self.display_ty(scrut),
+                                    &self.display_ty(pty),
+                                ));
+                            }
+                        }
+                    }
+                    let body_scope = self.scopes.alloc(Some(scope), ScopeKind::Block);
+                    for s in arm.body {
+                        self.check_stmt(s, body_scope, expected_ret, saw_return);
+                    }
+                }
+                if let Some(body) = m.else_body {
+                    let body_scope = self.scopes.alloc(Some(scope), ScopeKind::Block);
+                    for s in body {
+                        self.check_stmt(s, body_scope, expected_ret, saw_return);
+                    }
+                }
+            }
             Stmt::Expr(e) => {
                 let _ = self.check_expr(e.expr, scope, None);
             }
@@ -676,15 +778,48 @@ impl<'a> Checker<'a> {
                 ty
             }
             Expr::MethodCall(m) => {
-                // v0.1: treat as opaque if receiver is a module; else error lightly.
                 let recv = self.check_expr(m.receiver, scope, None);
                 for a in m.args {
                     let _ = self.check_expr(a, scope, None);
                 }
-                let ty = if matches!(self.types.kind(recv), TypeKind::Module | TypeKind::Error) {
-                    expected.unwrap_or(self.types.ty_error)
-                } else {
-                    self.types.ty_error
+                let method = self.interner.resolve(m.method.name).to_string();
+                let ty = match (self.types.kind(recv), method.as_str()) {
+                    (TypeKind::Slice(_), "len") => self.types.ty_int,
+                    (TypeKind::Vec, "len" | "get") => self.types.ty_int,
+                    (TypeKind::Vec, "push") => self.types.ty_unit,
+                    (TypeKind::Map, "len" | "get") => self.types.ty_int,
+                    (TypeKind::Map, "insert") => self.types.ty_unit,
+                    (TypeKind::Module, _) => expected.unwrap_or(self.types.ty_error),
+                    (TypeKind::Vec | TypeKind::Map | TypeKind::Slice(_), _) => {
+                        self.sink.emit(errors::unknown_method(
+                            m.method.span,
+                            &self.display_ty(recv),
+                            &method,
+                        ));
+                        self.types.ty_error
+                    }
+                    _ => {
+                        // Soft free function of the same name (receiver = first arg).
+                        let sym = m.method.name;
+                        if let Some(ret) = self
+                            .scopes
+                            .lookup(self.module_scope, sym)
+                            .and_then(|d| self.def_types.get(&d).copied())
+                            .and_then(|t| match self.types.kind(t) {
+                                TypeKind::Fn { ret, .. } => Some(*ret),
+                                _ => None,
+                            })
+                        {
+                            ret
+                        } else {
+                            self.sink.emit(errors::unknown_method(
+                                m.method.span,
+                                &self.display_ty(recv),
+                                &method,
+                            ));
+                            expected.unwrap_or(self.types.ty_error)
+                        }
+                    }
                 };
                 self.node_types.insert(m.id, ty);
                 ty
@@ -804,11 +939,13 @@ impl<'a> Checker<'a> {
             return self.types.ty_error;
         }
         if path.segments.len() == 1 {
-            return self
+            let ty = self
                 .def_types
                 .get(&def)
                 .copied()
                 .unwrap_or(self.types.ty_error);
+            self.node_types.insert(path.id, ty);
+            return ty;
         }
         // Multi-segment: if first is a module, remainder is opaque (external).
         if matches!(
@@ -871,7 +1008,9 @@ impl<'a> Checker<'a> {
             | BinaryOp::Minus
             | BinaryOp::Star
             | BinaryOp::Slash
-            | BinaryOp::Percent => {
+            | BinaryOp::Percent
+            | BinaryOp::Amp
+            | BinaryOp::Shr => {
                 if self.types.compatible(lhs, rhs) {
                     lhs
                 } else if matches!(self.types.kind(lhs), TypeKind::Error) {

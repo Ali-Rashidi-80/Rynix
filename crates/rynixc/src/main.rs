@@ -1,9 +1,14 @@
 //! The Rynix compiler driver.
 //!
 //! ```text
-//! rynixc lex | parse | check | dump-rir | emit-ll | build | run | test | fmt | mcp-serve
+//! rynixc lex | parse | check | dump-rir | emit-ll | build | run | test | fmt
+//!         | graph | slice | impact | eval | patch | mcp-serve | lsp-serve | arch
 //! ```
 
+mod agent_cmd;
+mod agent_lib;
+mod arch_cmd;
+mod architecture;
 mod build_cmd;
 mod check_cmd;
 mod cli;
@@ -11,10 +16,14 @@ mod codegen_pipe;
 mod driver;
 mod dump_rir_cmd;
 mod emit_ll_cmd;
+mod eval_cmd;
+mod fix;
 mod fmt_cmd;
 mod lex_cmd;
+mod lsp_cmd;
 mod mcp_cmd;
 mod parse_cmd;
+mod patch_cmd;
 mod run_cmd;
 mod test_cmd;
 
@@ -40,7 +49,14 @@ fn main() -> ExitCode {
         Ok(cli::Command::Run(options)) => run_cmd::run(&options),
         Ok(cli::Command::Test(options)) => test_cmd::run(&options),
         Ok(cli::Command::Fmt(options)) => fmt_cmd::run(&options),
+        Ok(cli::Command::Graph(options)) => agent_cmd::run_graph(&options),
+        Ok(cli::Command::Slice(options)) => agent_cmd::run_slice(&options),
+        Ok(cli::Command::Impact(options)) => agent_cmd::run_impact(&options),
+        Ok(cli::Command::Eval(options)) => eval_cmd::run(&options),
+        Ok(cli::Command::Patch(options)) => patch_cmd::run(&options),
         Ok(cli::Command::McpServe) => mcp_cmd::run(),
+        Ok(cli::Command::LspServe) => lsp_cmd::run(),
+        Ok(cli::Command::ArchCheck(options)) => arch_cmd::run(&options),
         Err(message) => {
             eprintln!("error: {message}\n");
             eprint!("{}", cli::USAGE);

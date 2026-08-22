@@ -50,14 +50,14 @@ ident_continue = ident_start | "0".."9"
 Identifiers are ASCII-only in v0.1 (ADR-0002). Non-ASCII text outside
 strings/comments produces `RYX0003` with a recovery token.
 
-Keywords (26, each lexed as its own token kind):
+Keywords (27, each lexed as its own token kind):
 
 ```
 def end let mut if elif else loop for in break continue return
-struct enum type import pub true false nil and or not as spawn
+struct enum type import pub true false nil and or not as spawn match
 ```
 
-Reserved for future use (4): `match agent signal tensor`.
+Reserved for future use (3): `agent signal tensor`.
 
 Notes on canonical choices:
 
@@ -111,7 +111,8 @@ escape = "\n" | "\t" | "\r" | "\0" | "\\" | "\""
 - `\u{...}` must encode a Unicode scalar value (rejects surrogates and values
   above `0x10FFFF`) — `RYX0005` otherwise.
 - Unknown escapes produce `RYX0005`; lexing continues.
-- There is exactly one string form. Multiline/raw strings are deferred.
+- There is exactly one string form in the shipping grammar: single-line
+  `"..."` with the escapes above. (No multiline/raw string literal form.)
 
 ### 2.6 Punctuation and operators (30)
 
@@ -161,7 +162,7 @@ enum_def    = [ "pub" ] "enum" Ident Newline { Ident [ "(" type ")" ] Newline } 
 
 block       = { stmt }
 stmt        = let_stmt | return_stmt | break_stmt | continue_stmt
-            | loop_stmt | for_stmt | if_stmt | expr_stmt
+            | loop_stmt | for_stmt | if_stmt | match_stmt | expr_stmt
 let_stmt    = "let" [ "mut" ] Ident [ ":" type ] "=" expr Newline
 return_stmt = "return" [ expr ] Newline
 break_stmt  = "break" Newline
@@ -170,11 +171,17 @@ loop_stmt   = "loop" Newline block "end"
 for_stmt    = "for" Ident "in" expr Newline block "end"
 if_stmt     = "if" expr Newline block { "elif" expr Newline block }
               [ "else" Newline block ] "end"
+match_stmt  = "match" expr Newline { match_arm } [ "else" Newline block ] "end"
+match_arm   = match_pat Newline block
+match_pat   = IntLit | "true" | "false" | "_"
 expr_stmt   = expr Newline
 
-type        = path | "[" type "]" | "&" ...   (deferred; v0.1 uses path and slice)
+type        = path [ "[" type { "," type } "]" ] | "[" type "]"
 path        = Ident { "::" Ident }
 ```
+
+Reference types (`&T`) are not part of the shipping type grammar; ownership
+is inferred via escape analysis, not surface `&` syntax.
 
 Expression precedence (weakest to strongest, comparisons non-associative):
 
@@ -205,3 +212,21 @@ confusion.
 4. Colorless concurrency: fibers on a thread-per-core io_uring scheduler; no
    async/await.
 5. Direct LLVM IR emission, whole-program DCE, LTO; binaries under 1MB.
+
+## 5. Soft std surface (v0.1)
+
+The compiler recognizes these **soft builtins** (no `import` required). They
+lower to `rynix_rt_*` symbols documented in [abi.md](abi.md):
+
+| Builtin | Role |
+|---------|------|
+| `print` / `print_i64` | stdout |
+| `sleep_ms`, `yield`, `now_ms`, `fiber_run` | fibers / time |
+| `vec_new`, `vec_push`, `vec_get`, `vec_len` | mono `Vec[i64]` |
+| `map_new`, `map_insert`, `map_get`, `map_len` | mono `Map[i64,i64]` |
+| `tcp_listen`, `tcp_accept`, `tcp_connect`, `tcp_recv`, `tcp_send`, `tcp_close` | TCP |
+| `json_get_i64(body, key)` | minimal JSON int field |
+| `http_get_json_i64(host, port, path, field)` | HTTP GET + JSON field |
+| `tensor`, `signal`, `agent` | smart primitives (stubs / hooks) |
+
+Notes in `std/*.ryx` are documentation only until a module loader ships.

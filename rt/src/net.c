@@ -75,6 +75,16 @@ int64_t rynix_rt_tcp_listen(int64_t port) {
 }
 
 int64_t rynix_rt_tcp_accept(int64_t listen_fd) {
+#if defined(RYNIX_RT_URING) && defined(__linux__)
+  if (rynix_rt_uring_ready()) {
+    int64_t c = rynix_rt_uring_accept(listen_fd);
+    if (c >= 0) {
+      rynix_set_nonblock((rynix_sock_t)(intptr_t)c);
+      return c;
+    }
+    return -1;
+  }
+#endif
   rynix_sock_t s = (rynix_sock_t)(intptr_t)listen_fd;
   for (;;) {
     rynix_rt_yield();
@@ -91,7 +101,6 @@ int64_t rynix_rt_tcp_connect(const char *host, int64_t port) {
   rynix_net_init();
   rynix_sock_t s = socket(AF_INET, SOCK_STREAM, 0);
   if (s == RYNIX_INVALID_SOCK) return -1;
-  rynix_set_nonblock(s);
   struct sockaddr_in addr;
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
@@ -108,7 +117,31 @@ int64_t rynix_rt_tcp_connect(const char *host, int64_t port) {
     rynix_sock_close(s);
     return -1;
   }
+#if defined(RYNIX_RT_URING)
+  /* When the ring is live, do not fall through to poll after a failed SQE —
+   * the socket may already be mid-connect / errored. */
+  if (rynix_rt_uring_ready()) {
+    rynix_set_nonblock(s);
+    int64_t rc = rynix_rt_uring_connect((int64_t)(intptr_t)s, &addr, (int64_t)sizeof(addr));
+    if (rc == 0) return (int64_t)(intptr_t)s;
+    rynix_sock_close(s);
+    return -1;
+  }
 #endif
+#endif
+  /* Standalone smokes (no fiber scheduler): blocking connect avoids busy-spin. */
+  if (!rynix_rt_fiber_current()) {
+    int rc = connect(s, (struct sockaddr *)&addr, sizeof(addr));
+    if (rc == 0) return (int64_t)(intptr_t)s;
+#ifdef _WIN32
+    if (WSAGetLastError() == WSAEISCONN) return (int64_t)(intptr_t)s;
+#else
+    if (errno == EISCONN) return (int64_t)(intptr_t)s;
+#endif
+    rynix_sock_close(s);
+    return -1;
+  }
+  rynix_set_nonblock(s);
   for (;;) {
     rynix_rt_yield();
     int rc = connect(s, (struct sockaddr *)&addr, sizeof(addr));

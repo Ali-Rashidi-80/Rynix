@@ -110,6 +110,48 @@ fn eval_func(
                 Inst::IRem(a, b) => {
                     vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x % y)?);
                 }
+                Inst::URem(a, b) => {
+                    let InterpValue::I64(x) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("urem".into()));
+                    };
+                    let InterpValue::I64(y) = get(&vals, *b)? else {
+                        return Err(InterpError::Trap("urem".into()));
+                    };
+                    if y <= 0 {
+                        return Err(InterpError::Trap("urem div".into()));
+                    }
+                    vals.insert(
+                        result_vid.unwrap(),
+                        InterpValue::I64((x as u64).rem_euclid(y as u64) as i64),
+                    );
+                }
+                Inst::IAnd(a, b) => {
+                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x & y)?);
+                }
+                Inst::LShr(a, b) => {
+                    let InterpValue::I64(x) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("lshr".into()));
+                    };
+                    let InterpValue::I64(y) = get(&vals, *b)? else {
+                        return Err(InterpError::Trap("lshr".into()));
+                    };
+                    vals.insert(
+                        result_vid.unwrap(),
+                        InterpValue::I64(((x as u64) >> (y as u32)) as i64),
+                    );
+                }
+                Inst::LShl(a, b) => {
+                    let InterpValue::I64(x) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("lshl".into()));
+                    };
+                    let InterpValue::I64(y) = get(&vals, *b)? else {
+                        return Err(InterpError::Trap("lshl".into()));
+                    };
+                    vals.insert(
+                        result_vid.unwrap(),
+                        InterpValue::I64(((x as u64) << (y as u32)) as i64),
+                    );
+                }
                 Inst::INeg(a) => {
                     let InterpValue::I64(x) = get(&vals, *a)? else {
                         return Err(InterpError::Trap("ineg".into()));
@@ -117,21 +159,63 @@ fn eval_func(
                     vals.insert(result_vid.unwrap(), InterpValue::I64(-x));
                 }
                 Inst::ICmp(op, a, b) => {
-                    let InterpValue::I64(x) = get(&vals, *a)? else {
-                        return Err(InterpError::Trap("icmp".into()));
-                    };
-                    let InterpValue::I64(y) = get(&vals, *b)? else {
-                        return Err(InterpError::Trap("icmp".into()));
-                    };
-                    let r = match op {
-                        crate::ir::CmpOp::Eq => x == y,
-                        crate::ir::CmpOp::Ne => x != y,
-                        crate::ir::CmpOp::Lt => x < y,
-                        crate::ir::CmpOp::Le => x <= y,
-                        crate::ir::CmpOp::Gt => x > y,
-                        crate::ir::CmpOp::Ge => x >= y,
+                    let xa = get(&vals, *a)?;
+                    let yb = get(&vals, *b)?;
+                    let r = match (&xa, &yb) {
+                        (InterpValue::I64(x), InterpValue::I64(y)) => match op {
+                            crate::ir::CmpOp::Eq => x == y,
+                            crate::ir::CmpOp::Ne => x != y,
+                            crate::ir::CmpOp::Lt => x < y,
+                            crate::ir::CmpOp::Le => x <= y,
+                            crate::ir::CmpOp::Gt => x > y,
+                            crate::ir::CmpOp::Ge => x >= y,
+                        },
+                        (InterpValue::Bool(x), InterpValue::Bool(y)) => match op {
+                            crate::ir::CmpOp::Eq => x == y,
+                            crate::ir::CmpOp::Ne => x != y,
+                            _ => {
+                                return Err(InterpError::Trap("icmp bool order".into()));
+                            }
+                        },
+                        _ => return Err(InterpError::Trap("icmp".into())),
                     };
                     vals.insert(result_vid.unwrap(), InterpValue::Bool(r));
+                }
+                Inst::BAnd(a, b) => {
+                    let InterpValue::Bool(x) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("band".into()));
+                    };
+                    let InterpValue::Bool(y) = get(&vals, *b)? else {
+                        return Err(InterpError::Trap("band".into()));
+                    };
+                    vals.insert(result_vid.unwrap(), InterpValue::Bool(x && y));
+                }
+                Inst::BOr(a, b) => {
+                    let InterpValue::Bool(x) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("bor".into()));
+                    };
+                    let InterpValue::Bool(y) = get(&vals, *b)? else {
+                        return Err(InterpError::Trap("bor".into()));
+                    };
+                    vals.insert(result_vid.unwrap(), InterpValue::Bool(x || y));
+                }
+                Inst::ZExtI64(a) => {
+                    let InterpValue::Bool(b) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("zext_i64".into()));
+                    };
+                    vals.insert(
+                        result_vid.unwrap(),
+                        InterpValue::I64(i64::from(b)),
+                    );
+                }
+                Inst::CtPop(a) => {
+                    let InterpValue::I64(n) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("ctpop".into()));
+                    };
+                    vals.insert(
+                        result_vid.unwrap(),
+                        InterpValue::I64(n.count_ones() as i64),
+                    );
                 }
                 Inst::BNot(a) => {
                     let InterpValue::Bool(x) = get(&vals, *a)? else {
@@ -237,7 +321,7 @@ fn eval_func(
                 }
                 Inst::CallExt { name, args, ret } => {
                     let n = interner.resolve(*name);
-                    if n == "print" {
+                    if n == "print" || n == "rynix_rt_print_i64" || n == "print_i64" {
                         for a in args {
                             let _ = get(&vals, *a)?;
                         }

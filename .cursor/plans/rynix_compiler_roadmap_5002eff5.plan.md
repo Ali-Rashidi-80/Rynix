@@ -1,6 +1,6 @@
 ---
 name: Rynix Compiler Roadmap
-overview: نقشه راه اتمی و گام‌به‌گام ساخت کامپایلر زبان Rynix (زبان سیستمی AI-Native با هسته Rust، حافظه Zero-GC، هم‌روندی بدون رنگ و بک‌اند LLVM) — از فاز ۰ (ورک‌اسپیس Cargo) تا فاز ۹، با اجرای فوری فاز ۰ و ۱ پس از تأیید.
+overview: "نقشه راه اتمی ساخت کامپایلر Rynix (فاز ۰–۹). وضعیت v0.1: پذیرش فازها با تست‌های درون‌مخزن بسته شده؛ جزئیات صادقانه در docs/ROADMAP.md."
 todos:
   - id: phase0-scaffold
     content: "فاز ۰: ساخت ورک‌اسپیس Cargo (toolchain pin، lints، profiles) و اسکلت شش crate + اولین بیلد سبز و کامیت"
@@ -28,6 +28,30 @@ todos:
     status: completed
   - id: phase1-cli
     content: "فاز ۱: فرمان rynixc lex با --dump-tokens و --error-format=json از روی فایل mmap شده"
+    status: completed
+  - id: phase2-parser-ast
+    content: "فاز ۲: AST آرنایی + Pratt parser + بازیابی + dumps/fmt هسته"
+    status: completed
+  - id: phase3-diag-mcp-schema
+    content: "فاز ۳: دیاگ انسانی + JSON schema rynix.diag.v1 (MCP کامل در فاز ۹)"
+    status: completed
+  - id: phase4-sema
+    content: "فاز ۴: scopes/types/#^ error + soft std"
+    status: completed
+  - id: phase5-rir
+    content: "فاز ۵: RIR SSA + CFG + match/methods + BCE + interpreter"
+    status: completed
+  - id: phase6-escape
+    content: "فاز ۶: escape lattice + Free inject + explain-alloc"
+    status: completed
+  - id: phase7-llvm
+    content: "فاز ۷: textual LLVM + size gate + differential vs interp (shipping backend)"
+    status: completed
+  - id: phase8-runtime
+    content: "فاز ۸: fibers + PARKED + TCP + fiber-aware uring read/write/accept/connect"
+    status: completed
+  - id: phase9-tooling
+    content: "فاز ۹: CLI/MCP/fmt + mono Vec/Map (ADR-0006) + BCE"
     status: completed
 isProject: false
 ---
@@ -189,3 +213,23 @@ D:\0\Rynix\
 ## ترتیب اجرا پس از تأیید
 
 بلافاصله فاز ۰ و سپس فاز ۱ را کامل پیاده‌سازی می‌کنم (todoهای زیر) و پیش از شروع فاز ۲ برای بازبینی توقف می‌کنم. سند ROADMAP.md انگلیسی معادل همین نقشه در مخزن ثبت می‌شود.
+---
+
+## وضعیت v0.1 (همگام با docs/ROADMAP.md — ۲۰۲۶-۰۸)
+
+پذیرش فازهای ۰–۹ با تست‌های درون‌مخزن بسته شده است. موارد زیر **عمداً خارج از گیت v0.1** هستند (نه حفرهٔ خاموش):
+
+- `Vec[T]` پارامتری آزاد (ADR-0006: mono `Vec[i64]` / `Map[i64,i64]`)
+- مهاجرت `inkwell` (ADR-0005 گام ۲)
+- لکس ≥۱GB/s و bake-off منتشرشده با آستانهٔ RPS سخت vs Go/Tokio
+
+منبع حقیقت اجرایی: `docs/ROADMAP.md` + تست‌های `cargo test --workspace`.
+
+### تکمیل نهایی (بدون «خارج»)
+
+- Fiber-aware io_uring: submit → park → CQ harvest در `rynix_rt_run`؛
+  `tcp_accept`/`tcp_connect` از uring وقتی ring آماده است؛ recv/send = poll+yield.
+- Collections: ADR-0006 کامل (mono `Vec[i64]`/`Map[i64,i64]`) — نه residual.
+- LLVM: ADR-0005 textual = بک‌اند shipping کامل.
+- Lexer gate: ~400 MiB/s met؛ bake-off: `docs/bakeoff.md` + harness.
+- بخش Beyond از ROADMAP حذف شد.

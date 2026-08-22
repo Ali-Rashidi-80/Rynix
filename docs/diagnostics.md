@@ -92,9 +92,9 @@ recovery point, confidence 0.85.
 
 ### RYX1005 — reserved keyword
 
-One of `match`, `agent`, `signal`, `tensor` was used as an identifier or
-item name. These are reserved for a future release; the node is still
-built so later phases can attach more precise guidance.
+One of `agent`, `signal`, `tensor` was used as an identifier or item name.
+These remain reserved; the node is still built so later phases can attach
+more precise guidance. (`match` is a live keyword and is not reserved.)
 
 ### RYX1006 — unexpected end of file
 

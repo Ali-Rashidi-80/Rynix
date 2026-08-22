@@ -19,7 +19,18 @@ Commands:
   run <file.ryx>      Build then execute
   test [paths...]     Run #^ directive tests (default: testdata/)
   fmt <file.ryx>      Canonical-format a source file
+  graph <file.ryx>    Emit rynix.graph.v1 JSON (functions + call edges)
+  slice <file.ryx>    Compact interface view (human or JSON)
+  impact <file.ryx>   Blast-radius: callers/callees (rynix.impact.v1)
+  eval <expr>         Micro-evaluator via RIR interpreter
+  patch <file.ryx>    Apply best compiler-suggested fix
   mcp-serve           JSON-RPC 2.0 MCP server on stdio
+  lsp-serve           Language Server Protocol on stdio
+  arch check          Validate Architecture.toml layer rules
+
+Options for `arch`:
+  --config <path>     Path to Architecture.toml (default: ./Architecture.toml)
+  --root <path>       Project root to scan (default: .)
 
 Options for `lex`:
   --dump-tokens       Print one line per token: span, kind, text
@@ -40,10 +51,25 @@ Options for `emit-ll` / `build` / `run`:
   --opt               Run RIR optimization pipeline (emit-ll; build always opts)
   --keep-ll           (build) Keep the intermediate .ll next to the binary
   --runtime=KIND      `portable` (default) or `uring` (Linux)
+  --bench             (build) Define RYNIX_BENCH — print_i64 becomes a sink (Suite5 timing)
+  --pgo-gen           (build) Clang `-fprofile-instr-generate` (training build)
+  --pgo-use=PATH      (build) Clang `-fprofile-use=PATH` (optimized build)
 
 Options for `fmt`:
   --write             Write result back to the file
   --check             Exit 1 if the file is not already formatted
+
+Options for `graph` / `slice` / `impact`:
+  --error-format=FMT  Same as shared options (JSON schemas: graph/slice/impact v1)
+
+Options for `impact`:
+  --fn NAME           Limit to one function's blast radius
+
+Options for `eval`:
+  --json              Emit rynix.eval.v1 JSON
+
+Options for `patch`:
+  --write             Write fixed source back to the file
 
 Shared options:
   --error-format=FMT  Diagnostic rendering: `human` (default) or `json`
@@ -107,12 +133,21 @@ pub enum RuntimeKind {
     Uring,
 }
 
+#[derive(Debug, Clone)]
+pub enum PgoMode {
+    None,
+    Generate,
+    Use(PathBuf),
+}
+
 #[derive(Debug)]
 pub struct BuildOptions {
     pub path: PathBuf,
     pub output: Option<PathBuf>,
     pub keep_ll: bool,
     pub runtime: RuntimeKind,
+    pub bench: bool,
+    pub pgo: PgoMode,
     pub error_format: ErrorFormat,
 }
 
@@ -121,6 +156,8 @@ pub struct RunOptions {
     pub path: PathBuf,
     pub output: Option<PathBuf>,
     pub runtime: RuntimeKind,
+    pub bench: bool,
+    pub pgo: PgoMode,
     pub error_format: ErrorFormat,
 }
 
@@ -138,6 +175,38 @@ pub struct FmtOptions {
 }
 
 #[derive(Debug)]
+pub struct AgentOptions {
+    pub path: PathBuf,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct ImpactOptions {
+    pub path: PathBuf,
+    pub function: Option<String>,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct EvalOptions {
+    pub expr: String,
+    pub json: bool,
+}
+
+#[derive(Debug)]
+pub struct PatchOptions {
+    pub path: PathBuf,
+    pub write: bool,
+}
+
+#[derive(Debug)]
+pub struct ArchCheckOptions {
+    pub config: Option<PathBuf>,
+    pub root: Option<PathBuf>,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
 pub enum Command {
     Help,
     Version,
@@ -150,7 +219,14 @@ pub enum Command {
     Run(RunOptions),
     Test(TestOptions),
     Fmt(FmtOptions),
+    Graph(AgentOptions),
+    Slice(AgentOptions),
+    Impact(ImpactOptions),
+    Eval(EvalOptions),
+    Patch(PatchOptions),
     McpServe,
+    LspServe,
+    ArchCheck(ArchCheckOptions),
 }
 
 /// Parses command-line arguments (without the program name).
@@ -170,7 +246,14 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         "run" => parse_run(&args[1..]),
         "test" => parse_test(&args[1..]),
         "fmt" => parse_fmt(&args[1..]),
+        "graph" => parse_agent(&args[1..], AgentCmd::Graph),
+        "slice" => parse_agent(&args[1..], AgentCmd::Slice),
+        "impact" => parse_impact(&args[1..]),
+        "eval" => parse_eval(&args[1..]),
+        "patch" => parse_patch(&args[1..]),
         "mcp-serve" => Ok(Command::McpServe),
+        "lsp-serve" => Ok(Command::LspServe),
+        "arch" => parse_arch(&args[1..]),
         other => Err(format!("unknown command `{other}`")),
     }
 }
@@ -359,6 +442,8 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
     let mut output = None;
     let mut keep_ll = false;
     let mut runtime = RuntimeKind::Portable;
+    let mut bench = false;
+    let mut pgo = PgoMode::None;
     let mut error_format = ErrorFormat::Human;
     let mut expect_o = false;
 
@@ -371,8 +456,13 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
         match arg.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
             "--keep-ll" => keep_ll = true,
+            "--bench" => bench = true,
+            "--pgo-gen" => pgo = PgoMode::Generate,
             "--runtime=portable" => runtime = RuntimeKind::Portable,
             "--runtime=uring" => runtime = RuntimeKind::Uring,
+            other if other.starts_with("--pgo-use=") => {
+                pgo = PgoMode::Use(PathBuf::from(&other[10..]));
+            }
             other if other.starts_with("--runtime") => {
                 return Err(
                     "invalid `--runtime`: expected --runtime=portable or --runtime=uring".into(),
@@ -404,6 +494,8 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
         output,
         keep_ll,
         runtime,
+        bench,
+        pgo,
         error_format,
     }))
 }
@@ -412,6 +504,8 @@ fn parse_run(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut output = None;
     let mut runtime = RuntimeKind::Portable;
+    let mut bench = false;
+    let mut pgo = PgoMode::None;
     let mut error_format = ErrorFormat::Human;
     let mut expect_o = false;
 
@@ -423,8 +517,13 @@ fn parse_run(args: &[String]) -> Result<Command, String> {
         }
         match arg.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
+            "--bench" => bench = true,
+            "--pgo-gen" => pgo = PgoMode::Generate,
             "--runtime=portable" => runtime = RuntimeKind::Portable,
             "--runtime=uring" => runtime = RuntimeKind::Uring,
+            other if other.starts_with("--pgo-use=") => {
+                pgo = PgoMode::Use(PathBuf::from(&other[10..]));
+            }
             other if other.starts_with("--runtime") => {
                 return Err(
                     "invalid `--runtime`: expected --runtime=portable or --runtime=uring".into(),
@@ -454,6 +553,8 @@ fn parse_run(args: &[String]) -> Result<Command, String> {
         path,
         output,
         runtime,
+        bench,
+        pgo,
         error_format,
     }))
 }
@@ -500,6 +601,161 @@ fn parse_fmt(args: &[String]) -> Result<Command, String> {
         path,
         write,
         check,
+        error_format,
+    }))
+}
+
+#[derive(Clone, Copy)]
+enum AgentCmd {
+    Graph,
+    Slice,
+}
+
+fn parse_agent(args: &[String], cmd: AgentCmd) -> Result<Command, String> {
+    let mut path = None;
+    let mut error_format = ErrorFormat::Human;
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    let opts = AgentOptions {
+        path,
+        error_format,
+    };
+    Ok(match cmd {
+        AgentCmd::Graph => Command::Graph(opts),
+        AgentCmd::Slice => Command::Slice(opts),
+    })
+}
+
+fn parse_impact(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut function = None;
+    let mut error_format = ErrorFormat::Human;
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            other if other.starts_with("--fn=") => {
+                function = Some(other.trim_start_matches("--fn=").to_string());
+            }
+            "--fn" => {
+                return Err("--fn requires a name (use --fn=name)".into());
+            }
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::Impact(ImpactOptions {
+        path,
+        function,
+        error_format,
+    }))
+}
+
+fn parse_eval(args: &[String]) -> Result<Command, String> {
+    let mut json = false;
+    let mut parts = Vec::new();
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--json" => json = true,
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other => parts.push(other.to_string()),
+        }
+    }
+    if parts.is_empty() {
+        return Err("missing expression".into());
+    }
+    Ok(Command::Eval(EvalOptions {
+        expr: parts.join(" "),
+        json,
+    }))
+}
+
+fn parse_patch(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut write = false;
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--write" => write = true,
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::Patch(PatchOptions { path, write }))
+}
+
+fn parse_arch(args: &[String]) -> Result<Command, String> {
+    let Some(sub) = args.first() else {
+        return Err("arch requires a subcommand (check)".into());
+    };
+    if sub != "check" {
+        return Err(format!("unknown arch subcommand `{sub}` (expected check)"));
+    }
+    let mut config = None;
+    let mut root = None;
+    let mut error_format = ErrorFormat::Human;
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            "--config" => {
+                i += 1;
+                let Some(val) = args.get(i) else {
+                    return Err("missing value for --config".into());
+                };
+                config = Some(PathBuf::from(val));
+            }
+            "--root" => {
+                i += 1;
+                let Some(val) = args.get(i) else {
+                    return Err("missing value for --root".into());
+                };
+                root = Some(PathBuf::from(val));
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other => return Err(format!("unexpected argument `{other}`")),
+        }
+        i += 1;
+    }
+    Ok(Command::ArchCheck(ArchCheckOptions {
+        config,
+        root,
         error_format,
     }))
 }

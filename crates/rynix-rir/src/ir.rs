@@ -1,6 +1,6 @@
 //! Core RIR data structures (`SoA`, block arguments, typed values).
 
-use rynix_span::Symbol;
+use rynix_span::{Span, Symbol};
 
 /// Dense function handle inside a [`Module`].
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
@@ -90,6 +90,11 @@ pub enum Inst {
     IMul(ValueId, ValueId),
     IDiv(ValueId, ValueId),
     IRem(ValueId, ValueId),
+    /// Unsigned remainder — `urem` when lhs and rhs are known non-negative.
+    URem(ValueId, ValueId),
+    IAnd(ValueId, ValueId),
+    LShr(ValueId, ValueId),
+    LShl(ValueId, ValueId),
     INeg(ValueId),
     /// Float arithmetic.
     FAdd(ValueId, ValueId),
@@ -101,6 +106,13 @@ pub enum Inst {
     ICmp(CmpOp, ValueId, ValueId),
     FCmp(CmpOp, ValueId, ValueId),
     BNot(ValueId),
+    /// Boolean `and` / `or` (eager; produce bool).
+    BAnd(ValueId, ValueId),
+    BOr(ValueId, ValueId),
+    /// `v = zext i1 to i64` (0/1 mask for branchless increments).
+    ZExtI64(ValueId),
+    /// `v = ctpop i64` — population count (lowers to `@llvm.ctpop.i64`).
+    CtPop(ValueId),
     /// `v = alloc site ty` — storage; site feeds escape analysis.
     Alloc {
         site: AllocSite,
@@ -213,6 +225,14 @@ pub struct ValueData {
     pub def: Option<InstId>,
 }
 
+/// Logical stack binding for a `let mut` before (or instead of) lowering to `Inst::Alloc`.
+#[derive(Clone, Copy, Debug)]
+pub struct StackBinding {
+    pub site: AllocSite,
+    pub span: Span,
+    pub ty: IrTy,
+}
+
 #[derive(Debug)]
 pub struct Function {
     pub name: Symbol,
@@ -223,6 +243,8 @@ pub struct Function {
     pub insts: Vec<Inst>,
     pub values: Vec<ValueData>,
     pub next_site: u32,
+    /// `let mut` sites not yet materialized to `Inst::Alloc` (SSA-only locals).
+    pub stack_bindings: Vec<StackBinding>,
 }
 
 impl Function {

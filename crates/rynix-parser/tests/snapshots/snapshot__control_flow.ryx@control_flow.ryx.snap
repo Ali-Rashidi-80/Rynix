@@ -43,6 +43,45 @@ input_file: testdata/lexer/control_flow.ryx
       )
     )
   )
+  (fn by_match -> i64
+    (params
+      (n: i64)
+    )
+    (body
+      (match
+        (path n)
+        (arm
+          (int)
+          (body
+            (return
+              (int)
+            )
+          )
+        )
+        (arm
+          (int)
+          (body
+            (return
+              (int)
+            )
+          )
+        )
+        (arm
+          _
+          (body
+            (return
+              (int)
+            )
+          )
+        )
+      )
+      (return
+        (unary -
+          (int)
+        )
+      )
+    )
+  )
   (fn scan -> i64
     (params
       (limit: i64)

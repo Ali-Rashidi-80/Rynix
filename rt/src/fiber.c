@@ -1,11 +1,12 @@
+/* Cooperative fibers — Win32 Fibers on Windows, ucontext elsewhere.
+ * Stacks: 256 KiB with a leading guard page (Phase 8).
+ * Supports PARKED state for fiber-aware io_uring waits.
+ */
+
 #ifndef _WIN32
 #define _XOPEN_SOURCE 700
 #include <time.h>
 #endif
-
-/* Cooperative fibers — Win32 Fibers on Windows, ucontext elsewhere.
- * Stacks: 256 KiB with a leading guard page (Phase 8).
- */
 
 #include "rynix_rt.h"
 
@@ -31,8 +32,9 @@ typedef struct Fiber {
   rynix_rt_fiber_fn fn;
   void *arg;
   FiberState state;
-  void *stack_base; /* allocation base (includes guard) */
+  void *stack_base;
   size_t stack_total;
+  int64_t io_result;
 #ifdef _WIN32
   LPVOID win_fiber;
 #else
@@ -47,8 +49,9 @@ static int g_fiber_cap;
 static Fiber *g_ready_head;
 static Fiber *g_ready_tail;
 static Fiber *g_current;
-static int g_worker_converted; /* Win32: ConvertThreadToFiber done */
+static int g_worker_converted;
 static int64_t g_live_count;
+static int g_parked_count;
 
 #ifdef _WIN32
 static LPVOID g_main_fiber;
@@ -125,7 +128,6 @@ static void WINAPI fiber_tramp(LPVOID param) {
   f->state = FIB_DONE;
   g_live_count--;
   g_current = NULL;
-  /* Switch back to scheduler / main fiber. */
   SwitchToFiber(g_main_fiber);
 }
 #else
@@ -174,12 +176,8 @@ void *rynix_rt_spawn(rynix_rt_fiber_fn fn, void *arg) {
   SYSTEM_INFO si;
   GetSystemInfo(&si);
   page = (size_t)si.dwPageSize;
-  void *stack_top = (char *)f->stack_base + f->stack_total;
-  (void)stack_top;
   f->win_fiber = CreateFiber(RYNIX_STACK_SIZE, fiber_tramp, f);
   if (!f->win_fiber) rynix_rt_panic("CreateFiber failed");
-  /* Note: CreateFiber allocates its own stack; we keep our guarded mapping
-   * as a canary region reserved for future custom stacks / diagnostics. */
   (void)page;
 #else
   page = (size_t)sysconf(_SC_PAGESIZE);
@@ -218,26 +216,77 @@ static void switch_to_fiber(Fiber *f) {
 #endif
 }
 
+void *rynix_rt_fiber_current(void) { return g_current; }
+
+int rynix_rt_fiber_parked_count(void) { return g_parked_count; }
+
+void rynix_rt_fiber_set_result(void *fiber, int64_t result) {
+  Fiber *f = (Fiber *)fiber;
+  if (f) f->io_result = result;
+}
+
+int64_t rynix_rt_fiber_get_result(void *fiber) {
+  Fiber *f = (Fiber *)fiber;
+  return f ? f->io_result : -1;
+}
+
+void rynix_rt_fiber_park(void) {
+  Fiber *cur = g_current;
+  if (!cur) return;
+  cur->state = FIB_PARKED;
+  g_parked_count++;
+  g_current = NULL;
+#ifdef _WIN32
+  SwitchToFiber(g_main_fiber);
+#else
+  if (!g_main_ctx_live) {
+    if (getcontext(&g_main_ctx) != 0) rynix_rt_panic("getcontext main failed");
+    g_main_ctx_live = 1;
+  }
+  swapcontext(&cur->uctx, &g_main_ctx);
+#endif
+}
+
+void rynix_rt_fiber_unpark(void *fiber) {
+  Fiber *f = (Fiber *)fiber;
+  if (!f || f->state != FIB_PARKED) return;
+  f->state = FIB_READY;
+  g_parked_count--;
+  if (g_parked_count < 0) g_parked_count = 0;
+  enqueue(f);
+}
+
 void rynix_rt_yield(void) {
   Fiber *cur = g_current;
   if (!cur) return;
   cur->state = FIB_READY;
   enqueue(cur);
 #ifdef _WIN32
+  g_current = NULL;
   SwitchToFiber(g_main_fiber);
 #else
-  Fiber *next = dequeue();
-  if (!next) {
-    /* No other fiber — resume immediately. */
-    cur->state = FIB_RUNNING;
-    return;
-  }
-  /* Put ourselves back was already done; switch via main trampoline pattern:
-   * save cur, run next; when next yields/finishes we come back here only if
-   * we swap directly. Simpler: always return to main ctx and let rynix_rt_run
-   * pick the next fiber. */
   g_current = NULL;
+  if (!g_main_ctx_live) {
+    if (getcontext(&g_main_ctx) != 0) rynix_rt_panic("getcontext main failed");
+    g_main_ctx_live = 1;
+  }
   swapcontext(&cur->uctx, &g_main_ctx);
+#endif
+}
+
+static void finish_fiber(Fiber *f) {
+  if (f->state != FIB_DONE) return;
+#ifdef _WIN32
+  if (f->win_fiber) {
+    DeleteFiber(f->win_fiber);
+    f->win_fiber = NULL;
+  }
+#endif
+  free_stack(f->stack_base, f->stack_total);
+  f->stack_base = NULL;
+  f->fn = NULL;
+#ifndef _WIN32
+  f->uctx_live = 0;
 #endif
 }
 
@@ -249,54 +298,45 @@ void rynix_rt_run(void) {
     if (!g_main_fiber) rynix_rt_panic("ConvertThreadToFiber failed");
     g_worker_converted = 1;
   }
-  for (;;) {
-    Fiber *f = dequeue();
-    if (!f) break;
-    if (f->state == FIB_DONE) continue;
-    switch_to_fiber(f);
-    /* Returned from fiber (yield or done). */
-    if (f->state == FIB_DONE) {
-#ifdef _WIN32
-      if (f->win_fiber) {
-        DeleteFiber(f->win_fiber);
-        f->win_fiber = NULL;
-      }
 #endif
-      free_stack(f->stack_base, f->stack_total);
-      f->stack_base = NULL;
-      f->fn = NULL;
-    }
-  }
-#else
+#ifndef _WIN32
   if (!g_main_ctx_live) {
     if (getcontext(&g_main_ctx) != 0) rynix_rt_panic("getcontext failed");
     g_main_ctx_live = 1;
   }
-  for (;;) {
-    Fiber *f = dequeue();
-    if (!f) break;
-    if (f->state == FIB_DONE) continue;
-    switch_to_fiber(f);
-    if (f->state == FIB_DONE) {
-      free_stack(f->stack_base, f->stack_total);
-      f->stack_base = NULL;
-      f->fn = NULL;
-      f->uctx_live = 0;
-    }
-  }
 #endif
+  for (;;) {
+    rynix_rt_uring_poll();
+    Fiber *f = dequeue();
+    if (!f) {
+      if (g_parked_count > 0) {
+        /* Only block on CQ when uring can complete waits. Otherwise this
+         * would spin forever (e.g. park without a waiter on portable). */
+        if (rynix_rt_uring_ready()) {
+          rynix_rt_uring_wait();
+          continue;
+        }
+        rynix_rt_panic("fibers parked with no io_uring to complete waits");
+      }
+      break;
+    }
+    if (f->state == FIB_DONE) {
+      finish_fiber(f);
+      continue;
+    }
+    switch_to_fiber(f);
+    if (f->state == FIB_DONE) finish_fiber(f);
+  }
 }
 
 int64_t rynix_rt_fiber_count(void) { return g_live_count; }
 
-/* Park current fiber for sleep — portable: yield in a timed loop. */
 void rynix_rt_sleep_ms(int64_t ms) {
   if (ms <= 0) {
     rynix_rt_yield();
     return;
   }
 #ifdef _WIN32
-  /* Blocking sleep parks the OS thread; OK for portable backend. */
   Sleep((DWORD)ms);
 #else
   struct timespec ts;

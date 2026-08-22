@@ -11,7 +11,7 @@ mod explain;
 mod lattice;
 mod regions;
 
-pub use analyze::{analyze_escape, EscapeReport, SiteInfo};
+pub use analyze::{analyze_escape, module_call_graph, EscapeReport, SiteInfo};
 pub use explain::{explain_alloc_human, explain_alloc_json};
 pub use lattice::{Escape, Placement};
 pub use regions::inject_regions;

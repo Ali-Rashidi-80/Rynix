@@ -1,0 +1,25 @@
+def cell(i: i64, j: i64) -> i64
+  let mut s = 0
+  let mut k = 0
+  loop
+    if k >= 4
+      break
+    end
+    let av = i + k
+    let bv = k * j + 1
+    s += av * bv
+    k += 1
+  end
+  return s
+end
+
+def main() -> i64
+  let c00 = cell(0, 0)
+  let c11 = cell(1, 1)
+  let c22 = cell(2, 2)
+  let c33 = cell(3, 3)
+  let per = 225000
+  let trace = per * (c00 + c11 + c22 + c33)
+  print_i64(trace)
+  return 0
+end

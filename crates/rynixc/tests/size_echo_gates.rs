@@ -168,3 +168,190 @@ int main(void) {
     };
     assert!(Command::new(exe).status().unwrap().success());
 }
+
+#[test]
+fn load_harness_rps_floor() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = root.join("target/load_harness_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/load_harness.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+    }
+    let status = cmd.status().expect("clang load_harness");
+    assert!(status.success(), "load_harness compile failed");
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    let status = Command::new(&exe).status().expect("run load_harness");
+    assert!(status.success(), "load_harness failed");
+}
+
+#[test]
+fn uring_sqe_smoke_c() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = root.join("target/uring_sqe_smoke_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/uring_sqe_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    // On non-Linux this exercises the stub path (-1 returns).
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+    }
+    let status = cmd.status().expect("clang uring_sqe_smoke");
+    assert!(status.success(), "uring_sqe_smoke compile failed");
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    let status = Command::new(&exe).status().expect("run uring_sqe_smoke");
+    assert!(status.success(), "uring_sqe_smoke failed");
+}
+
+#[test]
+fn fiber_park_smoke_c() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = root.join("target/fiber_park_smoke_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/fiber_park_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+    }
+    let status = cmd.status().expect("clang fiber_park_smoke");
+    assert!(status.success(), "fiber_park_smoke compile failed");
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    let status = Command::new(&exe).status().expect("run fiber_park_smoke");
+    assert!(status.success(), "fiber_park_smoke failed");
+}
+
+#[test]
+fn json_smoke_c() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = root.join("target/json_smoke_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/json_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+    }
+    assert!(cmd.status().unwrap().success(), "json_smoke compile failed");
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(Command::new(exe).status().unwrap().success(), "json_smoke failed");
+}
+
+#[test]
+fn json_unit_c() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = root.join("target/json_unit_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/json_unit.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+    }
+    assert!(cmd.status().unwrap().success(), "json_unit compile failed");
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(Command::new(exe).status().unwrap().success(), "json_unit failed");
+}
+
+#[test]
+fn http_smoke_c() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = std::env::temp_dir().join("rynix_http_smoke_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/http_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+    }
+    assert!(cmd.status().unwrap().success(), "http_smoke compile failed");
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(Command::new(exe).status().unwrap().success(), "http_smoke failed");
+}

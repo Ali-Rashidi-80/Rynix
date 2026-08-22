@@ -24,6 +24,7 @@ impl FunctionBuilder {
             insts: Vec::new(),
             values: Vec::new(),
             next_site: 0,
+            stack_bindings: Vec::new(),
         };
         let entry = Self::alloc_block_raw(&mut func);
         func.entry = entry;
@@ -107,16 +108,25 @@ impl FunctionBuilder {
             | Inst::IMul(_, _)
             | Inst::IDiv(_, _)
             | Inst::IRem(_, _)
-            | Inst::INeg(_) => IrTy::I64,
+            | Inst::URem(_, _)
+            | Inst::IAnd(_, _)
+            | Inst::LShr(_, _)
+            | Inst::LShl(_, _)
+            | Inst::INeg(_)
+            | Inst::ZExtI64(_)
+            | Inst::CtPop(_) => IrTy::I64,
             Inst::FConst(_)
             | Inst::FAdd(_, _)
             | Inst::FSub(_, _)
             | Inst::FMul(_, _)
             | Inst::FDiv(_, _)
             | Inst::FNeg(_) => IrTy::F64,
-            Inst::BConst(_) | Inst::ICmp(_, _, _) | Inst::FCmp(_, _, _) | Inst::BNot(_) => {
-                IrTy::Bool
-            }
+            Inst::BConst(_)
+            | Inst::ICmp(_, _, _)
+            | Inst::FCmp(_, _, _)
+            | Inst::BNot(_)
+            | Inst::BAnd(_, _)
+            | Inst::BOr(_, _) => IrTy::Bool,
             Inst::SConst(_) => IrTy::Str,
             Inst::Nil => IrTy::Unit,
             Inst::Alloc { ty, .. } => *ty, // pointer-ish; we use the slot's logical ty as Ptr surface
@@ -160,6 +170,23 @@ impl FunctionBuilder {
     pub fn alloc(&mut self, ty: IrTy, span: rynix_span::Span) -> ValueId {
         let site = AllocSite(self.func.next_site);
         self.func.next_site += 1;
+        self.emit_alloc(site, ty, span)
+    }
+
+    /// Reserve an allocation site for `--explain-alloc` while keeping a `let mut` in SSA form.
+    pub fn reserve_stack_binding(&mut self, ty: IrTy, span: rynix_span::Span) -> AllocSite {
+        let site = AllocSite(self.func.next_site);
+        self.func.next_site += 1;
+        self.func.stack_bindings.push(crate::ir::StackBinding { site, span, ty });
+        site
+    }
+
+    /// Materialize a previously reserved `let mut` site to a real stack `alloca`.
+    pub fn alloc_at_site(&mut self, site: AllocSite, ty: IrTy, span: rynix_span::Span) -> ValueId {
+        self.emit_alloc(site, ty, span)
+    }
+
+    fn emit_alloc(&mut self, site: AllocSite, ty: IrTy, span: rynix_span::Span) -> ValueId {
         let v = self.push_value(Inst::Alloc { site, ty, span });
         // Overwrite value ty to Ptr for the address, keep payload in inst.
         self.func.values[v.0 as usize].ty = IrTy::Ptr;

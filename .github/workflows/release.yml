@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: rynixc-linux-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: rynixc-windows-x86_64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build rynixc (release)
+        run: cargo build -p rynixc --release
+      - name: Stage binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp target/release/rynixc.exe "dist/${{ matrix.artifact }}"
+          else
+            cp target/release/rynixc "dist/${{ matrix.artifact }}"
+          fi
+      - name: SHA256 checksum
+        shell: bash
+        run: |
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${{ matrix.artifact }}" > "${{ matrix.artifact }}.sha256"
+          elif command -v shasum >/dev/null 2>&1; then
+            shasum -a 256 "${{ matrix.artifact }}" > "${{ matrix.artifact }}.sha256"
+          else
+            openssl dgst -sha256 "${{ matrix.artifact }}" | sed 's/.*= //' > "${{ matrix.artifact }}.sha256"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Combined SHA256SUMS
+        run: |
+          cd artifacts
+          sha256sum rynixc-linux-* rynixc-windows-* 2>/dev/null | grep -v '\.sha256$' > SHA256SUMS.txt || true
+          if [ ! -s SHA256SUMS.txt ]; then
+            find . -maxdepth 1 -type f ! -name '*.sha256' ! -name 'SHA256SUMS.txt' -exec sha256sum {} + > SHA256SUMS.txt
+          fi
+          cat SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*
+          generate_release_notes: true
+
+  # Optional GPG detach-sign (set repository secret GPG_PRIVATE_KEY + GPG_PASSPHRASE):
+  # - import key, gpg --detach-sign SHA256SUMS.txt, upload *.asc alongside artifacts.

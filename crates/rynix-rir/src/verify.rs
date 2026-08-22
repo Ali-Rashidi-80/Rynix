@@ -53,12 +53,18 @@ fn check_inst(
         | Inst::IMul(a, b)
         | Inst::IDiv(a, b)
         | Inst::IRem(a, b)
+        | Inst::URem(a, b)
+        | Inst::IAnd(a, b)
+        | Inst::LShr(a, b)
+        | Inst::LShl(a, b)
         | Inst::FAdd(a, b)
         | Inst::FSub(a, b)
         | Inst::FMul(a, b)
         | Inst::FDiv(a, b)
         | Inst::ICmp(_, a, b)
         | Inst::FCmp(_, a, b)
+        | Inst::BAnd(a, b)
+        | Inst::BOr(a, b)
         | Inst::Store { ptr: a, value: b }
         | Inst::GepI64 { base: a, index: b }
         | Inst::BoundsCheck { index: a, len: b }
@@ -69,6 +75,8 @@ fn check_inst(
         Inst::INeg(a)
         | Inst::FNeg(a)
         | Inst::BNot(a)
+        | Inst::ZExtI64(a)
+        | Inst::CtPop(a)
         | Inst::Load(a)
         | Inst::ArrayLen(a)
         | Inst::Ret(Some(a))

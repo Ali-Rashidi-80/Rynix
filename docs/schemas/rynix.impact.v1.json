@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.impact.v1.json",
+  "title": "rynix.impact.v1",
+  "type": "object",
+  "required": ["schema", "path", "nodes"],
+  "properties": {
+    "schema": { "const": "rynix.impact.v1" },
+    "path": { "type": "string" },
+    "target": { "type": ["string", "null"] },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fn", "callees", "callers"],
+        "properties": {
+          "fn": { "type": "string" },
+          "callees": { "type": "array", "items": { "type": "string" } },
+          "callers": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

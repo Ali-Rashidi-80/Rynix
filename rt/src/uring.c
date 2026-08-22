@@ -1,8 +1,9 @@
 /* Linux io_uring backend (syscall path, no liburing required).
  *
- * When RYNIX_RT_URING && __linux__: set up a shared ring and park fibers on
- * read/write via IORING_OP_READ/WRITE. Elsewhere this TU is a no-op and
- * portable I/O is used.
+ * Fiber-aware: submit SQE, park the calling fiber, harvest CQEs in the
+ * scheduler (`rynix_rt_uring_poll` / `rynix_rt_uring_wait`). Sync
+ * `enter(min_complete=1)` only runs when the ready queue is empty and fibers
+ * are parked — never while sibling fibers still have work.
  */
 
 #include "rynix_rt.h"
@@ -11,13 +12,13 @@
 
 #define _GNU_SOURCE
 #include <errno.h>
-#include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
 #include <sys/syscall.h>
-#include <sys/uio.h>
 #include <unistd.h>
 
 #include <linux/io_uring.h>
@@ -59,10 +60,7 @@ void rynix_rt_uring_init(void) {
   struct io_uring_params p;
   memset(&p, 0, sizeof(p));
   int fd = io_uring_setup(64, &p);
-  if (fd < 0) {
-    /* Fall back silently — portable read/write still work. */
-    return;
-  }
+  if (fd < 0) return;
   size_t sq_sz = p.sq_off.array + p.sq_entries * sizeof(unsigned);
   size_t cq_sz = p.cq_off.cqes + p.cq_entries * sizeof(struct io_uring_cqe);
   void *sq_ptr = mmap(NULL, sq_sz, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, fd,
@@ -95,57 +93,128 @@ void rynix_rt_uring_shutdown(void) {
   memset(&g_uring, 0, sizeof(g_uring));
 }
 
-/** Submit a read and wait (cooperative yield before enter). Returns bytes or -1. */
-int64_t rynix_rt_uring_read(int64_t fd, void *buf, int64_t n) {
-  if (!g_uring.ready || !buf || n <= 0) return -1;
-  rynix_rt_yield();
+int rynix_rt_uring_ready(void) { return g_uring.ready; }
+
+static void harvest_cqes(void) {
+  if (!g_uring.ready) return;
+  for (;;) {
+    unsigned head = *g_uring.cq_head;
+    unsigned tail = *g_uring.cq_tail;
+    if (head == tail) break;
+    struct io_uring_cqe *cqe = &g_uring.cqes[head & *g_uring.cq_ring_mask];
+    void *fiber = (void *)(uintptr_t)cqe->user_data;
+    int64_t res = cqe->res;
+    *g_uring.cq_head = head + 1;
+    if (fiber) {
+      rynix_rt_fiber_set_result(fiber, res < 0 ? -1 : res);
+      rynix_rt_fiber_unpark(fiber);
+    }
+  }
+}
+
+void rynix_rt_uring_poll(void) {
+  if (!g_uring.ready) return;
+  /* Push any pending SQEs without waiting for completions. */
+  (void)io_uring_enter(g_uring.fd, 0, 0, 0);
+  harvest_cqes();
+}
+
+void rynix_rt_uring_wait(void) {
+  if (!g_uring.ready) return;
+  (void)io_uring_enter(g_uring.fd, 0, 1, IORING_ENTER_GETEVENTS);
+  harvest_cqes();
+}
+
+static int64_t submit_and_park(struct io_uring_sqe *sqe) {
+  void *self = rynix_rt_fiber_current();
   unsigned tail = *g_uring.sq_tail;
+  unsigned index = tail & *g_uring.sq_ring_mask;
+  g_uring.sq_array[index] = (unsigned)(sqe - g_uring.sqes);
+  *g_uring.sq_tail = tail + 1;
+
+  if (!self) {
+    /* No fiber context: sync wait (smoke tests / bare main). */
+    sqe->user_data = 0;
+    if (io_uring_enter(g_uring.fd, 1, 1, IORING_ENTER_GETEVENTS) < 0) return -1;
+    unsigned head = *g_uring.cq_head;
+    if (head == *g_uring.cq_tail) return -1;
+    struct io_uring_cqe *cqe = &g_uring.cqes[head & *g_uring.cq_ring_mask];
+    int64_t res = cqe->res;
+    *g_uring.cq_head = head + 1;
+    return res < 0 ? -1 : res;
+  }
+
+  sqe->user_data = (unsigned long)(uintptr_t)self;
+  if (io_uring_enter(g_uring.fd, 1, 0, 0) < 0) return -1;
+  rynix_rt_fiber_park();
+  return rynix_rt_fiber_get_result(self);
+}
+
+static struct io_uring_sqe *next_sqe(void) {
+  unsigned head = *g_uring.sq_head;
+  unsigned tail = *g_uring.sq_tail;
+  if ((tail - head) >= g_uring.sq_entries) return NULL;
   unsigned index = tail & *g_uring.sq_ring_mask;
   struct io_uring_sqe *sqe = &g_uring.sqes[index];
   memset(sqe, 0, sizeof(*sqe));
+  return sqe;
+}
+
+int64_t rynix_rt_uring_read(int64_t fd, void *buf, int64_t n) {
+  if (!g_uring.ready || !buf || n <= 0) return -1;
+  struct io_uring_sqe *sqe = next_sqe();
+  if (!sqe) return -1;
   sqe->opcode = IORING_OP_READ;
   sqe->fd = (int)fd;
   sqe->addr = (unsigned long)buf;
   sqe->len = (unsigned)n;
-  sqe->user_data = 1;
-  g_uring.sq_array[index] = index;
-  *g_uring.sq_tail = tail + 1;
-  if (io_uring_enter(g_uring.fd, 1, 1, IORING_ENTER_GETEVENTS) < 0) return -1;
-  unsigned head = *g_uring.cq_head;
-  if (head == *g_uring.cq_tail) return -1;
-  struct io_uring_cqe *cqe = &g_uring.cqes[head & *g_uring.cq_ring_mask];
-  int64_t res = cqe->res;
-  *g_uring.cq_head = head + 1;
-  return res < 0 ? -1 : res;
+  return submit_and_park(sqe);
 }
 
 int64_t rynix_rt_uring_write(int64_t fd, const void *buf, int64_t n) {
   if (!g_uring.ready || !buf || n <= 0) return -1;
-  rynix_rt_yield();
-  unsigned tail = *g_uring.sq_tail;
-  unsigned index = tail & *g_uring.sq_ring_mask;
-  struct io_uring_sqe *sqe = &g_uring.sqes[index];
-  memset(sqe, 0, sizeof(*sqe));
+  struct io_uring_sqe *sqe = next_sqe();
+  if (!sqe) return -1;
   sqe->opcode = IORING_OP_WRITE;
   sqe->fd = (int)fd;
   sqe->addr = (unsigned long)buf;
   sqe->len = (unsigned)n;
-  sqe->user_data = 2;
-  g_uring.sq_array[index] = index;
-  *g_uring.sq_tail = tail + 1;
-  if (io_uring_enter(g_uring.fd, 1, 1, IORING_ENTER_GETEVENTS) < 0) return -1;
-  unsigned head = *g_uring.cq_head;
-  if (head == *g_uring.cq_tail) return -1;
-  struct io_uring_cqe *cqe = &g_uring.cqes[head & *g_uring.cq_ring_mask];
-  int64_t res = cqe->res;
-  *g_uring.cq_head = head + 1;
-  return res < 0 ? -1 : res;
+  return submit_and_park(sqe);
+}
+
+int64_t rynix_rt_uring_accept(int64_t listen_fd) {
+  if (!g_uring.ready || listen_fd < 0) return -1;
+  struct sockaddr_storage addr;
+  socklen_t addrlen = sizeof(addr);
+  struct io_uring_sqe *sqe = next_sqe();
+  if (!sqe) return -1;
+  sqe->opcode = IORING_OP_ACCEPT;
+  sqe->fd = (int)listen_fd;
+  sqe->addr = (unsigned long)&addr;
+  sqe->addr2 = (unsigned long)&addrlen;
+  sqe->accept_flags = 0;
+  return submit_and_park(sqe);
+}
+
+int64_t rynix_rt_uring_connect(int64_t fd, const void *addr, int64_t addrlen) {
+  if (!g_uring.ready || fd < 0 || !addr || addrlen <= 0) return -1;
+  struct io_uring_sqe *sqe = next_sqe();
+  if (!sqe) return -1;
+  sqe->opcode = IORING_OP_CONNECT;
+  sqe->fd = (int)fd;
+  sqe->addr = (unsigned long)addr;
+  sqe->off = (unsigned long)addrlen;
+  int64_t res = submit_and_park(sqe);
+  return res < 0 ? -1 : 0;
 }
 
 #else
 
 void rynix_rt_uring_init(void) {}
 void rynix_rt_uring_shutdown(void) {}
+int rynix_rt_uring_ready(void) { return 0; }
+void rynix_rt_uring_poll(void) {}
+void rynix_rt_uring_wait(void) {}
 
 int64_t rynix_rt_uring_read(int64_t fd, void *buf, int64_t n) {
   (void)fd;
@@ -158,6 +227,18 @@ int64_t rynix_rt_uring_write(int64_t fd, const void *buf, int64_t n) {
   (void)fd;
   (void)buf;
   (void)n;
+  return -1;
+}
+
+int64_t rynix_rt_uring_accept(int64_t listen_fd) {
+  (void)listen_fd;
+  return -1;
+}
+
+int64_t rynix_rt_uring_connect(int64_t fd, const void *addr, int64_t addrlen) {
+  (void)fd;
+  (void)addr;
+  (void)addrlen;
   return -1;
 }
 

@@ -17,12 +17,58 @@ jobs:
       - name: Test
         run: cargo test --workspace --all-targets
 
+  suite5-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install clang
+        run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Build rynixc
+        run: cargo build -p rynixc --release
+      - name: Suite5 checksum gate (C + Rynix)
+        run: python benchmarks/suite5/run_suite5.py --langs c,rynix
+
+  arch-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build rynixc
+        run: cargo build -p rynixc --release
+      - name: Architecture.toml gate
+        run: cargo run -p rynixc --release -- arch check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Clippy (rynixc + pipeline)
+        run: cargo clippy -p rynixc -p rynix-rir -p rynix-codegen -p rynix-sema -- -D warnings
+
+  vscode-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Compile VS Code extension
+        working-directory: editors/vscode
+        run: npm ci && npm run compile
+
   sanitizer-rt:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install clang
         run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Fiber park/unpark smoke (ASan)
+        run: |
+          clang -O1 -g -fsanitize=address -I rt/include \
+            rt/portable.c rt/tests/fiber_park_smoke.c -o /tmp/fiber_park
+          /tmp/fiber_park
       - name: Fiber smoke (ASan)
         run: |
           clang -O1 -g -fsanitize=address -I rt/include \
@@ -38,8 +84,33 @@ jobs:
           clang -O1 -g -fsanitize=address -I rt/include \
             rt/portable.c rt/tests/tcp_echo_rps.c -o /tmp/tcp_echo
           /tmp/tcp_echo
-      - name: Uring build smoke
+      - name: Load harness RPS floor (ASan)
+        run: |
+          clang -O1 -g -fsanitize=address -I rt/include \
+            rt/portable.c rt/tests/load_harness.c -o /tmp/load_harness
+          /tmp/load_harness
+      - name: JSON parse smoke (ASan)
+        run: |
+          clang -O1 -g -fsanitize=address -I rt/include \
+            rt/portable.c rt/tests/json_smoke.c -o /tmp/json_smoke
+          /tmp/json_smoke
+          clang -O1 -g -fsanitize=address -I rt/include \
+            rt/portable.c rt/tests/json_unit.c -o /tmp/json_unit
+          /tmp/json_unit
+          clang -O1 -g -fsanitize=address -I rt/include \
+            rt/portable.c rt/tests/http_smoke.c -o /tmp/http_smoke
+          /tmp/http_smoke
+      - name: Uring build + SQE + TCP smoke
         run: |
           clang -O1 -DRYNIX_RT_URING -I rt/include \
             rt/portable.c rt/tests/fiber_smoke.c -o /tmp/fiber_uring
           /tmp/fiber_uring
+          clang -O1 -DRYNIX_RT_URING -I rt/include \
+            rt/portable.c rt/tests/uring_sqe_smoke.c -o /tmp/uring_sqe
+          /tmp/uring_sqe
+          clang -O1 -DRYNIX_RT_URING -I rt/include \
+            rt/portable.c rt/tests/tcp_echo_rps.c -o /tmp/tcp_uring
+          /tmp/tcp_uring
+          clang -O1 -DRYNIX_RT_URING -I rt/include \
+            rt/portable.c rt/tests/load_harness.c -o /tmp/load_uring
+          /tmp/load_uring

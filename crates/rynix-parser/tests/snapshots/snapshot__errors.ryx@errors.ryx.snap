@@ -19,10 +19,13 @@ input_file: testdata/lexer/errors.ryx
         (error)
       )
       (let c
-        (path x)
+        (binary &
+          (path x)
+          (error)
+        )
       )
       (expr
-        (error)
+        (path y)
       )
       (let d
         (path x)
@@ -117,22 +120,11 @@ error[RYX1001]: unexpected integer literal
   |
 4 |   let b = 1 ; 2
   |               ^
-error[RYX0001]: unknown character `&&`
- --> errors.ryx:5:13: logical conjunction is spelled `and`
+error[RYX1001]: unexpected &
+ --> errors.ryx:5:14
   |
 5 |   let c = x && y
-  |             ^^
-  = help: replace `&&` with `and` (confidence 0.85)
-error[RYX1001]: unexpected unknown token
- --> errors.ryx:5:13
-  |
-5 |   let c = x && y
-  |             ^^
-error[RYX1001]: unexpected identifier
- --> errors.ryx:5:16
-  |
-5 |   let c = x && y
-  |                ^
+  |              ^
 error[RYX0001]: unknown character `||`
  --> errors.ryx:6:13: logical disjunction is spelled `or`
   |

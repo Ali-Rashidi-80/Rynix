@@ -1,0 +1,9 @@
+## HTTP + JSON — soft builtin `http_get_json_i64(host, port, path, field) -> i64`
+
+Issues HTTP/1.1 GET, parses JSON response body field (uses `json_get_i64`).
+
+```
+let n = http_get_json_i64("127.0.0.1", 8080, "/api", "value")
+```
+
+Low-level TCP remains in `std/net.ryx` (`tcp_listen`, `tcp_connect`, …).

@@ -1,0 +1,4 @@
+## Hello Rynix
+def main()
+  print("Hello, Rynix")
+end
