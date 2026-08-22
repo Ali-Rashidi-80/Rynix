@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 d = json.loads(Path("benchmarks/suite5/suite5_results.json").read_text())
-all_langs = ["c", "rust", "go", "zig", "rynix"]
+all_langs = ["c", "rust", "go", "zig", "rynix", "end"]
 langs = [l for l in all_langs if any(x["lang"] == l for x in d["rows"])]
 challenges = d["challenges"]
 
@@ -27,8 +27,9 @@ for ch in challenges:
     print(f"| {ch} | " + " | ".join(row) + " |")
 
 print("\n### Full median ms matrix")
-print("| Workload | C | Rust | Go | Zig | Rynix | Best |")
-print("|---|--:|--:|--:|--:|--:|---|")
+header_langs = ["c", "rust", "go", "zig", "rynix", "end"]
+print("| Workload | " + " | ".join(x.capitalize() if x != "rynix" else "Rynix" for x in header_langs) + " | Best |")
+print("|---|" + "|".join(["--:"] * len(header_langs)) + "|---|")
 for ch in challenges:
     cells = []
     best = ("", 1e9)
@@ -68,14 +69,15 @@ for ch in challenges:
         continue
     ryn = next(((ms, t) for ms, lang, t in times if lang == "rynix"), None)
     if ryn is None:
-        print(f"{ch:8} rank —/5  rynix missing")
+        print(f"{ch:8} rank —/{len(langs)}  rynix missing")
         continue
     ryn_ms, _ = ryn
     times.sort(key=lambda x: x[0])
     rank = next(i + 1 for i, (_, l, _) in enumerate(times) if l == "rynix")
+    n = len(times)
     best_ms, best_lang, _ = times[0]
     gap = (ryn_ms / best_ms - 1) * 100
-    print(f"{ch:8} rank {rank}/5  rynix={ryn_ms:7.2f}  best={best_lang:5} {best_ms:7.2f}  gap={gap:+5.1f}%")
+    print(f"{ch:8} rank {rank}/{n}  rynix={ryn_ms:7.2f}  best={best_lang:5} {best_ms:7.2f}  gap={gap:+5.1f}%")
 
 pgo_path = Path("benchmarks/suite5/suite5_results_pgo.json")
 if pgo_path.is_file():

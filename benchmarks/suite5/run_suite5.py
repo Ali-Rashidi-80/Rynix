@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reproducible Suite5 cross-language microbenchmarks.
 
-Identical algorithms in Rynix / C / Rust / Go / Zig (Zig optional).
+Identical algorithms in Rynix / C / Rust / Go / Zig / End (optional) / End lang optional.
 Each program prints one integer checksum on stdout. The harness verifies
 checksum once (full I/O), then times with SUITE5_BENCH=1 (volatile sink, no printf).
 
@@ -225,12 +225,36 @@ def build_rynix(name: str, *, bench: bool, pgo_use: Path | None) -> Path | None:
     return exe if exe.is_file() else None
 
 
+def build_end(name: str) -> Path | None:
+    """Build End peer when `endc`/`end` and `{name}.end` exist (see END_INTEGRATION.md)."""
+    endc = which("endc") or which("end")
+    if not endc:
+        return None
+    src = SUITE / f"{name}.end"
+    if not src.is_file():
+        return None
+    dst = OUT / f"{name}_end"
+    if os.name == "nt":
+        dst = dst.with_suffix(".exe")
+    # Prefer End CLI shape: `end build FILE [--strip] -o OUT`
+    cmd = [endc, "build", str(src), "-o", str(dst)]
+    # Try release/strip flags when present (End suite12 uses --strip).
+    cmd_try = [endc, "build", str(src), "--strip", "-o", str(dst)]
+    try:
+        subprocess.check_call(cmd_try, cwd=str(ROOT))
+    except subprocess.CalledProcessError:
+        subprocess.check_call(cmd, cwd=str(ROOT))
+    exe = dst.with_suffix(".exe") if dst.with_suffix(".exe").is_file() else dst
+    return exe if exe.is_file() else None
+
+
 BUILDERS = {
     "c": lambda name, **_kw: build_c(name),
     "rust": lambda name, **_kw: build_rust(name),
     "go": lambda name, **_kw: build_go(name),
     "zig": lambda name, **_kw: build_zig(name),
     "rynix": build_rynix,
+    "end": lambda name, **_kw: build_end(name),
 }
 
 
@@ -238,7 +262,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "--langs",
-        default="c,rust,go,zig,rynix",
+        default="c,rust,go,zig,rynix,end",
         help="comma list of languages to run",
     )
     ap.add_argument("--json-out", default=str(SUITE / "suite5_results.json"))
@@ -331,12 +355,13 @@ def main() -> int:
     print("TCP echo bake-off (separate): see docs/bakeoff.md")
 
     if args.summary:
-        print(
-            f"\n### Cross-language summary (median ms, warmup={args.warmup}, "
-            f"runs={args.runs}; ratio vs C when present)\n"
-        )
-        print("| Challenge | C | Rust | Go | Zig | Rynix | Rynix/C |")
-        print("|---|---:|---:|---:|---:|---:|---:|")
+        summary_langs = ["c", "rust", "go", "zig", "rynix", "end"]
+        header = "| Challenge | " + " | ".join(summary_langs) + " | Rynix/C |"
+        sep = "|---|" + "|".join(["---:"] * len(summary_langs)) + "|---:|"
+        print(f"\n### Cross-language summary (median ms, warmup={args.warmup}, "
+              f"runs={args.runs}; ratio vs C when present)\n")
+        print(header)
+        print(sep)
         by_challenge: dict[str, dict[str, dict]] = {}
         for row in rows:
             if not row.get("ok"):
@@ -353,10 +378,8 @@ def main() -> int:
             c_ms = bucket.get("c", {}).get("ms")
             r_ms = bucket.get("rynix", {}).get("ms")
             ratio = f"{r_ms / c_ms:.2f}×" if c_ms and r_ms else "—"
-            print(
-                f"| {challenge} | {ms('c')} | {ms('rust')} | {ms('go')} | "
-                f"{ms('zig')} | {ms('rynix')} | {ratio} |"
-            )
+            cells = " | ".join(ms(lang) for lang in summary_langs)
+            print(f"| {challenge} | {cells} | {ratio} |")
 
     critical = [
         r

@@ -1,0 +1,37 @@
+@import_c("<stdio.h>")
+@import_c("<stdlib.h>")
+
+pub fn suite5_print_i64(n: i64) void {
+  val env: *u8 = getenv("SUITE5_BENCH")
+  if env != (0 as *u8) {
+    mut sink: i64 = 0
+    sink = n
+    ret
+  }
+  printf("%lld\n", n)
+  ret
+}
+
+pub fn gcd64(a: i64, b: i64) i64 {
+  mut x: i64 = a
+  mut y: i64 = b
+  for step in 128 {
+    if y == 0 { break }
+    val t: i64 = x % y
+    x = y
+    y = t
+  }
+  ret x
+}
+
+pub fn main() i32 {
+  mut acc: i64 = 0
+  for i_raw in 2500000 {
+    val i: i64 = (i_raw as i64) + 1
+    val a: i64 = i * 9973
+    val b: i64 = i * 1237 + 42
+    acc = acc + gcd64(a, b)
+  }
+  suite5_print_i64(acc)
+  ret 0
+}

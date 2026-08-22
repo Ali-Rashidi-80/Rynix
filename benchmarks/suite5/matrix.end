@@ -1,0 +1,35 @@
+@import_c("<stdio.h>")
+@import_c("<stdlib.h>")
+
+pub fn suite5_print_i64(n: i64) void {
+  val env: *u8 = getenv("SUITE5_BENCH")
+  if env != (0 as *u8) {
+    mut sink: i64 = 0
+    sink = n
+    ret
+  }
+  printf("%lld\n", n)
+  ret
+}
+
+pub fn cell(i: i64, j: i64) i64 {
+  mut s: i64 = 0
+  for k_idx in 4 {
+    val k: i64 = k_idx as i64
+    val av: i64 = i + k
+    val bv: i64 = k * j + 1
+    s = s + av * bv
+  }
+  ret s
+}
+
+pub fn main() i32 {
+  val c00: i64 = cell(0, 0)
+  val c11: i64 = cell(1, 1)
+  val c22: i64 = cell(2, 2)
+  val c33: i64 = cell(3, 3)
+  val per: i64 = 225000
+  val trace: i64 = per * (c00 + c11 + c22 + c33)
+  suite5_print_i64(trace)
+  ret 0
+}

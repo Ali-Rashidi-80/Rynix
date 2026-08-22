@@ -14,7 +14,7 @@ fibers, machine-readable diagnostics, textual LLVM backend, **honest** benchmark
 ![Memory](https://img.shields.io/badge/memory-Zero--GC%20escape-0B3D4A.svg)
 ![AI](https://img.shields.io/badge/AI-MCP%20+%20LSP%20+%20JSON-3ECFB2.svg)
 
-[What is Rynix?](#what-is-rynix) · [Quick start](#quick-start) · [Pipeline](#compiler-pipeline) · [Runtime](#runtime--fibers) · [Memory](#memory-model) · [Tooling](#tooling-surface) · [Benchmarks](#benchmarks) · [FAQ](#faq-quick-fixes) · [Install](INSTALL.md) · [Compare](docs/COMPARE.md)
+[What is Rynix?](#what-is-rynix) · [Why Rynix](#why-rynix) · [What Rynix is NOT](#what-rynix-is-not) · [vs End](#vs-end-irMahoend) · [Quick start](#quick-start) · [Pipeline](#compiler-pipeline) · [Runtime](#runtime--fibers) · [Memory](#memory-model) · [Tooling](#tooling-surface) · [Benchmarks](#benchmarks) · [FAQ](#faq-quick-fixes) · [Install](INSTALL.md) · [Compare](docs/COMPARE.md) · [End gap analysis](docs/END_PEER_GAP.md)
 
 ---
 
@@ -36,8 +36,57 @@ and CLI/MCP/LSP surfaces agents can call without scraping stdout.
 | **Proof**    | In-tree tests + CI — [PRODUCTION_READINESS](PRODUCTION_READINESS.md)                        |
 
 
-Zig/Go in `[benchmarks/suite5/](benchmarks/suite5/)` are **peer workload implementations**,
-not the compiler host.
+Zig/Go/C/Rust in [`benchmarks/suite5/`](benchmarks/suite5/) are **peer workload implementations**
+(the same 12 algorithms compiled with each toolchain). The **compiler** is Rust, like
+[End](https://github.com/IrMaho/End)’s `endc`. Optional 6th peer: **End** when `endc` and
+`.end` ports exist — see [`END_INTEGRATION.md`](benchmarks/suite5/END_INTEGRATION.md).
+
+---
+
+## What Rynix is NOT
+
+| Misread | Reality |
+|--------|---------|
+| ❌ Only a benchmark stunt | ✅ Full compiler pipeline + runtime + LSP/MCP (phases 0–10 gated) |
+| ❌ A Rust or Zig clone | ✅ Own syntax (`.ryx`), RIR, escape model, fiber runtime |
+| ❌ Beating [End](https://github.com/IrMaho/End) on every axis today | ✅ Stronger **checksum/diff gates**; End leads **frameworks, editor UX, suite12 spectacle** — [`docs/END_PEER_GAP.md`](docs/END_PEER_GAP.md) |
+| ❌ Same programs as End suite12 | ✅ Suite5 uses **different**, lighter integer kernels; End #12 ≠ our `reduce.ryx` |
+| ❌ “Best repo in history” | ✅ **Auditable** claims: test or CI before ✅ |
+
+---
+
+## vs End ([IrMaho/End](https://github.com/IrMaho/End))
+
+Same thesis (AI-native, Zero-GC, systems backend). Different maturity shape:
+
+| | End | Rynix |
+|--|-----|-------|
+| Benchmarks | suite12: SDF, HFT, SHA, N-body, … | Suite5: 12 integer microkernels + **CI checksum gate** |
+| Languages in matrix | End, C, Rust, Go, Zig | Rynix, C, Rust, Go, Zig, **End** (when `endc` present) |
+| Agent contracts / UI / EndHyper | Broad (per End docs) | Deferred / narrow std — see gap doc |
+| Proof style | Checksum per bench | **C↔Rynix CI** + LLVM↔interp + escape explain |
+
+Full gap backlog (P0–P3): **[docs/END_PEER_GAP.md](docs/END_PEER_GAP.md)**.
+
+---
+
+## Domain maturity (honest)
+
+Where End markets “every domain,” Rynix statuses are **evidence-gated** (test/CI or deferred ADR):
+
+| Domain | Status | Evidence / pointer |
+|--------|--------|-------------------|
+| Systems / native binaries | 🟢 Shipping | LLVM + ThinLTO, `size_echo_gates` |
+| Backend / TCP | 🟢 Shipping | fiber TCP, bakeoff docs, ASan CI |
+| AI-native tooling | 🟢 Shipping | MCP 11 tools, graph/impact/eval schemas |
+| Editor (VS Code + LSP) | 🟢 Shipping | `editors/vscode/`, `lsp-serve` (no CodeLens yet) |
+| Memory / Zero-GC | 🟢 Shipping | escape → stack/region/heap, `--explain-alloc` |
+| Microbench matrix | 🟢 Shipping | Suite5 × 5–6 langs, C↔Rynix CI gate |
+| HTTP / JSON helpers | 🔵 Narrow | `json_get_i64`, `http_get_json_i64` smoke |
+| Web frameworks / UI canvas | ⚪ Deferred | [ADR-0007](docs/adr/0007-deferred-ui-frameworks.md) |
+| C11 backend | ⚪ Deferred | [ADR-0008](docs/adr/0008-deferred-c11-backend.md) |
+| Agent contract DSL | ⚪ Gap | [END_PEER_GAP.md](docs/END_PEER_GAP.md) P1 |
+| WASM / mobile | ⚪ Out of scope v0.1 | ROADMAP |
 
 ---
 
@@ -57,9 +106,9 @@ schemas agents can consume without scraping.
 | **Small binaries**      | Hello under **300 KiB** (clang gate)             | `size_echo_gates`                                |
 
 
-> **vs [End](https://github.com/IrMaho/End):** we match AI CLI + `arch check` and lead on
-> test-gated LLVM↔interp + escape transparency. End still leads editor richness (CodeLens,
-> studio) and UI/frameworks — `[docs/COMPARE.md](docs/COMPARE.md)`.
+> **vs [End](https://github.com/IrMaho/End):** Rynix leads on **test-gated correctness** and
+> several Suite5 rows vs C/Rust/Go/Zig; End leads **README/framework/editor breadth** —
+> [`docs/END_PEER_GAP.md`](docs/END_PEER_GAP.md) (honest, not a marketing win claim).
 
 ---
 
@@ -329,16 +378,17 @@ Schema: `[docs/schemas/rynix.arch.v1.json](docs/schemas/rynix.arch.v1.json)`
 
 Full index: `[benchmarks/README.md](benchmarks/README.md)`
 
-### Suite5 — 12 workloads × 5 languages
+### Suite5 — 12 workloads × 5 languages (+ End optional)
 
-Same **integer algorithms** in **Rynix · C · Rust · Go · Zig** (Zig optional if not on PATH).
+Same **integer algorithms** in **Rynix · C · Rust · Go · Zig** (End when `endc` + `.end` ports exist).
 Each binary prints one checksum; CI requires **C ↔ Rynix match on all 12** — **correctness
-first**, not a crown-speed claim.
+first**, not crown-speed marketing.
 
 ```sh
-python benchmarks/suite5/run_suite5.py --summary          # matrix + Rynix/C
-python benchmarks/suite5/run_suite5.py --langs c,rynix    # CI subset (faster)
-python benchmarks/suite5/run_pgo_suite.py --skip-train    # optional PGO delta (local)
+python benchmarks/suite5/run_suite5.py --summary                    # 5 langs + matrix
+python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end
+python benchmarks/suite5/analyze_results.py                         # rank & gap-to-fastest
+python benchmarks/suite5/run_suite5.py --langs c,rynix              # CI subset (faster)
 ```
 
 **Methodology:** warmup=3, runs=9, reported ms = **trimmed median** (drops min/max when runs≥5).
@@ -351,18 +401,18 @@ Sample run (Windows, 2026-08-22; **re-run on your machine** — numbers vary ±5
 
 | Workload | C   | Rust | Go  | Zig | Rynix  | Rynix/C   | Notes        |
 | -------- | --- | ---- | --- | --- | ------ | --------- | ------------ |
-| alu      | 12  | 9    | 11  | 9   | **8**  | 0.68×     | leads vs C   |
-| nested   | 8   | 7    | 9   | 8   | 8      | 0.95×     | near parity  |
-| fib      | 25  | 8    | 12  | 9   | 9      | 0.35×     | leads vs C   |
-| hash     | 20  | 19   | 20  | 19  | **16** | **0.82×** | lazy-or urem |
-| prime    | 12  | 11   | 17  | 11  | 12     | 0.97×     | near parity  |
-| sum      | 7   | 6    | 9   | 7   | 7      | 0.98×     | near parity  |
-| bits     | 465 | 447  | 449 | 474 | **93** | **0.20×** | `@llvm.ctpop` |
-| matrix   | 9   | 8    | 68  | 9   | **7**  | **0.78×** | unrolled inner |
-| scan     | 10  | 15   | 14  | 18  | **9**  | **0.91×** | short-circuit `or` |
-| powmod   | 16  | 15   | 18  | 16  | 16     | 0.98×     | near parity  |
-| gcd      | 165 | 164  | 210 | 164 | 161    | 0.98×     | near parity  |
-| reduce   | 11  | 16   | 21  | 15  | **11** | **0.96×** | LLVM 4-wide SIMD |
+| alu      | 7.6 | 7.5  | 10.1| 8.1 | **7.3**| **0.96×** | leads vs C   |
+| nested   | 6.2 | **5.3** | 8.7 | 6.6 | 6.8 | 1.10×     | near parity  |
+| fib      | 7.6 | **7.2** | 9.6 | 7.8 | 7.5 | 0.98×     | near parity  |
+| hash     | 19.5| 17.8 | 18.8| 18.6| **15.7**| **0.81×**| lazy-or urem |
+| prime    | 11.2| **10.1** | 15.6 | 10.9 | 11.0 | 0.99×  | near parity  |
+| sum      | 6.1 | **5.6** | 8.6 | 6.2 | 6.8 | 1.12×     | near parity  |
+| bits     | 451 | 437  | 436 | 484 | **90** | **0.20×** | `@llvm.ctpop` |
+| matrix   | 8.5 | 7.4  | 65.8| 8.8 | **6.9**| **0.81×** | unrolled inner |
+| scan     | **8.4** | 15.0 | 13.8 | 17.0 | 9.0 | 1.08×  | short-circuit `or` |
+| powmod   | 16.1| **15.1** | 17.6 | 16.8 | 15.9 | 0.99×  | near parity  |
+| gcd      | 167 | 167  | 219 | 168 | 167    | 1.00×     | near parity  |
+| reduce   | 11.0| 15.7 | 20.2| 13.7| **10.9**| **0.99×** | LLVM 4-wide SIMD |
 
 Times are rounded trimmed medians from the committed JSON (not marketing). Refresh locally:
 
@@ -588,6 +638,7 @@ Workflows: [`.github/workflows/ci.yml`](.github/workflows/ci.yml),
 | [`docs/SPEC.md`](docs/SPEC.md)                       | Grammar & builtins               |
 | [`docs/abi.md`](docs/abi.md)                         | Runtime symbols                  |
 | [`docs/diagnostics.md`](docs/diagnostics.md)         | `RYX####` codes                  |
+| [`docs/END_PEER_GAP.md`](docs/END_PEER_GAP.md)       | Honest End peer gap & P0–P3 backlog |
 | [`docs/COMPARE.md`](docs/COMPARE.md)                 | Peer comparison (End, etc.)      |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md)                 | Phase gates & evidence           |
 | [`benchmarks/suite5/README.md`](benchmarks/suite5/README.md) | Suite5 harness & PGO       |

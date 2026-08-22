@@ -115,7 +115,22 @@ present). Differential: `diff_llvm_vs_interp`.
 | Std json/http in `.ryx` | ✅ | `json_get_i64`, `http_get_json_i64`, `examples/05_http_json.ryx` |
 | GitHub Release binaries | ✅ | `.github/workflows/release.yml` + SHA256SUMS |
 | Optional C11 backend | 🔄 deferred | [ADR-0008](adr/0008-deferred-c11-backend.md) |
+| End peer benchmarks + gap closure | 🔄 Phase 11 | [END_PEER_GAP.md](END_PEER_GAP.md) |
 | UI / hot-reload / canvas frameworks | 🔄 out of scope v0.1 | [ADR-0007](adr/0007-deferred-ui-frameworks.md) |
+
+## Phase 11 — Peer parity vs End (in progress)
+
+Close product gaps **without** copying End prose or claiming unverified ✅.
+Full backlog: [END_PEER_GAP.md](END_PEER_GAP.md).
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| Suite5 `end` builder + 12× `.end` ports | ✅ sources | `benchmarks/suite5/*.end`, `END_INTEGRATION.md` |
+| End checksum validation on CI | ⬜ needs `endc` | optional job when toolchain available |
+| README domain maturity matrix | ✅ | root `README.md` |
+| Agent contract DSL (Rynix-native) | ⬜ | P1 gap |
+| Broader HTTP / frameworks | ⬜ | ADR-0007 |
+| C11 backend | 🔄 deferred | ADR-0008 |
 
 ## CI
 

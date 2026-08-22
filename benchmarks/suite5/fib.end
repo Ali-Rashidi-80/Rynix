@@ -1,0 +1,25 @@
+@import_c("<stdio.h>")
+@import_c("<stdlib.h>")
+
+pub fn suite5_print_i64(n: i64) void {
+  val env: *u8 = getenv("SUITE5_BENCH")
+  if env != (0 as *u8) {
+    mut sink: i64 = 0
+    sink = n
+    ret
+  }
+  printf("%lld\n", n)
+  ret
+}
+
+pub fn main() i32 {
+  mut a: i64 = 0
+  mut b: i64 = 1
+  for i_idx in 5000000 {
+    val c: i64 = a + b
+    a = b
+    b = c
+  }
+  suite5_print_i64(a)
+  ret 0
+}

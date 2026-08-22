@@ -1,6 +1,7 @@
 # Suite5 — 12-workload cross-language microbenchmarks
 
-Identical integer algorithms in **Rynix / C / Rust / Go / Zig** (Zig optional if not on PATH).
+Identical integer algorithms in **Rynix / C / Rust / Go / Zig / End** (Zig and End
+optional if toolchain missing).
 Each program prints one checksum; the harness times the finished binary.
 
 Default timing: **warmup=3**, **runs=9**, reported ms = **trimmed median** (drops min/max when runs≥5).
@@ -12,9 +13,11 @@ cargo build -p rynixc
 python benchmarks/suite5/run_suite5.py
 python benchmarks/suite5/run_suite5.py --summary          # markdown matrix + Rynix/C ratio
 python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix
+python benchmarks/suite5/run_suite5.py --langs c,rynix,end   # End peer when endc installed
 python benchmarks/suite5/run_suite5.py --langs c,rynix    # CI gate subset
 ```
 
+End ports: see [END_INTEGRATION.md](END_INTEGRATION.md). Honest End gap analysis: [docs/END_PEER_GAP.md](../../docs/END_PEER_GAP.md).
 ## Workloads (12)
 
 | Id | Description |
@@ -72,6 +75,7 @@ PGO is **optional** and not a merge gate; default builds skip `--pgo-use`.
 | Rust | `rustc -O -C lto=thin` |
 | Go | `CGO_ENABLED=0`, `-ldflags=-s -w` |
 | Zig | `zig build-exe -O ReleaseFast -lc` |
+| End | `end build … --strip` (skipped if missing) |
 | Rynix | `rynixc build … --runtime=portable` |
 
 ### Optional LLVM PGO (Rynix only)
