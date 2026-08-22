@@ -30,18 +30,19 @@ print("\n### Full median ms matrix")
 print("| Workload | C | Rust | Go | Zig | Rynix | Best |")
 print("|---|--:|--:|--:|--:|--:|---|")
 for ch in challenges:
-    row = []
+    cells = []
     best = ("", 1e9)
-    for lang in langs:
+    for lang in all_langs:
         r = row_for(d["rows"], ch, lang)
-        ms = r.get("ms") if r else None
+        ms = r.get("ms") if r and r.get("ok") else None
         if ms is None:
-            row.append("—")
+            cells.append("—")
             continue
-        row.append(f"{ms:.2f}")
+        cells.append(f"{ms:.2f}")
         if ms < best[1]:
             best = (lang, ms)
-    print(f"| {ch} | " + " | ".join(row) + f" | {best[0]} {best[1]:.2f} |")
+    best_s = f"{best[0]} {best[1]:.2f}" if best[0] else "—"
+    print(f"| {ch} | " + " | ".join(cells) + f" | {best_s} |")
 
 print("\n### Rynix vs C ratio")
 for ch in challenges:

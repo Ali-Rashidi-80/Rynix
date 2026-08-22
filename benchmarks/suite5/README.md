@@ -41,8 +41,28 @@ successful language in the run order. CI requires **C ↔ Rynix** match on all 1
 ## Output
 
 - Console table: challenge × lang × checksum × ms
-- JSON: `benchmarks/suite5/suite5_results.json` (`rynix.suite5.v1`)
+- JSON: `benchmarks/suite5/suite5_results.json` (`rynix.suite5.v2`)
 - With `--summary`: cross-language ms matrix + Rynix/C ratio
+
+### One-shot PGO workflow
+
+```sh
+python benchmarks/suite5/run_pgo_suite.py          # train + c,rynix baseline + pgo + analyze
+python benchmarks/suite5/run_pgo_suite.py --full   # baseline all 5 langs
+python benchmarks/suite5/run_pgo_suite.py --skip-train   # reuse profiles
+```
+
+Sample PGO delta (Windows, 2026-08-22; **re-run locally** — often ±5%, sometimes regresses):
+
+| Workload | baseline → pgo | delta |
+|----------|----------------:|------:|
+| nested | 7.8 → 6.9 ms | **−11%** |
+| sum | 8.2 → 6.9 ms | **−16%** |
+| alu | 8.7 → 8.1 ms | −7% |
+| matrix | 7.0 → 7.8 ms | +11% (regression) |
+| powmod | 15.4 → 16.1 ms | +5% (regression) |
+
+PGO is **optional** and not a merge gate; default builds skip `--pgo-use`.
 
 ## Toolchain notes
 
