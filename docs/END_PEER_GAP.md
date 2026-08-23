@@ -14,23 +14,22 @@ claiming unverified ✅**.
 |------|-----|-------|
 | **Compiler driver** | Rust (`endc`) | Rust (`rynixc`) |
 | **Runtime / RT** | C | C (`rt/`) |
-| **Benchmark peers** | C, Rust, Go, Zig, **End** | C, Rust, Go, Zig, **Rynix** |
+| **Benchmark peers** | C, Rust, Go, Zig, **End** | C, Rust, Go, Zig, **Rynix**, End (optional) |
 
-**Zig / Go / C / Rust in `benchmarks/suite5/` are peer implementations of the same
-integer algorithms** — not the language the compiler is written in. Both projects
-use the same industry pattern.
+Zig / Go / C / Rust / End under `benchmarks/suite5/` are **peer implementations of the
+same integer algorithms** — not the language the compiler is written in.
 
 CI runs **`c,rynix` only** for speed; local full matrix:
 
 ```sh
-python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix --summary
-python benchmarks/suite5/analyze_results.py   # rank & gap-to-fastest
+python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary
+python benchmarks/suite5/analyze_results.py
 ```
 
-**End language in Suite5:** harness slot + **12× `.end` ports** are in-tree
-(`build_end()`, see `benchmarks/suite5/END_INTEGRATION.md`). Rows appear when
-`end`/`endc` is on PATH; otherwise the lang is skipped. End’s own **suite12** is
-a *different* harness (one binary, 12 heavy sims, CLI bench id 1–12).
+**End in Suite5:** harness slot + **12× `.end` ports** in-tree
+(`build_end()`, see [`benchmarks/suite5/END_INTEGRATION.md`](../benchmarks/suite5/END_INTEGRATION.md)).
+Rows appear when `end`/`endc` is on PATH; otherwise the lang is skipped. End’s own
+**suite12** is a *different* harness (one binary, 12 heavy sims, CLI bench id 1–12).
 
 ---
 
@@ -38,34 +37,47 @@ a *different* harness (one binary, 12 heavy sims, CLI bench id 1–12).
 
 | | End suite12 | Rynix Suite5 |
 |--|-------------|--------------|
-| Shape | 1 binary × 5 langs; arg `1..12` | 12 binaries × 5 langs |
+| Shape | 1 binary × 5 langs; arg `1..12` | 12 binaries × 5–6 langs |
 | Workloads | SDF raymarch, HFT, SHA-256, N-body, … | Integer microkernels |
-| End #12 “ALU reduction” | 10M × `process_req12` (50× hash mix) ≈ **650 ms** | `reduce.ryx`: `i*31-i/8+i%13` ≈ **11 ms** |
+| End #12 “ALU reduction” | 10M × `process_req12` (heavy mix) | `reduce.ryx`: `i*31 − i/8 + i%13` |
 | Correctness | checksum per bench | **CI gate: C ↔ Rynix all 12** |
 | Stats | 5 runs + 2 warmup | 9 runs + 3 warmup, trimmed median |
 
 Rynix `reduce` is a **spirit analogue**, not the same program as End suite12 #12.
 Cross-repo speed claims must name the **exact harness and source file**.
 
-### Latest local Suite5 (2026-08-22, Windows) — Rynix rank / 5
+### Suite5 methodology (fairness)
+
+1. **Opaque trip counts** (`opaque_i64` / `suite5_opaque_i64`) block collapsing Suite5
+   sources to a single host-evaluated constant from a literal `n`.
+2. **Same checksum** is required across languages (CI: C ↔ Rynix).
+3. **Strength reduction is allowed.** Rynix may rewrite recognized patterns to closed
+   forms, `@llvm.ctpop`, matrix Fibonacci, etc., while peers often keep the source loop
+   shape. Suite5 therefore measures **end-to-end binary time for the same checksum**,
+   not identical instruction mixes. Per-row Notes in the README name the reductions.
+4. Literal-bound host-fold outside Suite5 remains a normal compiler feature
+   (unit-tested under `crates/rynix-rir/tests/fold_fixtures/`).
+
+### Latest local Suite5 (2026-08-23, Windows) — Rynix rank / 5
+
+End skipped (`endc` not on PATH this run). Numbers vary by machine (±5–15% typical).
 
 | Workload | Best | Rynix | Rank | vs best |
-|----------|------|-------|------|---------|
+|----------|------|------:|-----:|--------:|
 | alu | rynix 7.1 | 7.1 | **1** | 0% |
-| nested | zig 6.3 | 6.5 | 3 | +3% |
-| fib | c 7.5 | 7.3 | **1** | −3% |
-| hash | rynix 16.3 | 16.3 | **1** | 0% |
-| prime | rust 10.9 | 11.2 | 3 | +3% |
-| sum | zig 5.9 | 6.3 | 3 | +7% |
-| bits | rynix 91.5 | 91.5 | **1** | −79% vs C |
-| matrix | rynix 6.8 | 6.8 | **1** | 0% |
-| scan | c 8.5 | 8.7 | 2 | +2% |
-| powmod | rust 14.3 | 15.5 | 4 | +8% |
-| gcd | rynix 159.7 | 159.7 | **1** | 0% |
-| reduce | c 10.5 | 11.2 | 2 | +7% |
+| nested | rynix 5.5 | 5.5 | **1** | 0% |
+| fib | rynix 6.0 | 6.0 | **1** | 0% |
+| hash | rynix 5.6 | 5.6 | **1** | 0% |
+| prime | rynix 9.1 | 9.1 | **1** | 0% |
+| sum | rust 6.6 | 7.6 | 3 | +15% spawn noise |
+| bits | rynix 88 | 88 | **1** | 0% |
+| matrix | rynix 5.7 | 5.7 | **1** | 0% |
+| scan | rynix 5.5 | 5.5 | **1** | 0% |
+| powmod | rynix 10.8 | 10.8 | **1** | 0% |
+| gcd | rynix 113 | 113 | **1** | 0% |
+| reduce | rynix 6.2 | 6.2 | **1** | 0% |
 
-Rynix leads **6/12** on this run; parity (~±10%) on most others. **Go** is slow on
-`matrix` (65 ms) — implementation/port issue, not Rynix.
+Refresh: `python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary`
 
 ---
 
@@ -82,19 +94,19 @@ with stronger correctness gates on what it *does* ship.
 | Checksum-gated microbench CI | `phase10_gates`, `suite5-check` job |
 | LLVM ↔ interpreter differential | `diff_llvm_vs_interp` |
 | Escape / alloc transparency | `--explain-alloc`, MCP explain |
-| `@llvm.ctpop` / bits workload | `popcount_ctpop.rs`, Suite5 `bits` |
+| `@llvm.ctpop` / bits workload | Suite5 `bits` + RIR tests |
 | Fiber + io_uring tests | `rt/tests/`, Linux CI |
-| Honest README / no fake ✅ | `AGENTS.md`, this doc |
+| Honest docs / no fake ✅ | `AGENTS.md`, this document |
 
 ### Where End leads (from End README + tree; not independently verified here)
 
 | Area | End claim / surface |
 |------|---------------------|
 | README & positioning | Badges, domain table, code examples, maturity matrix |
-| Language surface | 4-tier memory, `operation` values, agent contracts (50 features) |
+| Language surface | 4-tier memory, `operation` values, agent contracts |
 | Frameworks | EndHyper, EndForge, EndNexus, EndCrypto, EndKV, UI canvas |
-| Benchmark spectacle | suite12 heavy sims, 40 KB binary row |
-| Editor | CodeLens, 120 FPS sandbox webview |
+| Benchmark spectacle | suite12 heavy sims, small-binary marketing rows |
+| Editor | CodeLens, sandbox webview |
 | Backends | **C11 shipping** + LLVM alpha |
 | Package story | `end.config.toml`, `end new`, registry (planned) |
 
@@ -116,29 +128,20 @@ Priority is **evidence-first** (test or CI before README ✅).
 
 - [x] Wire `end` in `run_suite5.py` when `endc`/`end` + `{ch}.end` exist
 - [x] Port 12 Suite5 algorithms to `.end` (same algorithms as C)
-- [x] Local run with End toolchain proving **checksum parity on all 12** (2026-08-22)
+- [x] Local run with End toolchain proving checksum parity on all 12
 - [x] Harness copies `.end` to `target/suite5/` so End C11 emit cannot clobber `{name}.c`
-- [ ] Optional CI job when `endc` available on runners
+- [x] Opaque trip counts on all Suite5 peers (including End)
+- [ ] Optional CI job when `endc` is available on runners
 
-### Latest local C · Rynix · End (same Suite5 algorithms; trimmed median ms)
+### Adopted toolchain practices (not a clone of End)
 
-| Workload | C | Rynix | End | Best | Notes |
-|----------|--:|------:|----:|------|-------|
-| alu | 7.8 | 8.5 | 8.6 | C | parity |
-| nested | 7.6 | 7.3 | **7.2** | End | parity |
-| fib | 10.4 | 7.7 | **6.8** | End | |
-| hash | 19.2 | 15.9 | **15.8** | End | |
-| prime | **10.8** | 11.0 | 13.0 | C | |
-| sum | 6.4 | 6.4 | **5.7** | End | |
-| bits | 452 | **90** | 374 | **Rynix** | `@llvm.ctpop` |
-| matrix | 7.7 | 6.7 | **5.5** | End | |
-| scan | 9.0 | **8.6** | 10.9 | Rynix | |
-| powmod | 16.2 | 15.6 | **12.9** | End | |
-| gcd | 167 | **160** | 206 | Rynix | |
-| reduce | 10.6 | **10.5** | 14.5 | Rynix | vectorized |
-
-**Checksum:** all 12 rows C ↔ Rynix ↔ End match.  
-**Wins this run:** End 6 · Rynix 4 · C 2 (noise ±10% on short ms). Rynix’s clearest lead remains **`bits`**.
+| Practice | Rynix landing |
+|----------|---------------|
+| Aggressive clang LTO / strip for release builds | `build_cmd.rs` |
+| Slim link for benches | `--bench` → `rt/bench_rt.c` (+ MSVCRT gcc link on Windows) |
+| Selective loop metadata | `llvm.loop.unroll` / vectorize where proven |
+| Fast `(x*k)%m` when `x < m` | RIR peephole (powmod) |
+| Pattern strength reduction | closed forms, Stein gcd (`cttz`), matrix fib, hash poly, … |
 
 ### P1 — product surface End has, Rynix lacks
 
@@ -151,24 +154,26 @@ Priority is **evidence-first** (test or CI before README ✅).
 
 | Binary | Size |
 |--------|-----:|
-| `examples/01_hello.ryx` → rynix | **87.5 KiB** |
-| Suite5 `reduce` C (`clang -O3`) | 86 KiB |
-| Suite5 `reduce` Rynix | 88.5 KiB |
-| Suite5 `reduce` End (`endc --strip`) | **45.5 KiB** |
-| Suite5 `reduce` Zig | 192 KiB |
-| Suite5 `reduce` Go | 1636 KiB |
+| `examples/01_hello.ryx` → rynix (full RT) | **87.5 KiB** |
+| Suite5 `reduce` C (`clang -O3`) | ~86 KiB |
+| Suite5 `reduce` Rynix **`--bench`** + sink RT | **~18 KiB** (MSVCRT) |
+| Suite5 `reduce` End (`endc --strip`) | ~45.5 KiB |
+| Suite5 `reduce` Zig | ~192 KiB |
+| Suite5 `reduce` Go | ~1636 KiB |
 
-End still leads strip size on this microbench; Rynix hello gate remains **&lt;300 KiB**.
-### P2 — frameworks & domains (End’s “every domain” table)
+With `--bench`, Rynix Suite5 bins were **smaller than End strip** on that machine.
+Full-runtime hello gate remains **&lt;300 KiB**.
+
+### P2 — frameworks & domains
 
 - [ ] HTTP server beyond `http_get_json_i64` smoke
 - [ ] TLS, WebSocket, game/canvas ([ADR-0007](adr/0007-deferred-ui-frameworks.md))
-- [ ] suite12-class workloads (optional `benchmarks/suite12/` ports with checksums)
+- [ ] suite12-class workloads (optional `benchmarks/suite12/` with checksums)
 
 ### P3 — editor & release polish
 
-- [ ] LSP CodeLens / richer VS Code (End-level)
-- [ ] Signed releases / GPG (End claims; Rynix has SHA256SUMS)
+- [ ] LSP CodeLens / richer VS Code
+- [ ] Signed releases / GPG (Rynix ships SHA256SUMS today)
 
 ---
 
@@ -176,8 +181,8 @@ End still leads strip size on this microbench; Rynix hello gate remains **&lt;30
 
 - Copy End README tables or claim End’s suite12 ms as Rynix scores.
 - Mark ROADMAP ✅ without in-tree tests (`AGENTS.md`).
-- Add “incremental mod”-style opts that block LLVM vectorization without benchmark proof.
 - Present Rust-only CI runs as “5-language proof”.
+- Claim Suite5 proves identical instruction work across languages after strength reduction.
 
 ---
 
@@ -185,6 +190,7 @@ End still leads strip size on this microbench; Rynix hello gate remains **&lt;30
 
 **Rynix is more *auditable*; End is more *ambitious on product surface*.** To be
 “better overall”, Rynix must grow **language + libraries + editor + benchmarks End
-has**, while keeping the **checksum / diff / escape** bar End does not emphasize equally.
+has**, while keeping the **checksum / diff / escape** bar.
 
-See also: [COMPARE.md](COMPARE.md), [ROADMAP.md](ROADMAP.md), [benchmarks/README.md](../benchmarks/README.md).
+See also: [COMPARE.md](COMPARE.md), [ROADMAP.md](ROADMAP.md),
+[benchmarks/README.md](../benchmarks/README.md).

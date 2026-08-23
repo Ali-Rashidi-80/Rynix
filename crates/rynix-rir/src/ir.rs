@@ -93,6 +93,7 @@ pub enum Inst {
     /// Unsigned remainder — `urem` when lhs and rhs are known non-negative.
     URem(ValueId, ValueId),
     IAnd(ValueId, ValueId),
+    IOr(ValueId, ValueId),
     LShr(ValueId, ValueId),
     LShl(ValueId, ValueId),
     INeg(ValueId),
@@ -113,6 +114,8 @@ pub enum Inst {
     ZExtI64(ValueId),
     /// `v = ctpop i64` — population count (lowers to `@llvm.ctpop.i64`).
     CtPop(ValueId),
+    /// `v = cttz i64` — trailing zeros (lowers to `@llvm.cttz.i64`, poison on zero = false).
+    Cttz(ValueId),
     /// `v = alloc site ty` — storage; site feeds escape analysis.
     Alloc {
         site: AllocSite,

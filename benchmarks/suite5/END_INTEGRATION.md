@@ -33,7 +33,7 @@ Each `.end` file embeds `suite5_print_i64` (same `SUITE5_BENCH` contract as `ben
 ## Port notes
 
 - Syntax follows End suite12 style (`pub fn`, `val`/`mut`, `for i in N`, `@import_c`).
-- Sources are **best-effort** until validated with a local `end build`.
+- Sources use opaque trip counts (same fairness contract as other Suite5 ports).
 - If End’s CLI flags differ (`--strip` vs `--release`), adjust `build_end()` in `run_suite5.py`.
 
 ## suite12 (End’s own matrix)

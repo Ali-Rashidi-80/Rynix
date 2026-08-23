@@ -5,7 +5,7 @@
 int main(void) {
   int64_t acc = 1;
   const int64_t base = 3;
-  const int64_t n = 2500000;
+  const int64_t n = suite5_opaque_i64(2500000);
   for (int64_t i = 0; i < n; i++) {
     acc = (acc * base) % 1000000007;
   }

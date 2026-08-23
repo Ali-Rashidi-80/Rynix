@@ -1,0 +1,17 @@
+def main() -> i64
+  let n = 5000000
+  let mut a = 0
+  let mut b = 1
+  let mut i = 0
+  loop
+    if i >= n
+      break
+    end
+    let c = a + b
+    a = b
+    b = c
+    i += 1
+  end
+  print_i64(a)
+  return 0
+end

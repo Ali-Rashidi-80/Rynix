@@ -6,6 +6,8 @@
 4. Runtime changes: exercise `rt/tests` / `size_echo_gates`.
 5. See [AGENTS.md](AGENTS.md) for AI-oriented workflows and [docs/COMPARE.md](docs/COMPARE.md)
    for honest peer positioning.
+6. Dual license: MIT OR Apache-2.0 ([LICENSE.md](LICENSE.md)). Contributions are dual-licensed
+   the same way unless stated otherwise.
 
 ## Useful commands
 
@@ -16,3 +18,9 @@ python benchmarks/suite5/run_suite5.py --langs c,rynix
 rynixc arch check
 cd editors/vscode && npm install && npm run compile
 ```
+
+## Documentation
+
+- Do not mark ROADMAP ✅ without in-tree tests.
+- Suite5 Notes must disclose strength reductions (see [benchmarks/suite5/README.md](benchmarks/suite5/README.md)).
+- Keep machine-local ms tables dated and marked as sample runs.

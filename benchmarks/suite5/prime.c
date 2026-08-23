@@ -3,7 +3,7 @@
 #include "bench.h"
 
 int main(void) {
-  const int64_t limit = 100000;
+  const int64_t limit = suite5_opaque_i64(100000);
   int64_t count = 0;
   for (int64_t i = 2; i <= limit; i++) {
     int64_t prime = 1;

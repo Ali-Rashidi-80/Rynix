@@ -14,6 +14,8 @@ extern "C" {
 /* ---- panic / print ----------------------------------------------------- */
 void rynix_rt_print(const char *s);
 void rynix_rt_print_i64(int64_t n);
+/* Optimizer barrier: returns x, but must not be constant-folded through. */
+int64_t rynix_rt_opaque_i64(int64_t x);
 void rynix_rt_panic(const char *msg);
 
 /* ---- heap / regions ---------------------------------------------------- */

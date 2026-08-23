@@ -12,7 +12,7 @@ static int popcount64(int64_t x) {
 }
 
 int main(void) {
-  const int64_t n = 25000000;
+  const int64_t n = suite5_opaque_i64(25000000);
   int64_t x = 1;
   int64_t acc = 0;
   for (int64_t i = 0; i < n; i++) {

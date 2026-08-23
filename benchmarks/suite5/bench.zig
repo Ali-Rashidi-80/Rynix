@@ -13,3 +13,10 @@ pub fn printI64(n: i64) void {
     }
     _ = c.printf("%lld\n", n);
 }
+
+
+pub fn opaqueI64(x: i64) i64 {
+    var v = x;
+    const p: *volatile i64 = &v;
+    return p.*;
+}

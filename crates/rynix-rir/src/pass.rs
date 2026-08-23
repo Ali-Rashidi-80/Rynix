@@ -19,8 +19,17 @@ pub fn run_pipeline(module: &mut Module) -> Vec<String> {
     verify_module(module)
 }
 
-/// Fold obvious constant arithmetic in place.
+/// Fold obvious constant arithmetic in place (fixpoint).
 pub fn const_fold(module: &mut Module) {
+    for _ in 0..64 {
+        if !const_fold_once(module) {
+            break;
+        }
+    }
+}
+
+fn const_fold_once(module: &mut Module) -> bool {
+    let mut changed = false;
     for func in &mut module.funcs {
         let mut known: Vec<Option<i64>> = vec![None; func.values.len()];
         let mut rewrites: Vec<(usize, i64)> = Vec::new();
@@ -45,6 +54,24 @@ pub fn const_fold(module: &mut Module) {
                 Inst::IAdd(a, b) => bin(&known, a, b, |x, y| x.wrapping_add(y)),
                 Inst::ISub(a, b) => bin(&known, a, b, |x, y| x.wrapping_sub(y)),
                 Inst::IMul(a, b) => bin(&known, a, b, |x, y| x.wrapping_mul(y)),
+                Inst::LShl(a, b) => match (
+                    known.get(a.0 as usize).copied().flatten(),
+                    known.get(b.0 as usize).copied().flatten(),
+                ) {
+                    (Some(x), Some(y)) if (0..63).contains(&y) => Some(x.wrapping_shl(y as u32)),
+                    _ => None,
+                },
+                Inst::LShr(a, b) => match (
+                    known.get(a.0 as usize).copied().flatten(),
+                    known.get(b.0 as usize).copied().flatten(),
+                ) {
+                    (Some(x), Some(y)) if (0..63).contains(&y) => {
+                        Some(((x as u64) >> (y as u32)) as i64)
+                    }
+                    _ => None,
+                },
+                Inst::IAnd(a, b) => bin(&known, a, b, |x, y| x & y),
+                Inst::IOr(a, b) => bin(&known, a, b, |x, y| x | y),
                 Inst::URem(a, b) => match (
                     known.get(a.0 as usize).copied().flatten(),
                     known.get(b.0 as usize).copied().flatten(),
@@ -52,11 +79,25 @@ pub fn const_fold(module: &mut Module) {
                     (Some(x), Some(y)) if y != 0 => Some(x.rem_euclid(y)),
                     _ => None,
                 },
+                Inst::IRem(a, b) => match (
+                    known.get(a.0 as usize).copied().flatten(),
+                    known.get(b.0 as usize).copied().flatten(),
+                ) {
+                    (Some(x), Some(y)) if y != 0 => Some(x % y),
+                    _ => None,
+                },
                 Inst::CtPop(a) => known
                     .get(a.0 as usize)
                     .copied()
                     .flatten()
                     .map(|x| x.count_ones() as i64),
+                Inst::Cttz(a) => known.get(a.0 as usize).copied().flatten().map(|x| {
+                    if x == 0 {
+                        64
+                    } else {
+                        x.trailing_zeros() as i64
+                    }
+                }),
                 Inst::INeg(a) => known.get(a.0 as usize).copied().flatten().map(|x| -x),
                 _ => None,
             };
@@ -67,10 +108,14 @@ pub fn const_fold(module: &mut Module) {
                 }
             }
         }
+        if !rewrites.is_empty() {
+            changed = true;
+        }
         for (ii, n) in rewrites {
             func.insts[ii] = Inst::IConst(n);
         }
     }
+    changed
 }
 
 fn bin(known: &[Option<i64>], a: ValueId, b: ValueId, f: impl Fn(i64, i64) -> i64) -> Option<i64> {
@@ -163,6 +208,7 @@ fn mark_used(inst: &Inst, used: &mut FxHashSet<ValueId>) {
         | Inst::IRem(a, b)
         | Inst::URem(a, b)
         | Inst::IAnd(a, b)
+        | Inst::IOr(a, b)
         | Inst::LShr(a, b)
         | Inst::LShl(a, b)
         | Inst::FAdd(a, b)
@@ -185,6 +231,7 @@ fn mark_used(inst: &Inst, used: &mut FxHashSet<ValueId>) {
         | Inst::BNot(a)
         | Inst::ZExtI64(a)
         | Inst::CtPop(a)
+        | Inst::Cttz(a)
         | Inst::Load(a)
         | Inst::ArrayLen(a)
         | Inst::Ret(Some(a))

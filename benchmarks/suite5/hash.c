@@ -3,7 +3,7 @@
 #include "bench.h"
 
 int main(void) {
-  const int64_t n = 3000000;
+  const int64_t n = suite5_opaque_i64(3000000);
   int64_t h = 0;
   for (int64_t i = 0; i < n; i++) {
     h = (h * 31 + i) % 1000000007;

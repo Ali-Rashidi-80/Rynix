@@ -12,6 +12,12 @@ pub fn suite5_print_i64(n: i64) void {
   ret
 }
 
+
+pub fn opaque_i64(x: i64) i64 {
+  mut v: i64 = x
+  ret v
+}
+
 pub fn main() i32 {
   mut a: i64 = 0
   mut b: i64 = 1

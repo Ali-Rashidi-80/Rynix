@@ -15,4 +15,10 @@ static inline void suite5_print_i64(int64_t n) {
   printf("%lld\n", (long long)n);
 }
 
+/* Keep trip counts out of the optimizer so Suite5 times real loop work. */
+static inline int64_t suite5_opaque_i64(int64_t x) {
+  volatile int64_t v = x;
+  return v;
+}
+
 #endif

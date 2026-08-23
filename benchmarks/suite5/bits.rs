@@ -1,5 +1,5 @@
 mod bench_runtime;
-use bench_runtime::suite5_print_i64;
+use bench_runtime::{suite5_opaque_i64, suite5_print_i64};
 
 fn popcount64(x: i64) -> i64 {
     let mut v = x;
@@ -12,7 +12,7 @@ fn popcount64(x: i64) -> i64 {
 }
 
 fn main() {
-    let n: i64 = 25_000_000;
+    let n: i64 = suite5_opaque_i64(25000000);
     let mut x: i64 = 1;
     let mut acc: i64 = 0;
     for i in 0..n {

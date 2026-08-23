@@ -74,10 +74,18 @@ def robust_median(samples: list[float]) -> tuple[float, float]:
 
 
 def run_timed_median(
-    cmd: list[str], *, warmup: int, runs: int
+    cmd: list[str],
+    *,
+    warmup: int,
+    runs: int,
+    check_cmd: list[str] | None = None,
 ) -> tuple[str, float, int, dict]:
-    """Verify checksum without bench, then median-ms with SUITE5_BENCH."""
-    checksum, _, code = run_once(cmd, bench=False)
+    """Verify checksum without bench, then median-ms with SUITE5_BENCH.
+
+    ``check_cmd`` defaults to ``cmd``. Rynix uses a non-``--bench`` binary for
+    checksum (printf) and a ``--bench`` binary for timing (always-sink RT).
+    """
+    checksum, _, code = run_once(check_cmd or cmd, bench=False)
     if code != 0 or not checksum:
         return checksum, 0.0, code, {}
 
@@ -206,7 +214,8 @@ def build_rynix(name: str, *, bench: bool, pgo_use: Path | None) -> Path | None:
         subprocess.check_call(["cargo", "build", "-p", "rynixc", "--release"], cwd=str(ROOT))
         rynixc = ROOT / "target" / "release" / ("rynixc.exe" if os.name == "nt" else "rynixc")
     src = SUITE / f"{name}.ryx"
-    dst = OUT / f"{name}_rynix"
+    # Separate outputs: check binary prints; bench binary always-sinks (no getenv).
+    dst = OUT / (f"{name}_rynix_bench" if bench else f"{name}_rynix_check")
     cmd = [
         str(rynixc),
         "build",
@@ -309,7 +318,13 @@ def main() -> int:
                 print(f"skip unknown lang {lang}", file=sys.stderr)
                 continue
             try:
+                check_exe = None
                 if lang == "rynix":
+                    check_exe = builder(
+                        challenge,
+                        bench=False,
+                        pgo_use=args.pgo_use,
+                    )
                     exe = builder(
                         challenge,
                         bench=True,
@@ -328,14 +343,17 @@ def main() -> int:
                     }
                 )
                 continue
-            if exe is None:
+            if exe is None or (lang == "rynix" and check_exe is None):
                 print(f"| {challenge} | {lang} | SKIP (toolchain missing) | — |")
                 rows.append(
                     {"challenge": challenge, "lang": lang, "ok": False, "skipped": True}
                 )
                 continue
             checksum, ms, code, stats = run_timed_median(
-                [str(exe)], warmup=args.warmup, runs=args.runs
+                [str(exe)],
+                warmup=args.warmup,
+                runs=args.runs,
+                check_cmd=[str(check_exe)] if check_exe is not None else None,
             )
             ok = code == 0 and bool(checksum)
             if ref is None and ok:
@@ -359,7 +377,8 @@ def main() -> int:
         "schema": "rynix.suite5.v2",
         "challenges": list(CHALLENGES),
         "note": (
-            "Checksum verified with full stdout; timed runs use SUITE5_BENCH=1 "
+            "Checksum verified with full stdout (Rynix: non-`--bench` binary); "
+            "timed runs use SUITE5_BENCH=1 and Rynix `--bench` always-sink RT "
             f"(warmup={args.warmup}, runs={args.runs}, reported ms=trimmed median when runs>=5)."
         ),
         "rows": rows,

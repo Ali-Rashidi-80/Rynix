@@ -34,11 +34,11 @@ pub enum InterpError {
     Trap(String),
 }
 
-/// Execute `@main` with no arguments; return its value (or Unit).
-pub fn interpret_module(
+/// Execute `@main`; return its value and the last `print_i64` argument if any.
+pub fn interpret_module_print(
     module: &Module,
     interner: &Interner,
-) -> Result<InterpValue, InterpError> {
+) -> Result<(InterpValue, Option<i64>), InterpError> {
     let main = module
         .func_names
         .iter()
@@ -47,7 +47,25 @@ pub fn interpret_module(
         .ok_or(InterpError::MissingMain)?;
     let mut mem: Vec<InterpValue> = Vec::new();
     let mut arrays: Vec<Vec<i64>> = Vec::new();
-    eval_func(module, interner, main, &[], &mut mem, &mut arrays)
+    let mut printed = None;
+    let ret = eval_func(
+        module,
+        interner,
+        main,
+        &[],
+        &mut mem,
+        &mut arrays,
+        &mut printed,
+    )?;
+    Ok((ret, printed))
+}
+
+/// Execute `@main` with no arguments; return its value (or Unit).
+pub fn interpret_module(
+    module: &Module,
+    interner: &Interner,
+) -> Result<InterpValue, InterpError> {
+    interpret_module_print(module, interner).map(|(v, _)| v)
 }
 
 fn eval_func(
@@ -57,6 +75,7 @@ fn eval_func(
     args: &[InterpValue],
     mem: &mut Vec<InterpValue>,
     arrays: &mut Vec<Vec<i64>>,
+    printed: &mut Option<i64>,
 ) -> Result<InterpValue, InterpError> {
     let func = module.func(fid);
     let mut vals: FxHashMap<ValueId, InterpValue> = FxHashMap::default();
@@ -127,6 +146,9 @@ fn eval_func(
                 }
                 Inst::IAnd(a, b) => {
                     vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x & y)?);
+                }
+                Inst::IOr(a, b) => {
+                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x | y)?);
                 }
                 Inst::LShr(a, b) => {
                     let InterpValue::I64(x) = get(&vals, *a)? else {
@@ -216,6 +238,17 @@ fn eval_func(
                         result_vid.unwrap(),
                         InterpValue::I64(n.count_ones() as i64),
                     );
+                }
+                Inst::Cttz(a) => {
+                    let InterpValue::I64(n) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("cttz".into()));
+                    };
+                    let tz = if n == 0 {
+                        64
+                    } else {
+                        n.trailing_zeros() as i64
+                    };
+                    vals.insert(result_vid.unwrap(), InterpValue::I64(tz));
                 }
                 Inst::BNot(a) => {
                     let InterpValue::Bool(x) = get(&vals, *a)? else {
@@ -314,7 +347,7 @@ fn eval_func(
                     let argv: Result<Vec<_>, _> =
                         args.iter().map(|a| get(&vals, *a)).collect();
                     let argv = argv?;
-                    let ret = eval_func(module, interner, *func, &argv, mem, arrays)?;
+                    let ret = eval_func(module, interner, *func, &argv, mem, arrays, printed)?;
                     if let Some(r) = result_vid {
                         vals.insert(r, ret);
                     }
@@ -323,7 +356,10 @@ fn eval_func(
                     let n = interner.resolve(*name);
                     if n == "print" || n == "rynix_rt_print_i64" || n == "print_i64" {
                         for a in args {
-                            let _ = get(&vals, *a)?;
+                            let v = get(&vals, *a)?;
+                            if let InterpValue::I64(x) = v {
+                                *printed = Some(x);
+                            }
                         }
                     }
                     if n == "rynix_rt_heap_alloc" {

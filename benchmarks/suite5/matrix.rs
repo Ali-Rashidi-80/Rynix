@@ -1,5 +1,5 @@
 mod bench_runtime;
-use bench_runtime::suite5_print_i64;
+use bench_runtime::{suite5_opaque_i64, suite5_print_i64};
 
 fn main() {
     let mut a = [[0i64; 4]; 4];
@@ -12,7 +12,7 @@ fn main() {
             c[i][j] = 0;
         }
     }
-    let reps: i64 = 900_000;
+    let reps: i64 = suite5_opaque_i64(900000);
     let mut trace: i64 = 0;
     for r in 0..reps {
         for i in 0..4 {

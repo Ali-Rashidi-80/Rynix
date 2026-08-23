@@ -12,7 +12,7 @@ def popcount(x: i64) -> i64
 end
 
 def main() -> i64
-  let n = 25000000
+  let n = opaque_i64(25000000)
   let mut x = 1
   let mut acc = 0
   let mut i = 0

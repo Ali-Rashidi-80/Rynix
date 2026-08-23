@@ -9,7 +9,7 @@ verify command — same gates as CI where noted.
 
 | Requirement | Notes |
 |-------------|-------|
-| **Rust** | See [`rust-toolchain.toml`](rust-toolchain.toml) (1.98+) |
+| **Rust** | MSRV **1.98** (`Cargo.toml`); [`rust-toolchain.toml`](rust-toolchain.toml) pins the `stable` channel |
 | **clang** | Required for `build` / `run` (native binaries) |
 | **Python 3** | Optional — Suite5 harness only |
 | **Node.js 18+** | Optional — VS Code extension only |

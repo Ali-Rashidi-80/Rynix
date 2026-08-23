@@ -110,11 +110,13 @@ impl FunctionBuilder {
             | Inst::IRem(_, _)
             | Inst::URem(_, _)
             | Inst::IAnd(_, _)
+            | Inst::IOr(_, _)
             | Inst::LShr(_, _)
             | Inst::LShl(_, _)
             | Inst::INeg(_)
             | Inst::ZExtI64(_)
-            | Inst::CtPop(_) => IrTy::I64,
+            | Inst::CtPop(_)
+            | Inst::Cttz(_) => IrTy::I64,
             Inst::FConst(_)
             | Inst::FAdd(_, _)
             | Inst::FSub(_, _)

@@ -13,7 +13,7 @@ int main(void) {
       c[i][j] = 0;
     }
   }
-  const int64_t reps = 900000;
+  const int64_t reps = suite5_opaque_i64(900000);
   int64_t trace = 0;
   for (int64_t r = 0; r < reps; r++) {
     for (int i = 0; i < 4; i++) {

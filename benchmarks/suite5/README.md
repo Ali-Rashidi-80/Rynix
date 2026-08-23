@@ -35,11 +35,26 @@ End ports: see [END_INTEGRATION.md](END_INTEGRATION.md). Honest End gap analysis
 | `gcd` | 2.5M Euclidean gcd pairs |
 | `reduce` | 10M ALU reduction (End suite12 #12 analogue) |
 
+Trip counts pass through an **opaque** barrier (`opaque_i64` / `suite5_opaque_i64`) so
+Suite5 sources cannot collapse to a single host-evaluated constant from a literal `n`.
+Checksums must still match across languages.
+
+Compilers may **strength-reduce** recognized patterns (closed forms, `ctpop`, matrix fib,
+hash polynomials, …). That is a real optimization when disclosed; Suite5 measures
+**binary wall-clock for the same checksum**, not identical instruction mixes.
+Literal-bound host-fold outside Suite5 remains a compiler feature (unit-tested separately).
+
 ## Correctness gate
 
 For each workload, every built language must print the **same checksum** as the first
 successful language in the run order. CI requires **C ↔ Rynix** match on all 12 rows
 (`suite5-check` job, `phase10_gates` test).
+
+## Honesty
+
+- Opaque barriers block literal trip-count folding of Suite5 sources.
+- Strength reduction is allowed and should be named in result Notes / docs.
+- Do not claim Suite5 proves identical work across languages after reductions.
 
 ## Output
 
@@ -101,10 +116,10 @@ Requires `llvm-profdata` on PATH (LLVM install). Results vary by machine; not us
 
 Zig 0.16+: sources use `@divTrunc` / `@rem` and libc `printf` for stdout checksums.
 
-## Not a crown claim
+## Limits
 
-Numbers are **machine-local**. Suite5 proves **algorithm parity** and records transparent
-timings — not that Rynix beats Zig/C on every row.
+Numbers are **machine-local**. Suite5 proves **checksum parity** and records transparent
+timings — not that Rynix executes the same instruction mix as Zig/C on every row.
 
 Compare methodology to End's [suite12](https://github.com/IrMaho/End/tree/main/benchmarks/suite12):
 see [benchmarks/README.md](../README.md).

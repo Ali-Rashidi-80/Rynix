@@ -11,7 +11,7 @@ func popcount64(x int64) int64 {
 }
 
 func main() {
-	const n int64 = 25000000
+	n := suite5OpaqueI64(25000000)
 	x := int64(1)
 	var acc int64
 	for i := int64(0); i < n; i++ {

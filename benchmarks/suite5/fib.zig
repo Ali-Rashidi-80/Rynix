@@ -4,7 +4,7 @@ const c = @cImport({
 });
 
 pub fn main() void {
-    const n: i64 = 5000000;
+    const n: i64 = bench.opaqueI64(5000000);
     var a: i64 = 0;
     var b: i64 = 1;
     var i: i64 = 0;

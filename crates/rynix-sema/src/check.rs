@@ -133,6 +133,7 @@ impl<'a> Checker<'a> {
         self.def_types.insert(print_def, print_ty);
         self.fn_sigs.insert(print_def, print_ty);
         self.soft_fn("print_i64", vec![self.types.ty_int], self.types.ty_unit);
+        self.soft_fn("opaque_i64", vec![self.types.ty_int], self.types.ty_int);
 
         // Soft std / runtime prelude (Phase 9+).
         self.soft_fn("sleep_ms", vec![self.types.ty_int], self.types.ty_unit);

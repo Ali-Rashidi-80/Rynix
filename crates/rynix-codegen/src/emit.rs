@@ -28,6 +28,7 @@ pub fn emit_llvm(
     // Runtime declarations.
     out.push_str("declare void @rynix_rt_print(ptr)\n");
     out.push_str("declare void @rynix_rt_print_i64(i64)\n");
+    out.push_str("declare i64 @rynix_rt_opaque_i64(i64)\n");
     out.push_str("declare ptr @rynix_rt_heap_alloc(i64)\n");
     out.push_str("declare void @rynix_rt_heap_free(ptr)\n");
     out.push_str("declare void @rynix_rt_region_create(i32)\n");
@@ -56,6 +57,7 @@ pub fn emit_llvm(
     out.push_str("declare i64 @rynix_rt_tcp_recv(i64, ptr, i64)\n");
     out.push_str("declare i64 @rynix_rt_tcp_send(i64, ptr, i64)\n");
     out.push_str("declare i64 @llvm.ctpop.i64(i64)\n");
+    out.push_str("declare i64 @llvm.cttz.i64(i64, i1)\n");
     out.push_str("declare void @rynix_rt_tcp_close(i64)\n");
     out.push_str("declare i64 @rynix_rt_json_get_i64(ptr, ptr)\n");
     out.push_str("declare i64 @rynix_rt_http_get_json_i64(ptr, i64, ptr, ptr)\n\n");
@@ -96,17 +98,35 @@ pub fn emit_llvm(
         out.push('\n');
     }
 
-    if module
-        .funcs
-        .iter()
-        .any(|f| !loop_latch_blocks(f).is_empty())
-    {
-        out.push_str("; Rynix loop vectorizer hints\n");
-        out.push_str("!0 = distinct !{!0, !1}\n");
-        out.push_str("!1 = !{!\"llvm.loop.vectorize.enable\", i1 true}\n");
+    let mut need_vec = false;
+    let mut need_unroll = false;
+    for f in &module.funcs {
+        for hint in loop_latch_hints(f).values() {
+            match hint {
+                LoopHint::Vectorize => need_vec = true,
+                LoopHint::Unroll => need_unroll = true,
+            }
+        }
+    }
+    if need_vec || need_unroll {
+        // Selective hints: SIMD-friendly latches keep vectorize + modest unroll;
+        // loop-carried `urem` (hash/powmod) get a *bounded* unroll count only.
+        out.push_str("; Rynix loop optimizer hints\n");
+        out.push_str("!0 = distinct !{!0, !2, !3}\n");
+        out.push_str("!1 = distinct !{!1, !4, !3}\n");
+        out.push_str("!2 = !{!\"llvm.loop.vectorize.enable\", i1 true}\n");
+        out.push_str("!3 = !{!\"llvm.loop.mustprogress\"}\n");
+        // Bounded unroll for rem-heavy / nested-style latches (End `#pragma unroll`).
+        out.push_str("!4 = !{!\"llvm.loop.unroll.count\", i32 4}\n");
     }
 
     out
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LoopHint {
+    Vectorize,
+    Unroll,
 }
 
 fn build_placement_map(report: Option<&EscapeReport>) -> FxHashMap<(u32, u32), Placement> {
@@ -289,9 +309,9 @@ fn emit_function(
     }
 
     // Pass 1: emit block bodies so all SSA names exist before phi operands are resolved.
-    let latches = loop_latch_blocks(func);
+    let latches = loop_latch_hints(func);
     for (bi, block) in func.blocks.iter().enumerate() {
-        let latch = latches.contains(&(bi as u32));
+        let latch = latches.get(&(bi as u32)).copied();
         for &iid in &block.insts {
             emit_inst(
                 &mut block_bufs[bi],
@@ -352,20 +372,57 @@ fn emit_function(
     let _ = writeln!(ctx.final_out, "}}");
 }
 
-fn loop_latch_blocks(func: &rynix_rir::Function) -> FxHashSet<u32> {
-    let mut latches = FxHashSet::default();
+/// True back-edges only: jump to an earlier header (structured lowering).
+/// Forward jumps into an inner-loop header must not get `!llvm.loop` metadata.
+fn loop_latch_hints(func: &rynix_rir::Function) -> FxHashMap<u32, LoopHint> {
+    let mut latches = FxHashMap::default();
     let entry = func.entry.0;
     for (bi, block) in func.blocks.iter().enumerate() {
-        if bi as u32 == entry {
+        let bi_u = bi as u32;
+        if bi_u == entry {
             continue;
         }
         let Some(&term) = block.insts.last() else {
             continue;
         };
-        if let Inst::Jump { target, .. } = func.inst(term) {
-            if !func.block(*target).params.is_empty() {
-                latches.insert(bi as u32);
-            }
+        let Inst::Jump { target, args } = func.inst(term) else {
+            continue;
+        };
+        if target.0 >= bi_u || func.block(*target).params.is_empty() {
+            continue;
+        }
+        let rem_defined: FxHashSet<ValueId> = block
+            .insts
+            .iter()
+            .filter_map(|&iid| match func.inst(iid) {
+                Inst::URem(..) | Inst::IRem(..) => result_of(func, iid),
+                _ => None,
+            })
+            .collect();
+        // Rem of the induction variable (reduce): keep vectorize.
+        let rem_of_induction = block.insts.iter().any(|&iid| {
+            let (Inst::URem(d, _) | Inst::IRem(d, _)) = func.inst(iid) else {
+                return false;
+            };
+            block.insts.iter().any(|&jid| {
+                let Inst::IAdd(a, b) = func.inst(jid) else {
+                    return false;
+                };
+                let res = result_of(func, jid);
+                (*a == *d || *b == *d) && res.is_some_and(|r| args.contains(&r))
+            })
+        });
+        // Induction rem (reduce) → vectorize; pure arith → unroll; rem-heavy
+        // (gcd / hash-style) → no forced metadata (clang `-funroll-loops` only).
+        let hint = if rem_of_induction {
+            Some(LoopHint::Vectorize)
+        } else if rem_defined.is_empty() {
+            Some(LoopHint::Unroll)
+        } else {
+            None
+        };
+        if let Some(hint) = hint {
+            latches.insert(bi_u, hint);
         }
     }
     latches
@@ -419,7 +476,7 @@ fn emit_inst(
     func: &rynix_rir::Function,
     iid: rynix_rir::InstId,
     is_main: bool,
-    loop_latch: bool,
+    loop_latch: Option<LoopHint>,
 ) {
     let inst = func.inst(iid);
     let result = result_of(func, iid);
@@ -479,6 +536,7 @@ fn emit_inst(
         }
         Inst::URem(a, b) => bin_i(out, ctx, func, result, "urem", a, b),
         Inst::IAnd(a, b) => bin_i(out, ctx, func, result, "and", a, b),
+        Inst::IOr(a, b) => bin_i(out, ctx, func, result, "or", a, b),
         Inst::LShr(a, b) => bin_i(out, ctx, func, result, "lshr", a, b),
         Inst::LShl(a, b) => bin_i(out, ctx, func, result, "shl", a, b),
         Inst::INeg(a) => {
@@ -577,6 +635,15 @@ fn emit_inst(
             let _ = writeln!(
                 out,
                 "  {name} = call i64 @llvm.ctpop.i64(i64 {})",
+                ctx.val(*a)
+            );
+            ctx.bind(result.unwrap(), name);
+        }
+        Inst::Cttz(a) => {
+            let name = ctx.tmp();
+            let _ = writeln!(
+                out,
+                "  {name} = call i64 @llvm.cttz.i64(i64 {}, i1 false)",
                 ctx.val(*a)
             );
             ctx.bind(result.unwrap(), name);
@@ -773,6 +840,14 @@ fn emit_inst(
                     let _ = writeln!(out, "  {t} = add i64 0, 0");
                     ctx.bind(r, t);
                 }
+            } else if n == "rynix_rt_opaque_i64" || n == "opaque_i64" {
+                let arg = args
+                    .first()
+                    .map(|a| ctx.val(*a))
+                    .unwrap_or_else(|| "0".into());
+                let t = ctx.tmp();
+                let _ = writeln!(out, "  {t} = call i64 @rynix_rt_opaque_i64(i64 {arg})");
+                ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_heap_alloc" {
                 let size = args
                     .first()
@@ -968,10 +1043,16 @@ fn emit_inst(
             }
         }
         Inst::Jump { target, .. } => {
-            if loop_latch {
-                let _ = writeln!(out, "  br label %{}, !llvm.loop !0", block_label(*target));
-            } else {
-                let _ = writeln!(out, "  br label %{}", block_label(*target));
+            match loop_latch {
+                Some(LoopHint::Vectorize) => {
+                    let _ = writeln!(out, "  br label %{}, !llvm.loop !0", block_label(*target));
+                }
+                Some(LoopHint::Unroll) => {
+                    let _ = writeln!(out, "  br label %{}, !llvm.loop !1", block_label(*target));
+                }
+                None => {
+                    let _ = writeln!(out, "  br label %{}", block_label(*target));
+                }
             }
         }
         Inst::Br {

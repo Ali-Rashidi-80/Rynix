@@ -2,7 +2,7 @@ package main
 
 
 func main() {
-	const n int64 = 10_000_000
+	n := suite5OpaqueI64(10000000)
 	var acc int64
 	for i := int64(0); i < n; i++ {
 		acc = acc + i*31 - i/8 + i%13

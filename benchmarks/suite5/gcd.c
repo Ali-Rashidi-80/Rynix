@@ -12,7 +12,7 @@ static int64_t gcd64(int64_t a, int64_t b) {
 }
 
 int main(void) {
-  const int64_t n = 2500000;
+  const int64_t n = suite5_opaque_i64(2500000);
   int64_t acc = 0;
   for (int64_t i = 1; i <= n; i++) {
     int64_t a = i * 9973;

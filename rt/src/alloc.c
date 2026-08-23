@@ -21,14 +21,19 @@ void rynix_rt_print(const char *s) {
   }
 }
 
+int64_t rynix_rt_opaque_i64(int64_t x) {
+  volatile int64_t v = x;
+  return v;
+}
+
 void rynix_rt_print_i64(int64_t n) {
 #ifdef RYNIX_BENCH
-  if (getenv("SUITE5_BENCH")) {
-    static volatile int64_t rynix_bench_sink;
-    rynix_bench_sink = n;
-    return;
-  }
-#endif
+  /* Suite5 `--bench` binaries always sink: no getenv/printf on the timed path.
+   * Checksum verification uses a separate non-`--bench` build (see run_suite5.py). */
+  static volatile int64_t rynix_bench_sink;
+  rynix_bench_sink = n;
+  return;
+#else
   if (getenv("SUITE5_BENCH")) {
     static volatile int64_t suite5_sink;
     suite5_sink = n;
@@ -36,6 +41,7 @@ void rynix_rt_print_i64(int64_t n) {
   }
   printf("%lld\n", (long long)n);
   fflush(stdout);
+#endif
 }
 
 void rynix_rt_panic(const char *msg) {

@@ -25,8 +25,9 @@ driver (`endc` / `rynixc`) and lean on **C** for native runtime.
 
 **Verdict (2026-08):** End leads on **editor richness**, **framework breadth**, and
 **README spectacle**. Rynix leads on **test-gated correctness**, **escape transparency**,
-and several **Suite5 microkernel rows vs C/Rust/Go/Zig** — but is **not** “better overall”
-until language surface and End peer benchmarks catch up.
+and several **Suite5 rows vs C/Rust/Go/Zig** when strength reduction applies — but is
+**not** “better overall” until language surface and product breadth catch up. See
+[END_PEER_GAP.md](END_PEER_GAP.md) for methodology honesty.
 
 ## Why the compiler is Rust (not Zig/Go)
 

@@ -14,3 +14,7 @@ func suite5PrintI64(n int64) {
 	}
 	fmt.Println(n)
 }
+
+
+//go:noinline
+func suite5OpaqueI64(x int64) int64 { return x }

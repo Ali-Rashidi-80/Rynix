@@ -1,0 +1,30 @@
+def gcd64(a: i64, b: i64) -> i64
+  let mut x = a
+  let mut y = b
+  loop
+    if y == 0
+      return x
+    end
+    let t = x % y
+    x = y
+    y = t
+  end
+  return x
+end
+
+def main() -> i64
+  let n = 2500000
+  let mut acc = 0
+  let mut i = 1
+  loop
+    if i > n
+      break
+    end
+    let a = i * 9973
+    let b = i * 1237 + 42
+    acc += gcd64(a, b)
+    i += 1
+  end
+  print_i64(acc)
+  return 0
+end

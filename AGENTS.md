@@ -22,8 +22,12 @@ ad-hoc scraping.
 - Do not widen language surface in docs without SPEC + tests.
 - Prefer fixing the compiler over loosening a test.
 - Windows uses `--runtime=portable`; Linux may use `--runtime=uring`.
+- Suite5: opaque trip counts block literal fold; strength reduction is allowed only when
+  checksums match and docs/Notes disclose it. Do not claim identical instruction work
+  across languages after reductions.
 
 ## Layout
 
 See [README.md](README.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
 Irreversible decisions live in [docs/adr/](docs/adr/).
+License: [LICENSE.md](LICENSE.md) (MIT OR Apache-2.0).

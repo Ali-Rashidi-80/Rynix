@@ -14,7 +14,7 @@ pub fn main() void {
             out[i][j] = 0;
         }
     }
-    const reps: i64 = 900_000;
+    const reps: i64 = bench.opaqueI64(900000);
     var trace: i64 = 0;
     var r: i64 = 0;
     while (r < reps) : (r += 1) {

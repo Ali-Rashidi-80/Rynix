@@ -9,7 +9,7 @@ func gcd64(a, b int64) int64 {
 }
 
 func main() {
-	const n int64 = 2500000
+	n := suite5OpaqueI64(2500000)
 	var acc int64
 	for i := int64(1); i <= n; i++ {
 		a := i * 9973

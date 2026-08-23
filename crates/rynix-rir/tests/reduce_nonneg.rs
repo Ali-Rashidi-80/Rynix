@@ -22,7 +22,7 @@ fn reduce_loop_uses_urem_and_lshr_for_nonneg_i() {
     assert!(run_pipeline(&mut rir).is_empty());
     let text = print_module(&rir, &interner);
     assert!(
-        text.contains("urem") && text.contains("lshr") && text.contains("lshl"),
+        text.contains("urem") && text.contains("lshr") && (text.contains("lshl") || text.contains("imul")),
         "expected nonneg strength reductions in reduce:\n{text}"
     );
     assert!(

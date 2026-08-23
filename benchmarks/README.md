@@ -61,7 +61,7 @@ SHA-256, N-body, …) in unified multi-bench binaries with 5-run statistics.
 | Workloads | 12 heavyweight systems sims | 12 integer microkernels |
 | Languages | End, C, Rust, Go, Zig | Rynix, C, Rust, Go, Zig |
 | Correctness | checksum per bench | checksum per workload (CI-gated C↔Rynix) |
-| Stats | 5 runs + warmup | single run (+ local `--summary`) |
+| Stats | 5 runs + warmup | trimmed median (warmup=3, runs=9; `--summary`) |
 | Purpose | product marketing matrix | compiler parity + honest local numbers |
 
 We **do not** claim Suite5 scores are comparable to End suite12 row-by-row — different

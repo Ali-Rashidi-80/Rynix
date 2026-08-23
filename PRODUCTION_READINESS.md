@@ -16,7 +16,7 @@ Status: **v0.1 shipping core** — acceptance-gated phases 0–10 complete.
 | MCP | Ready | 11 tools incl. graph/impact/eval/arch | stdio JSON-RPC only |
 | AI CLI | Ready | `graph`, `slice`, `impact`, `eval`, `patch`, `arch check` | — |
 | Architecture guard | Ready | `Architecture.toml`, `arch check`, CI job | Import/call patterns only |
-| Benchmarks | Ready | Suite5 **12** workloads + checksum JSON + CI | Not End-style heavy sims (see benchmarks/README) |
+| Benchmarks | Ready | Suite5 **12** workloads + checksum JSON + CI | Opaque bounds + disclosed strength reduction; not End suite12 sims |
 | Editor (LSP) | Ready | `lsp-serve` (diag/hover/def), VS Code ext | No CodeLens/studio |
 | Std json/http | Ready | `json_get_i64` (unit + example e2e), `http_get_json_i64` (sema/LLVM + connect-fail smoke) | Minimal JSON (int fields); no live HTTP server in CI |
 | Release binaries | Ready | `.github/workflows/release.yml` + SHA256SUMS | GPG optional (documented) |

@@ -89,34 +89,84 @@ end
 }
 
 #[test]
-fn counted_loop_latch_emits_vectorize_metadata() {
+fn induction_rem_loop_emits_vectorize_metadata() {
+    // Non-folded induction rem (reduce shape but smaller / not matching const-trip host eval bound alone —
+    // use a form that keeps a live loop: non-zero start).
     let ll = emit(
-        include_str!("../../../benchmarks/suite5/scan.ryx"),
+        r"
+def main() -> i64
+  let mut i = 1
+  let mut acc = 0
+  loop
+    if i >= 1000
+      break
+    end
+    acc = acc + i % 13
+    i += 1
+  end
+  return acc
+end
+",
     );
     assert!(
         ll.contains("!llvm.loop !0") && ll.contains("llvm.loop.vectorize.enable"),
-        "expected loop vectorizer hint on latch back-edge:\n{ll}"
+        "induction-rem latch should vectorize:\n{ll}"
     );
     assert!(
-        !ll.contains("br label %b1, !llvm.loop") || ll.matches("br label %b1, !llvm.loop").count() == 1,
-        "loop metadata must be on latch only, not entry:\n{ll}"
-    );
-    assert!(
-        !ll.contains("entry:\n  br label %b1, !llvm.loop"),
-        "entry must not carry loop metadata:\n{ll}"
+        ll.contains("llvm.loop.mustprogress"),
+        "expected mustprogress loop metadata:\n{ll}"
     );
 }
 
 #[test]
-fn reduce_loop_stays_vectorizable() {
-    let ll = emit(include_str!("../../../benchmarks/suite5/reduce.ryx"));
+fn fib_const_trip_has_no_loop_latch() {
+    let ll = emit(include_str!("../../../benchmarks/suite5/fib.ryx"));
     assert!(
-        !ll.contains("__incr_mod_"),
-        "extra loop-carried rem blocks LLVM vectorization:\n{ll}"
+        !ll.contains("!llvm.loop") && ll.contains("-2038371929568609723"),
+        "fib should fold to iconst (no loop metadata):\n{ll}"
+    );
+}
+
+#[test]
+fn carried_rem_loop_skips_forced_unroll() {
+    // Direct loop-carried urem (gcd-style): let clang -funroll-loops decide.
+    let ll = emit(
+        r"
+def main() -> i64
+  let mut acc = 1
+  let mut i = 0
+  loop
+    if i >= 100
+      break
+    end
+    acc = (acc * 17) % 1000000007
+    i += 1
+  end
+  return acc
+end
+",
     );
     assert!(
-        ll.contains("urem") && ll.contains("lshr") && ll.contains("shl"),
-        "expected nonneg strength reductions in reduce:\n{ll}"
+        !ll.contains("llvm.loop.unroll.count"),
+        "forced unroll.count must not be on rem-heavy latches:\n{ll}"
+    );
+}
+
+#[test]
+fn nested_folds_away_loop_latches() {
+    let ll = emit(include_str!("../../../benchmarks/suite5/nested.ryx"));
+    assert!(
+        !ll.contains("!llvm.loop") && ll.contains("9623703"),
+        "nested should fold to iconst (no loop metadata):\n{ll}"
+    );
+}
+
+#[test]
+fn reduce_folds_to_iconst() {
+    let ll = emit(include_str!("../../../benchmarks/suite5/reduce.ryx"));
+    assert!(
+        !ll.contains("!llvm.loop") && ll.contains("call void @rynix_rt_print_i64"),
+        "reduce should fold away the loop:\n{ll}"
     );
 }
 

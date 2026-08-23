@@ -4,7 +4,7 @@ const clib = @cImport({
 });
 
 pub fn main() void {
-    const n: i64 = 3000000;
+    const n: i64 = bench.opaqueI64(3000000);
     var h: i64 = 0;
     var i: i64 = 0;
     while (i < n) : (i += 1) {

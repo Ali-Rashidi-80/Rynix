@@ -127,8 +127,11 @@ Full backlog: [END_PEER_GAP.md](END_PEER_GAP.md).
 |------|--------|----------|
 | Suite5 `end` builder + 12× `.end` ports | ✅ | `benchmarks/suite5/*.end`, checksums validated vs C |
 | End checksum validation (local) | ✅ | `endc` + all 12 OK (CI optional) |
+| End-style link flags (`-flto`, `-funroll-loops`, strip) | ✅ | `build_cmd.rs`; Suite5 rebench |
+| `--bench` minimal RT (size vs End) | ✅ | `rt/bench_rt.c` + const-print C; ~18 KiB MSVCRT |
 | README domain maturity matrix | ✅ | root `README.md` |
 | Agent contracts approach | ✅ design | [ADR-0009](adr/0009-agent-contracts-toolchain.md) |
+| Close End wins on Suite5 rows | ✅ local | opaque bounds + disclosed strength reduction; see END_PEER_GAP |
 | Broader HTTP / frameworks | ⬜ | ADR-0007 |
 | C11 backend | 🔄 deferred | ADR-0008 |
 

@@ -13,7 +13,7 @@ fn popcount64(x: i64) i64 {
 }
 
 pub fn main() void {
-    const n: i64 = 25_000_000;
+    const n: i64 = bench.opaqueI64(25000000);
     var x: i64 = 1;
     var acc: i64 = 0;
     var i: i64 = 0;

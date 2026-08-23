@@ -1,6 +1,17 @@
 # Build artifacts
 /target
 
+# Rust / cargo
+**/*.rs.bk
+*.pdb
+
+# Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
 # insta pending snapshots (accepted snapshots ARE committed)
 *.pending-snap
 
@@ -8,9 +19,32 @@
 /fuzz/target
 /fuzz/corpus
 /fuzz/artifacts
-/editors/vscode/node_modules
+/fuzz/coverage
 
-# Local benchmark binaries and codegen scratch
+# OS / editor junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+
+# VS Code extension build
+/editors/vscode/node_modules
+/editors/vscode/out
+/editors/vscode/*.vsix
+
+# Local benchmark scratch (binaries live under /target)
 /*.exe
 benchmarks/suite5/*_c.ll
 benchmarks/suite5/run_output.txt
+benchmarks/suite5/_patch_*.py
+*.profraw
+*.profdata
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+credentials.json

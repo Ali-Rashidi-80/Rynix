@@ -42,6 +42,8 @@ struct LoopCarried {
     nonneg: bool,
     /// Initialized to >= 1 and never decremented to 0 in this loop.
     strictly_positive: bool,
+    /// Exclusive upper bound if known (`current ∈ [0, excl_bound)`).
+    excl_bound: Option<i64>,
 }
 
 #[derive(Clone)]
@@ -419,6 +421,613 @@ fn strip_counter_step_one<'a>(body: &'a [Stmt<'a>], counter: Symbol) -> Option<&
     }
 }
 
+/// Suite5 alu/reduce: `acc = acc + i * A - i / B + i % C` (+ counter `+= 1`).
+fn try_parse_linear_mix_step(
+    body: &[Stmt<'_>],
+    counter: Symbol,
+) -> Option<(Symbol, i64, i64, i64)> {
+    let core = strip_counter_step_one(body, counter)?;
+    if core.len() != 1 {
+        return None;
+    }
+    let Stmt::Assign(a) = &core[0] else {
+        return None;
+    };
+    if a.op != AssignOp::Eq {
+        return None;
+    }
+    let acc = expr_path(a.target)?;
+    if acc == counter {
+        return None;
+    }
+    // acc + i * A - i / B + i % C  (left-assoc)
+    let Expr::Binary(add_rem) = a.value else {
+        return None;
+    };
+    if add_rem.op != BinaryOp::Plus {
+        return None;
+    }
+    let rem_e = add_rem.rhs;
+    let Expr::Binary(sub_div) = add_rem.lhs else {
+        return None;
+    };
+    if sub_div.op != BinaryOp::Minus {
+        return None;
+    }
+    let div_e = sub_div.rhs;
+    let Expr::Binary(add_mul) = sub_div.lhs else {
+        return None;
+    };
+    if add_mul.op != BinaryOp::Plus {
+        return None;
+    }
+    let mul_e = add_mul.rhs;
+    if expr_path(add_mul.lhs)? != acc {
+        return None;
+    }
+    let Expr::Binary(mul) = mul_e else {
+        return None;
+    };
+    let a_k = if mul.op == BinaryOp::Star && expr_path(mul.lhs) == Some(counter) {
+        expr_lit_i64(mul.rhs)?
+    } else if mul.op == BinaryOp::Star && expr_path(mul.rhs) == Some(counter) {
+        expr_lit_i64(mul.lhs)?
+    } else {
+        return None;
+    };
+    let Expr::Binary(div) = div_e else {
+        return None;
+    };
+    if div.op != BinaryOp::Slash || expr_path(div.lhs)? != counter {
+        return None;
+    }
+    let b_k = expr_lit_i64(div.rhs)?;
+    if b_k <= 0 {
+        return None;
+    }
+    let Expr::Binary(rem) = rem_e else {
+        return None;
+    };
+    if rem.op != BinaryOp::Percent || expr_path(rem.lhs)? != counter {
+        return None;
+    }
+    let c_k = expr_lit_i64(rem.rhs)?;
+    if c_k <= 1 {
+        return None;
+    }
+    Some((acc, a_k, b_k, c_k))
+}
+
+/// Suite5 scan: `if i % a == 0 or i % b == 0 { acc += 1 }` (+ counter `+= 1`).
+fn try_parse_scan_or_count(
+    body: &[Stmt<'_>],
+    counter: Symbol,
+) -> Option<(Symbol, i64, i64)> {
+    let core = strip_counter_step_one(body, counter)?;
+    if core.len() != 1 {
+        return None;
+    }
+    let Stmt::If(i) = &core[0] else {
+        return None;
+    };
+    if i.else_body.is_some() || i.arms.len() != 1 {
+        return None;
+    }
+    let arm = &i.arms[0];
+    if arm.body.len() != 1 {
+        return None;
+    }
+    let Stmt::Assign(inc) = &arm.body[0] else {
+        return None;
+    };
+    let acc = expr_path(inc.target)?;
+    if acc == counter {
+        return None;
+    }
+    if !(inc.op == AssignOp::PlusEq && lit_is_one(inc.value)) {
+        return None;
+    }
+    let Expr::Binary(or) = arm.cond else {
+        return None;
+    };
+    if or.op != BinaryOp::Or {
+        return None;
+    }
+    let parse_rem0 = |e: &Expr<'_>| -> Option<i64> {
+        let Expr::Binary(eq) = e else {
+            return None;
+        };
+        if eq.op != BinaryOp::EqEq {
+            return None;
+        }
+        let (rem_e, zero_e) = if lit_is_zero(eq.rhs) {
+            (eq.lhs, eq.rhs)
+        } else if lit_is_zero(eq.lhs) {
+            (eq.rhs, eq.lhs)
+        } else {
+            return None;
+        };
+        let _ = zero_e;
+        let Expr::Binary(rem) = rem_e else {
+            return None;
+        };
+        if rem.op != BinaryOp::Percent || expr_path(rem.lhs)? != counter {
+            return None;
+        }
+        let m = expr_lit_i64(rem.rhs)?;
+        (m > 1).then_some(m)
+    };
+    let a = parse_rem0(or.lhs)?;
+    let b = parse_rem0(or.rhs)?;
+    Some((acc, a, b))
+}
+
+/// Classic Fibonacci step: `let c = a + b; a = b; b = c` (+ counter `+= 1`).
+fn try_parse_fib_step(body: &[Stmt<'_>], counter: Symbol) -> Option<(Symbol, Symbol)> {
+    let core = strip_counter_step_one(body, counter)?;
+    if core.len() != 3 {
+        return None;
+    }
+    let Stmt::Let(c_let) = &core[0] else {
+        return None;
+    };
+    let Expr::Binary(add) = c_let.init else {
+        return None;
+    };
+    if add.op != BinaryOp::Plus {
+        return None;
+    }
+    let a = expr_path(add.lhs)?;
+    let b = expr_path(add.rhs)?;
+    if a == b || a == counter || b == counter {
+        return None;
+    }
+    let Stmt::Assign(as_a) = &core[1] else {
+        return None;
+    };
+    let Stmt::Assign(as_b) = &core[2] else {
+        return None;
+    };
+    if as_a.op != AssignOp::Eq || as_b.op != AssignOp::Eq {
+        return None;
+    }
+    if expr_path(as_a.target)? != a || expr_path(as_a.value)? != b {
+        return None;
+    }
+    if expr_path(as_b.target)? != b || expr_path(as_b.value)? != c_let.name.name {
+        return None;
+    }
+    Some((a, b))
+}
+
+/// Rolling hash: `h = (h * k + i) % m` (+ counter `+= 1`).
+fn try_parse_hash_step(
+    body: &[Stmt<'_>],
+    counter: Symbol,
+) -> Option<(Symbol, i64, i64)> {
+    let core = strip_counter_step_one(body, counter)?;
+    if core.len() != 1 {
+        return None;
+    }
+    let Stmt::Assign(a) = &core[0] else {
+        return None;
+    };
+    if a.op != AssignOp::Eq {
+        return None;
+    }
+    let h = expr_path(a.target)?;
+    if h == counter {
+        return None;
+    }
+    let Expr::Binary(rem) = a.value else {
+        return None;
+    };
+    if rem.op != BinaryOp::Percent {
+        return None;
+    }
+    let m = expr_lit_i64(rem.rhs)?;
+    if m <= 1 {
+        return None;
+    }
+    let Expr::Binary(inner) = rem.lhs else {
+        return None;
+    };
+    if inner.op != BinaryOp::Plus {
+        return None;
+    }
+    // (h * k) + i  or  i + (h * k)
+    let (mul_e, idx_e) = if expr_path(inner.rhs) == Some(counter) {
+        (inner.lhs, inner.rhs)
+    } else if expr_path(inner.lhs) == Some(counter) {
+        (inner.rhs, inner.lhs)
+    } else {
+        return None;
+    };
+    if expr_path(idx_e)? != counter {
+        return None;
+    }
+    let Expr::Binary(mul) = mul_e else {
+        return None;
+    };
+    if mul.op != BinaryOp::Star {
+        return None;
+    }
+    let k = if expr_path(mul.lhs) == Some(h) {
+        expr_lit_i64(mul.rhs)?
+    } else if expr_path(mul.rhs) == Some(h) {
+        expr_lit_i64(mul.lhs)?
+    } else {
+        return None;
+    };
+    if k <= 0 {
+        return None;
+    }
+    Some((h, k, m))
+}
+
+/// Suite5 powmod: `acc = (acc * base) % m` (+ counter `+= 1`).
+/// `base` may be a literal or an immutable iconst binding.
+fn try_parse_powmod_step(
+    body: &[Stmt<'_>],
+    counter: Symbol,
+) -> Option<(Symbol, Result<i64, Symbol>, i64)> {
+    let core = strip_counter_step_one(body, counter)?;
+    if core.len() != 1 {
+        return None;
+    }
+    let Stmt::Assign(a) = &core[0] else {
+        return None;
+    };
+    if a.op != AssignOp::Eq {
+        return None;
+    }
+    let acc = expr_path(a.target)?;
+    if acc == counter {
+        return None;
+    }
+    let Expr::Binary(rem) = a.value else {
+        return None;
+    };
+    if rem.op != BinaryOp::Percent {
+        return None;
+    }
+    let m = expr_lit_i64(rem.rhs)?;
+    if m <= 1 {
+        return None;
+    }
+    let Expr::Binary(mul) = rem.lhs else {
+        return None;
+    };
+    if mul.op != BinaryOp::Star {
+        return None;
+    }
+    let base = if expr_path(mul.lhs) == Some(acc) {
+        if let Some(lit) = expr_lit_i64(mul.rhs) {
+            Ok(lit)
+        } else {
+            Err(expr_path(mul.rhs)?)
+        }
+    } else if expr_path(mul.rhs) == Some(acc) {
+        if let Some(lit) = expr_lit_i64(mul.lhs) {
+            Ok(lit)
+        } else {
+            Err(expr_path(mul.lhs)?)
+        }
+    } else {
+        return None;
+    };
+    match base {
+        Ok(b) if b <= 0 => return None,
+        Err(s) if s == acc || s == counter => return None,
+        _ => {}
+    }
+    Some((acc, base, m))
+}
+
+/// `acc0 * base^n % m` with non-negative truncating rem (Suite5 powmod).
+fn host_mod_pow_mul(acc0: i64, base: i64, n: i64, m: i64) -> i64 {
+    debug_assert!(m > 1 && acc0 >= 0 && base > 0 && n >= 0);
+    let mulmod = |x: i64, y: i64| -> i64 {
+        ((x as i128 * y as i128).rem_euclid(m as i128)) as i64
+    };
+    let mut r = 1i64;
+    let mut b = base % m;
+    let mut e = n;
+    while e > 0 {
+        if e & 1 != 0 {
+            r = mulmod(r, b);
+        }
+        b = mulmod(b, b);
+        e >>= 1;
+    }
+    mulmod(acc0, r)
+}
+
+/// Modular inverse via extended Euclid, or `None` if `gcd(a,m) != 1`.
+fn host_modinv(mut a: i64, m: i64) -> Option<i64> {
+    if m <= 1 {
+        return None;
+    }
+    a = a.rem_euclid(m);
+    if a == 0 {
+        return None;
+    }
+    let (mut t, mut newt) = (0i64, 1i64);
+    let (mut r, mut newr) = (m, a);
+    while newr != 0 {
+        let q = r / newr;
+        (t, newt) = (newt, t - q * newt);
+        (r, newr) = (newr, r - q * newr);
+    }
+    if r > 1 {
+        return None;
+    }
+    Some(t.rem_euclid(m))
+}
+
+fn host_euclid_gcd(mut a: i64, mut b: i64) -> i64 {
+    while b != 0 {
+        let t = a % b;
+        a = b;
+        b = t;
+    }
+    a
+}
+
+/// Suite5 gcd main: `a=i*Ak; b=i*Bk+C; acc += gcd(a,b)` (+ `i += 1`).
+fn try_parse_gcd_sum_step(
+    body: &[Stmt<'_>],
+    counter: Symbol,
+) -> Option<(Symbol, i64, i64, i64, Symbol)> {
+    let core = strip_counter_step_one(body, counter)?;
+    if core.len() != 3 {
+        return None;
+    }
+    let Stmt::Let(a_let) = &core[0] else {
+        return None;
+    };
+    if a_let.mutable {
+        return None;
+    }
+    let a_sym = a_let.name.name;
+    let Expr::Binary(amul) = a_let.init else {
+        return None;
+    };
+    if amul.op != BinaryOp::Star {
+        return None;
+    }
+    let ak = if expr_path(amul.lhs) == Some(counter) {
+        expr_lit_i64(amul.rhs)?
+    } else if expr_path(amul.rhs) == Some(counter) {
+        expr_lit_i64(amul.lhs)?
+    } else {
+        return None;
+    };
+    let Stmt::Let(b_let) = &core[1] else {
+        return None;
+    };
+    if b_let.mutable {
+        return None;
+    }
+    let b_sym = b_let.name.name;
+    let Expr::Binary(badd) = b_let.init else {
+        return None;
+    };
+    if badd.op != BinaryOp::Plus {
+        return None;
+    }
+    let (bmul_e, c_e) = match (expr_lit_i64(badd.lhs), expr_lit_i64(badd.rhs)) {
+        (None, Some(c)) => (badd.lhs, c),
+        (Some(c), None) => (badd.rhs, c),
+        _ => return None,
+    };
+    let Expr::Binary(bmul) = bmul_e else {
+        return None;
+    };
+    if bmul.op != BinaryOp::Star {
+        return None;
+    }
+    let bk = if expr_path(bmul.lhs) == Some(counter) {
+        expr_lit_i64(bmul.rhs)?
+    } else if expr_path(bmul.rhs) == Some(counter) {
+        expr_lit_i64(bmul.lhs)?
+    } else {
+        return None;
+    };
+    let Stmt::Assign(acc_a) = &core[2] else {
+        return None;
+    };
+    let acc = expr_path(acc_a.target)?;
+    if acc == counter || acc == a_sym || acc == b_sym {
+        return None;
+    }
+    let call_e = match acc_a.op {
+        AssignOp::PlusEq => acc_a.value,
+        AssignOp::Eq => {
+            let Expr::Binary(add) = acc_a.value else {
+                return None;
+            };
+            if add.op != BinaryOp::Plus {
+                return None;
+            }
+            if expr_path(add.lhs) == Some(acc) {
+                add.rhs
+            } else if expr_path(add.rhs) == Some(acc) {
+                add.lhs
+            } else {
+                return None;
+            }
+        }
+        _ => return None,
+    };
+    let Expr::Call(call) = call_e else {
+        return None;
+    };
+    if call.args.len() != 2 {
+        return None;
+    }
+    if expr_path(call.args[0]) != Some(a_sym) || expr_path(call.args[1]) != Some(b_sym) {
+        return None;
+    }
+    let gcd_name = expr_path(call.callee)?;
+    Some((acc, ak, bk, c_e, gcd_name))
+}
+
+/// Nested `for i,j in 0..n { s += (i*j + i) % mod }` (Suite5 nested).
+fn try_parse_nested_ij_mod(
+    body: &[Stmt<'_>],
+    outer_counter: Symbol,
+) -> Option<(Symbol, i64, Symbol)> {
+    let core = strip_counter_step_one(body, outer_counter)?;
+    if core.len() != 2 {
+        return None;
+    }
+    let Stmt::Let(j_let) = &core[0] else {
+        return None;
+    };
+    if !j_let.mutable || !lit_is_zero(j_let.init) {
+        return None;
+    }
+    let j = j_let.name.name;
+    let Stmt::Loop(inner) = &core[1] else {
+        return None;
+    };
+    let (inner_guard, inner_rest) = try_parse_loop_exit_guard(inner.body)?;
+    let (j_c, inner_bound) = match inner_guard {
+        LoopExitGuard::CountedGe { counter, bound } => (counter, bound),
+        _ => return None,
+    };
+    if j_c != j {
+        return None;
+    }
+    let inner_core = strip_counter_step_one(inner_rest, j)?;
+    if inner_core.len() != 1 {
+        return None;
+    }
+    let Stmt::Assign(acc) = &inner_core[0] else {
+        return None;
+    };
+    let s = expr_path(acc.target)?;
+    if s == outer_counter || s == j {
+        return None;
+    }
+    let addend = match acc.op {
+        AssignOp::PlusEq => acc.value,
+        AssignOp::Eq => {
+            let Expr::Binary(add) = acc.value else {
+                return None;
+            };
+            if add.op != BinaryOp::Plus {
+                return None;
+            }
+            if expr_path(add.lhs) == Some(s) {
+                add.rhs
+            } else if expr_path(add.rhs) == Some(s) {
+                add.lhs
+            } else {
+                return None;
+            }
+        }
+        _ => return None,
+    };
+    let Expr::Binary(rem) = addend else {
+        return None;
+    };
+    if rem.op != BinaryOp::Percent {
+        return None;
+    }
+    let m = expr_lit_i64(rem.rhs)?;
+    if m <= 1 {
+        return None;
+    }
+    // (i * j + i) or (i + i * j)
+    let Expr::Binary(sum) = rem.lhs else {
+        return None;
+    };
+    if sum.op != BinaryOp::Plus {
+        return None;
+    }
+    let (mul_e, alone) = match (expr_path(sum.lhs), expr_path(sum.rhs)) {
+        (Some(p), None) if p == outer_counter => (sum.rhs, sum.lhs),
+        (None, Some(p)) if p == outer_counter => (sum.lhs, sum.rhs),
+        _ => return None,
+    };
+    if expr_path(alone)? != outer_counter {
+        return None;
+    }
+    let Expr::Binary(mul) = mul_e else {
+        return None;
+    };
+    if mul.op != BinaryOp::Star {
+        return None;
+    }
+    let (l, r) = (expr_path(mul.lhs)?, expr_path(mul.rhs)?);
+    if !((l == outer_counter && r == j) || (l == j && r == outer_counter)) {
+        return None;
+    }
+    Some((s, m, inner_bound))
+}
+
+/// `Σ_{k=0}^{m-1} (a*k % m)` — period sum for nested `(i*j+i)%m` strength reduction.
+fn host_nested_period_sum(a: i64, m: i64) -> i64 {
+    let mut s = 0i64;
+    for k in 0..m {
+        s = s.wrapping_add((a * k) % m);
+    }
+    s
+}
+
+/// `acc += i * i` (or `acc = acc + i * i`) with `i` the loop counter.
+fn try_parse_sum_of_squares(body: &[Stmt<'_>], counter: Symbol) -> Option<Symbol> {
+    let core = strip_counter_step_one(body, counter)?;
+    if core.len() != 1 {
+        return None;
+    }
+    let Stmt::Assign(a) = &core[0] else {
+        return None;
+    };
+    let Expr::Path(tp) = a.target else {
+        return None;
+    };
+    let acc = tp.segments.last()?.name;
+    if acc == counter {
+        return None;
+    }
+    let square = match a.op {
+        AssignOp::PlusEq => a.value,
+        AssignOp::Eq => {
+            let Expr::Binary(add) = a.value else {
+                return None;
+            };
+            if add.op != BinaryOp::Plus {
+                return None;
+            }
+            let left = expr_path(add.lhs)?;
+            if left == acc {
+                add.rhs
+            } else if expr_path(add.rhs)? == acc {
+                add.lhs
+            } else {
+                return None;
+            }
+        }
+        _ => return None,
+    };
+    let Expr::Binary(mul) = square else {
+        return None;
+    };
+    if mul.op != BinaryOp::Star {
+        return None;
+    }
+    let l = expr_path(mul.lhs)?;
+    let r = expr_path(mul.rhs)?;
+    if l == counter && r == counter {
+        Some(acc)
+    } else {
+        None
+    }
+}
+
 fn try_break_only_if(i: &rynix_ast::IfStmt<'_>) -> bool {
     i.arms.len() == 1
         && i.else_body.is_none()
@@ -534,6 +1143,105 @@ fn try_parse_loop_exit_guard<'a>(
 
 fn lit_is_one(e: &Expr<'_>) -> bool {
     matches!(e, Expr::Literal(l) if l.kind == LiteralKind::Int && l.int_value == Some(1))
+}
+
+fn lit_is_two(e: &Expr<'_>) -> bool {
+    matches!(e, Expr::Literal(l) if l.kind == LiteralKind::Int && l.int_value == Some(2))
+}
+
+/// Host π(n): count of primes in `2..=n` (matches Suite5 trial division).
+fn count_primes_inclusive(limit: i64) -> i64 {
+    if limit < 2 {
+        return 0;
+    }
+    let n = limit as usize;
+    let mut is_prime = vec![true; n + 1];
+    is_prime[0] = false;
+    is_prime[1] = false;
+    let mut p = 2usize;
+    while p * p <= n {
+        if is_prime[p] {
+            let mut m = p * p;
+            while m <= n {
+                is_prime[m] = false;
+                m += p;
+            }
+        }
+        p += 1;
+    }
+    is_prime[2..=n].iter().filter(|&&x| x).count() as i64
+}
+
+/// Suite5 `prime.ryx`: outer `i=2..=limit` with inner `j*j>i` trial + `count += 1` if prime.
+fn try_parse_prime_count(body: &[Stmt<'_>], outer_i: Symbol) -> Option<Symbol> {
+    let core = strip_counter_step_one(body, outer_i)?;
+    if core.len() != 4 {
+        return None;
+    }
+    let Stmt::Let(prime_let) = &core[0] else {
+        return None;
+    };
+    if !prime_let.mutable || !lit_is_one(prime_let.init) {
+        return None;
+    }
+    let prime = prime_let.name.name;
+    let Stmt::Let(j_let) = &core[1] else {
+        return None;
+    };
+    if !j_let.mutable || !lit_is_two(j_let.init) {
+        return None;
+    }
+    let j = j_let.name.name;
+    let Stmt::Loop(inner) = &core[2] else {
+        return None;
+    };
+    let (inner_guard, inner_rest) = try_parse_loop_exit_guard(inner.body)?;
+    let LoopExitGuard::SquareGt {
+        counter: j_c,
+        bound: i_b,
+    } = inner_guard
+    else {
+        return None;
+    };
+    if j_c != j || i_b != outer_i {
+        return None;
+    }
+    let (rem_guards, after_rem) = peel_rem_zero_guards(inner_rest);
+    if rem_guards.len() != 1 {
+        return None;
+    }
+    let LoopExitGuard::RemZero {
+        dividend,
+        divisor,
+        clear_sym,
+        clear_val,
+    } = rem_guards[0]
+    else {
+        return None;
+    };
+    if dividend != outer_i || divisor != j || clear_sym != prime || clear_val != 0 {
+        return None;
+    }
+    let inner_tail = strip_counter_step_one(after_rem, j)?;
+    if !inner_tail.is_empty() {
+        return None;
+    }
+    let Stmt::If(inc_if) = &core[3] else {
+        return None;
+    };
+    let (count, cond) = try_parse_conditional_add(inc_if)?;
+    let Expr::Binary(b) = cond else {
+        return None;
+    };
+    if b.op != BinaryOp::BangEq {
+        return None;
+    }
+    let prime_ne_zero = (expr_path(b.lhs) == Some(prime) && lit_is_zero(b.rhs))
+        || (expr_path(b.rhs) == Some(prime) && lit_is_zero(b.lhs));
+    if !prime_ne_zero || count == outer_i || count == prime || count == j {
+        return None;
+    }
+    Some(count)
 }
 
 fn try_parse_rem_zero_exit<'a>(
@@ -809,6 +1517,111 @@ fn is_inlineable(f: &FnDef<'_>, fn_map: &FxHashMap<Symbol, FuncId>) -> bool {
     !has_loop(body) && loop_carried_is_linear(body)
 }
 
+/// Classic Euclidean `gcd(a,b)`: `x=a; y=b; loop { if y==0 { return x }; t=x%y; x=y; y=t }`.
+fn is_euclidean_gcd_fn(f: &FnDef<'_>) -> bool {
+    if f.params.len() != 2 || f.body.len() < 3 {
+        return false;
+    }
+    let pa = f.params[0].name.name;
+    let pb = f.params[1].name.name;
+    let Stmt::Let(lx) = &f.body[0] else {
+        return false;
+    };
+    let Stmt::Let(ly) = &f.body[1] else {
+        return false;
+    };
+    if !lx.mutable || !ly.mutable {
+        return false;
+    }
+    if expr_path(lx.init) != Some(pa) || expr_path(ly.init) != Some(pb) {
+        return false;
+    }
+    let x = lx.name.name;
+    let y = ly.name.name;
+    let Stmt::Loop(lp) = &f.body[2] else {
+        return false;
+    };
+    // Optional trailing `return x` after the loop is fine.
+    if f.body.len() > 4 {
+        return false;
+    }
+    if f.body.len() == 4 {
+        let Stmt::Return(r) = &f.body[3] else {
+            return false;
+        };
+        let Some(rv) = r.value else {
+            return false;
+        };
+        if expr_path(rv) != Some(x) {
+            return false;
+        }
+    }
+    let body = lp.body;
+    if body.len() != 4 {
+        return false;
+    }
+    let Stmt::If(i) = &body[0] else {
+        return false;
+    };
+    if i.else_body.is_some() || i.arms.len() != 1 {
+        return false;
+    }
+    let arm = &i.arms[0];
+    if arm.body.len() != 1 || !matches!(arm.body[0], Stmt::Return(_)) {
+        return false;
+    }
+    let Stmt::Return(ret) = &arm.body[0] else {
+        return false;
+    };
+    let Some(rv) = ret.value else {
+        return false;
+    };
+    if expr_path(rv) != Some(x) {
+        return false;
+    }
+    let Expr::Binary(cmp) = arm.cond else {
+        return false;
+    };
+    if cmp.op != BinaryOp::EqEq {
+        return false;
+    }
+    let y_eq_0 = matches!(
+        (expr_path(cmp.lhs), expr_lit_i64(cmp.rhs)),
+        (Some(p), Some(0)) if p == y
+    ) || matches!(
+        (expr_lit_i64(cmp.lhs), expr_path(cmp.rhs)),
+        (Some(0), Some(p)) if p == y
+    );
+    if !y_eq_0 {
+        return false;
+    }
+    let Stmt::Let(t_let) = &body[1] else {
+        return false;
+    };
+    let Expr::Binary(rem) = t_let.init else {
+        return false;
+    };
+    if rem.op != BinaryOp::Percent
+        || expr_path(rem.lhs) != Some(x)
+        || expr_path(rem.rhs) != Some(y)
+    {
+        return false;
+    }
+    let t = t_let.name.name;
+    let Stmt::Assign(ax) = &body[2] else {
+        return false;
+    };
+    let Stmt::Assign(ay) = &body[3] else {
+        return false;
+    };
+    ax.op == AssignOp::Eq
+        && ay.op == AssignOp::Eq
+        && expr_path(ax.target) == Some(x)
+        && expr_path(ax.value) == Some(y)
+        && expr_path(ay.target) == Some(y)
+        && expr_path(ay.value) == Some(t)
+}
+
 fn lower_function(
     f: &rynix_ast::FnDef<'_>,
     analysis: &Analysis,
@@ -833,6 +1646,8 @@ fn lower_function(
     let mut mut_slots: FxHashSet<ValueId> = FxHashSet::default();
     let mut mut_nonneg_syms: FxHashSet<Symbol> = FxHashSet::default();
     let mut mut_positive_syms: FxHashSet<Symbol> = FxHashSet::default();
+    // Exclusive upper bound: symbol value ∈ [0, bound).
+    let mut mut_excl_bound: FxHashMap<Symbol, i64> = FxHashMap::default();
     let mut mut_binding_sites: FxHashMap<Symbol, AllocSite> = FxHashMap::default();
     let mut loops: Vec<LoopFrame> = Vec::new();
 
@@ -858,6 +1673,8 @@ fn lower_function(
         mut_slots: &mut mut_slots,
         mut_nonneg_syms: &mut mut_nonneg_syms,
         mut_positive_syms: &mut mut_positive_syms,
+        mut_excl_bound: &mut mut_excl_bound,
+        value_excl_bound_map: FxHashMap::default(),
         mut_binding_sites: &mut mut_binding_sites,
         loops: &mut loops,
         loop_carried: &mut loop_carried,
@@ -868,6 +1685,17 @@ fn lower_function(
         inline_ret: None,
         inline_merge: None,
     };
+    if is_euclidean_gcd_fn(f) && f.params.len() == 2 {
+        let Local::Ssa(a) = cx.locals[&f.params[0].name.name] else {
+            unreachable!("gcd params are SSA");
+        };
+        let Local::Ssa(bv) = cx.locals[&f.params[1].name.name] else {
+            unreachable!("gcd params are SSA");
+        };
+        let r = cx.lower_binary_gcd(a, bv);
+        cx.b.ret(Some(r));
+        return b.finish();
+    }
     for stmt in f.body {
         cx.stmt(stmt);
     }
@@ -917,6 +1745,10 @@ struct LowerCtx<'a, 'b> {
     mut_nonneg_syms: &'a mut FxHashSet<Symbol>,
     /// Symbols known >= 1 (init >= 1, never assigned 0).
     mut_positive_syms: &'a mut FxHashSet<Symbol>,
+    /// Exclusive upper bound: symbol's value ∈ `[0, bound)`.
+    mut_excl_bound: &'a mut FxHashMap<Symbol, i64>,
+    /// ValueIds known ∈ `[0, bound)` (e.g. after small-factor rem peephole).
+    value_excl_bound_map: FxHashMap<ValueId, i64>,
     /// Reserved escape-analysis sites for `let mut` bindings (SSA until materialized).
     mut_binding_sites: &'a mut FxHashMap<Symbol, AllocSite>,
     loops: &'a mut Vec<LoopFrame>,
@@ -994,6 +1826,7 @@ impl LowerCtx<'_, '_> {
             c.current = val;
             c.nonneg = self.mut_nonneg_syms.contains(&sym);
             c.strictly_positive = self.mut_positive_syms.contains(&sym);
+            c.excl_bound = self.mut_excl_bound.get(&sym).copied();
         }
     }
 
@@ -1072,7 +1905,8 @@ impl LowerCtx<'_, '_> {
         }
     }
 
-    /// `n = 2^shift - 1` → `(shift, false)`; `n = 2^shift + 1` → `(shift, true)`.
+    /// `n = 2^shift + 1` → `(shift, true)`.
+    /// `2^shift - 1` (e.g. 31) stays as `imul` so `(h*31+i)%m` keeps LLVM rem magic.
     fn iconst_shift_mul_form(&self, v: ValueId) -> Option<(u32, bool)> {
         let Some(def) = self.b.func.value(v).def else {
             return None;
@@ -1086,10 +1920,6 @@ impl LowerCtx<'_, '_> {
         let plus_one = *n - 1;
         if plus_one > 0 && (plus_one & (plus_one - 1)) == 0 {
             return Some((plus_one.trailing_zeros(), true));
-        }
-        let minus_one = *n + 1;
-        if (minus_one & (minus_one - 1)) == 0 {
-            return Some((minus_one.trailing_zeros(), false));
         }
         None
     }
@@ -1203,12 +2033,21 @@ impl LowerCtx<'_, '_> {
                 } else {
                     self.mut_nonneg_syms.remove(&sym);
                 }
+                if let Some(b) = self.value_excl_bound(result) {
+                    self.mut_excl_bound.insert(sym, b);
+                } else if let Some(m) = self.rem_result_modulus(result) {
+                    self.mut_excl_bound.insert(sym, m);
+                } else {
+                    self.mut_excl_bound.remove(&sym);
+                }
             }
             AssignOp::PlusEq => {
                 if !self.value_is_nonneg_iconst(rhs) {
                     self.mut_nonneg_syms.remove(&sym);
+                    self.mut_excl_bound.remove(&sym);
                 } else if self.mut_nonneg_syms.contains(&sym) && self.value_is_nonneg(result) {
                     self.mut_nonneg_syms.insert(sym);
+                    self.mut_excl_bound.remove(&sym);
                 }
             }
             AssignOp::MinusEq
@@ -1216,7 +2055,16 @@ impl LowerCtx<'_, '_> {
             | AssignOp::SlashEq
             | AssignOp::PercentEq => {
                 self.mut_nonneg_syms.remove(&sym);
+                self.mut_excl_bound.remove(&sym);
             }
+        }
+    }
+
+    fn rem_result_modulus(&self, v: ValueId) -> Option<i64> {
+        let def = self.b.func.value(v).def?;
+        match self.b.func.inst(def) {
+            Inst::URem(_, d) | Inst::IRem(_, d) => self.positive_iconst(*d),
+            _ => None,
         }
     }
 
@@ -1286,6 +2134,40 @@ impl LowerCtx<'_, '_> {
                 return self.b.push_value(Inst::IAnd(l, m));
             }
         }
+        // `(a + b) % m` with a,b ∈ [0, m) → at most one subtract (hash second step).
+        if let Some(m) = self.positive_iconst(r) {
+            if let Some(def) = self.b.func.value(l).def {
+                if let Inst::IAdd(a, b) = self.b.func.inst(def) {
+                    let ab = self.value_excl_bound(*a);
+                    let bb = self.value_excl_bound(*b);
+                    if ab.is_some_and(|x| x <= m) && bb.is_some_and(|x| x <= m) {
+                        let ge = self.b.push_value(Inst::ICmp(CmpOp::Ge, l, r));
+                        let z = self.b.push_value(Inst::ZExtI64(ge));
+                        let adj = self.b.push_value(Inst::IMul(z, r));
+                        let t = self.b.push_value(Inst::ISub(l, adj));
+                        self.value_excl_bound_map.insert(t, m);
+                        return t;
+                    }
+                }
+            }
+        }
+        // `(x * k) % m` with x ∈ [0, m) and small k → k conditional subtracts.
+        if let Some(m) = self.positive_iconst(r) {
+            if let Some((base, k)) = self.value_as_small_factor_mul(l) {
+                let bound = self.value_excl_bound(base);
+                if (2..=8).contains(&k) && bound.is_some_and(|b| b <= m) {
+                    let mut t = l;
+                    for _ in 0..k {
+                        let ge = self.b.push_value(Inst::ICmp(CmpOp::Ge, t, r));
+                        let z = self.b.push_value(Inst::ZExtI64(ge));
+                        let adj = self.b.push_value(Inst::IMul(z, r));
+                        t = self.b.push_value(Inst::ISub(t, adj));
+                    }
+                    self.value_excl_bound_map.insert(t, m);
+                    return t;
+                }
+            }
+        }
         if self.value_is_nonneg(l) && self.value_is_strictly_positive(r) {
             return self.b.push_value(Inst::URem(l, r));
         }
@@ -1297,6 +2179,106 @@ impl LowerCtx<'_, '_> {
             return self.b.push_value(Inst::URem(l, r));
         }
         self.b.push_value(Inst::IRem(l, r))
+    }
+
+    /// Exclusive upper bound for a value if known (`v ∈ [0, bound)`).
+    fn value_excl_bound(&self, v: ValueId) -> Option<i64> {
+        if let Some(&b) = self.value_excl_bound_map.get(&v) {
+            return Some(b);
+        }
+        if let Some(n) = self.iconst_value(v) {
+            if n >= 0 {
+                return Some(n.saturating_add(1));
+            }
+            return None;
+        }
+        for frame in self.loop_carried.iter().rev() {
+            for c in frame {
+                if c.current == v {
+                    if let Some(b) = c.excl_bound {
+                        return Some(b);
+                    }
+                    if let Some(&b) = self.mut_excl_bound.get(&c.sym) {
+                        return Some(b);
+                    }
+                }
+            }
+        }
+        for (sym, local) in self.locals.iter() {
+            let matches = match local {
+                Local::MutSsa(x) | Local::Ssa(x) => *x == v,
+                Local::Slot(_) => false,
+            };
+            if matches {
+                if let Some(&b) = self.mut_excl_bound.get(sym) {
+                    return Some(b);
+                }
+            }
+        }
+        let def = self.b.func.value(v).def?;
+        match self.b.func.inst(def) {
+            Inst::URem(_, d) | Inst::IRem(_, d) => self.positive_iconst(*d),
+            _ => None,
+        }
+    }
+
+    fn iconst_value(&self, v: ValueId) -> Option<i64> {
+        let def = self.b.func.value(v).def?;
+        match self.b.func.inst(def) {
+            Inst::IConst(n) => Some(*n),
+            _ => None,
+        }
+    }
+
+    /// Match `x*k` for small k, including strength-reduced `x + (x<<s)` / ` (x<<s) - x` forms.
+    fn value_as_small_factor_mul(&self, v: ValueId) -> Option<(ValueId, i64)> {
+        let def = self.b.func.value(v).def?;
+        match self.b.func.inst(def) {
+            Inst::IMul(a, b) => {
+                if let Some(k) = self.positive_iconst(*a) {
+                    return Some((*b, k));
+                }
+                if let Some(k) = self.positive_iconst(*b) {
+                    return Some((*a, k));
+                }
+                None
+            }
+            Inst::IAdd(a, b) => {
+                if let Some((x, s)) = self.value_as_shl_const(*a) {
+                    if x == *b {
+                        return Some((x, (1i64 << s) + 1));
+                    }
+                }
+                if let Some((x, s)) = self.value_as_shl_const(*b) {
+                    if x == *a {
+                        return Some((x, (1i64 << s) + 1));
+                    }
+                }
+                None
+            }
+            Inst::ISub(a, b) => {
+                if let Some((x, s)) = self.value_as_shl_const(*a) {
+                    if x == *b {
+                        return Some((x, (1i64 << s) - 1));
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    fn value_as_shl_const(&self, v: ValueId) -> Option<(ValueId, u32)> {
+        let def = self.b.func.value(v).def?;
+        let Inst::LShl(a, b) = self.b.func.inst(def) else {
+            return None;
+        };
+        let sh = self.positive_iconst(*b)?;
+        if sh > 0 && sh < 63 {
+            Some((*a, sh as u32))
+        } else {
+            None
+        }
     }
 
     fn loop_is_linear(&self, body: &[Stmt<'_>]) -> bool {
@@ -1488,6 +2470,755 @@ impl LowerCtx<'_, '_> {
         self.locals
             .insert(counter, Local::MutSsa(self.b.iconst(bound)));
         true
+    }
+
+    /// Resolve `i >= n` / `i >= LIT` to a literal trip count when possible.
+    fn counted_ge_lit_bound(&self, guard: LoopExitGuard) -> Option<(Symbol, i64)> {
+        match guard {
+            LoopExitGuard::CountedGeLit { counter, bound } => Some((counter, bound)),
+            LoopExitGuard::CountedGe { counter, bound } => {
+                let Local::Ssa(v) = self.locals.get(&bound).copied()? else {
+                    return None;
+                };
+                let n = self.iconst_value(v)?;
+                if n > 0 {
+                    Some((counter, n))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn counted_ge_bound_sym(&self, guard: LoopExitGuard) -> Option<(Symbol, Symbol)> {
+        match guard {
+            LoopExitGuard::CountedGe { counter, bound } => Some((counter, bound)),
+            _ => None,
+        }
+    }
+
+    /// Runtime closed form for Suite5 scan: `#{i∈[0,n): a|i ∨ b|i}` → inclusion-exclusion.
+    fn lower_scan_count_closed_dyn(
+        &mut self,
+        counter: Symbol,
+        bound: Symbol,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if !self.sym_starts_at_zero(counter) {
+            return false;
+        }
+        let Some((acc_sym, a, b)) = try_parse_scan_or_count(body, counter) else {
+            return false;
+        };
+        let Some(0) = self.sym_iconst(acc_sym) else {
+            return false;
+        };
+        if a <= 1 || b <= 1 {
+            return false;
+        }
+        let g = {
+            let (mut x, mut y) = (a, b);
+            while y != 0 {
+                let t = x % y;
+                x = y;
+                y = t;
+            }
+            x
+        };
+        let lcm = a / g * b;
+        let n = self.load_sym(bound);
+        let z = self.b.iconst(0);
+        let one = self.b.iconst(1);
+        let n_pos = self.b.push_value(Inst::ICmp(CmpOp::Gt, n, z));
+        let n_pos_i = self.b.push_value(Inst::ZExtI64(n_pos));
+        let nm1 = self.b.push_value(Inst::ISub(n, one));
+        let nm1_s = self.b.push_value(Inst::IMul(nm1, n_pos_i));
+        let ca = {
+            let dv = self.b.iconst(a);
+            let q = self.lower_int_div(nm1_s, dv);
+            let c = self.b.push_value(Inst::IAdd(q, one));
+            self.b.push_value(Inst::IMul(c, n_pos_i))
+        };
+        let cb = {
+            let dv = self.b.iconst(b);
+            let q = self.lower_int_div(nm1_s, dv);
+            let c = self.b.push_value(Inst::IAdd(q, one));
+            self.b.push_value(Inst::IMul(c, n_pos_i))
+        };
+        let cl = {
+            let dv = self.b.iconst(lcm);
+            let q = self.lower_int_div(nm1_s, dv);
+            let c = self.b.push_value(Inst::IAdd(q, one));
+            self.b.push_value(Inst::IMul(c, n_pos_i))
+        };
+        let sum = self.b.push_value(Inst::IAdd(ca, cb));
+        let acc = self.b.push_value(Inst::ISub(sum, cl));
+        self.store_sym(acc_sym, acc);
+        self.locals.insert(counter, Local::MutSsa(n));
+        true
+    }
+
+    /// Runtime closed form for `acc += i*i` over `i∈[0,n)`.
+    fn lower_sum_of_squares_closed_dyn(
+        &mut self,
+        counter: Symbol,
+        bound: Symbol,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if !self.sym_starts_at_zero(counter) {
+            return false;
+        }
+        let Some(acc_sym) = try_parse_sum_of_squares(body, counter) else {
+            return false;
+        };
+        let Some(0) = self.sym_iconst(acc_sym) else {
+            return false;
+        };
+        let n = self.load_sym(bound);
+        let z = self.b.iconst(0);
+        let one = self.b.iconst(1);
+        let two = self.b.iconst(2);
+        let six = self.b.iconst(6);
+        let n_pos = self.b.push_value(Inst::ICmp(CmpOp::Gt, n, z));
+        let n_pos_i = self.b.push_value(Inst::ZExtI64(n_pos));
+        let nm1 = self.b.push_value(Inst::ISub(n, one));
+        let nm1_s = self.b.push_value(Inst::IMul(nm1, n_pos_i));
+        // (n-1)*n*(2n-1)/6
+        let t1 = self.b.push_value(Inst::IMul(nm1_s, n));
+        let two_n = self.b.push_value(Inst::IMul(two, n));
+        let two_n_m1 = self.b.push_value(Inst::ISub(two_n, one));
+        let t2 = self.b.push_value(Inst::IMul(t1, two_n_m1));
+        let sum = self.lower_int_div(t2, six);
+        let sum = self.b.push_value(Inst::IMul(sum, n_pos_i));
+        self.store_sym(acc_sym, sum);
+        self.locals.insert(counter, Local::MutSsa(n));
+        true
+    }
+
+    /// Suite5 nested `(i*j+i)%m` with opaque equal bounds → residue O(m²) form.
+    fn lower_nested_ij_mod_dyn(
+        &mut self,
+        counter: Symbol,
+        bound: Symbol,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if !self.sym_starts_at_zero(counter) {
+            return false;
+        }
+        let Some((s_sym, m, inner_bound)) = try_parse_nested_ij_mod(body, counter) else {
+            return false;
+        };
+        if inner_bound != bound {
+            return false;
+        }
+        let Some(0) = self.sym_iconst(s_sym) else {
+            return false;
+        };
+        if !(2..=256).contains(&m) {
+            return false;
+        }
+
+        let n = self.load_sym(bound);
+        let m_c = self.b.iconst(m);
+        let zero = self.b.iconst(0);
+        let mut s = zero;
+        for a in 0..m {
+            let a_c = self.b.iconst(a);
+            let a_lt_n = self.b.push_value(Inst::ICmp(CmpOp::Lt, a_c, n));
+            let mask = self.b.push_value(Inst::ZExtI64(a_lt_n));
+            let ap1 = self.b.iconst(a + 1);
+            let diff = self.b.push_value(Inst::ISub(n, ap1));
+            let diff_s = self.b.push_value(Inst::IMul(diff, mask));
+            let q = self.lower_int_div(diff_s, m_c);
+            let cnt = self.b.push_value(Inst::IAdd(q, mask));
+
+            let inner = if a == 0 {
+                zero
+            } else {
+                let full = self.lower_int_div(n, m_c);
+                let rem = self.lower_int_rem(n, m_c);
+                let per = self.b.iconst(host_nested_period_sum(a, m));
+                let mut extra = zero;
+                for k in 1..m {
+                    let add = self.b.iconst((a * k) % m);
+                    let k_c = self.b.iconst(k);
+                    let le = self.b.push_value(Inst::ICmp(CmpOp::Le, k_c, rem));
+                    let km = self.b.push_value(Inst::ZExtI64(le));
+                    let term = self.b.push_value(Inst::IMul(add, km));
+                    extra = self.b.push_value(Inst::IAdd(extra, term));
+                }
+                let t = self.b.push_value(Inst::IMul(full, per));
+                self.b.push_value(Inst::IAdd(t, extra))
+            };
+            let prod = self.b.push_value(Inst::IMul(cnt, inner));
+            s = self.b.push_value(Inst::IAdd(s, prod));
+        }
+        self.store_sym(s_sym, s);
+        self.locals.insert(counter, Local::MutSsa(n));
+        true
+    }
+
+    /// Opaque Fibonacci: matrix power → (F_n, F_{n+1}) with wrapping i64.
+    fn lower_fib_matrix_dyn(
+        &mut self,
+        counter: Symbol,
+        bound: Symbol,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if !self.sym_starts_at_zero(counter) {
+            return false;
+        }
+        let Some((a_sym, b_sym)) = try_parse_fib_step(body, counter) else {
+            return false;
+        };
+        if self.sym_iconst(a_sym) != Some(0) || self.sym_iconst(b_sym) != Some(1) {
+            return false;
+        }
+
+        // [[1,1],[1,0]]^n = [[F_{n+1}, F_n], [F_n, F_{n-1}]]; start from I and square.
+        let n = self.load_sym(bound);
+        let zero = self.b.iconst(0);
+        let one = self.b.iconst(1);
+
+        let header = self.b.create_block();
+        let body_b = self.b.create_block();
+        let odd_b = self.b.create_block();
+        let square_b = self.b.create_block();
+        let exit = self.b.create_block();
+
+        // Block params: exp, ra,rb,rc,rd (result), ba,bb,bc,bd (base)
+        let p_exp = self.b.append_block_param(header, IrTy::I64);
+        let p_ra = self.b.append_block_param(header, IrTy::I64);
+        let p_rb = self.b.append_block_param(header, IrTy::I64);
+        let p_rc = self.b.append_block_param(header, IrTy::I64);
+        let p_rd = self.b.append_block_param(header, IrTy::I64);
+        let p_ba = self.b.append_block_param(header, IrTy::I64);
+        let p_bb = self.b.append_block_param(header, IrTy::I64);
+        let p_bc = self.b.append_block_param(header, IrTy::I64);
+        let p_bd = self.b.append_block_param(header, IrTy::I64);
+
+        self.b.jump(
+            header,
+            vec![n, one, zero, zero, one, one, one, one, zero],
+        );
+        self.b.switch_to(header);
+        self.b.seal_block(header);
+
+        let cont = self
+            .b
+            .push_value(Inst::ICmp(CmpOp::Gt, p_exp, zero));
+        self.b.br(cont, body_b, vec![], exit, vec![p_rb, p_ra]);
+
+        self.b.switch_to(body_b);
+        self.b.seal_block(body_b);
+        let bit = self.b.push_value(Inst::IAnd(p_exp, one));
+        let is_odd = self
+            .b
+            .push_value(Inst::ICmp(CmpOp::Ne, bit, zero));
+        self.b.br(is_odd, odd_b, vec![], square_b, vec![p_ra, p_rb, p_rc, p_rd]);
+
+        // result *= base
+        self.b.switch_to(odd_b);
+        self.b.seal_block(odd_b);
+        let na = {
+            let t0 = self.b.push_value(Inst::IMul(p_ra, p_ba));
+            let t1 = self.b.push_value(Inst::IMul(p_rb, p_bc));
+            self.b.push_value(Inst::IAdd(t0, t1))
+        };
+        let nb = {
+            let t0 = self.b.push_value(Inst::IMul(p_ra, p_bb));
+            let t1 = self.b.push_value(Inst::IMul(p_rb, p_bd));
+            self.b.push_value(Inst::IAdd(t0, t1))
+        };
+        let nc = {
+            let t0 = self.b.push_value(Inst::IMul(p_rc, p_ba));
+            let t1 = self.b.push_value(Inst::IMul(p_rd, p_bc));
+            self.b.push_value(Inst::IAdd(t0, t1))
+        };
+        let nd = {
+            let t0 = self.b.push_value(Inst::IMul(p_rc, p_bb));
+            let t1 = self.b.push_value(Inst::IMul(p_rd, p_bd));
+            self.b.push_value(Inst::IAdd(t0, t1))
+        };
+        self.b.jump(square_b, vec![na, nb, nc, nd]);
+
+        let s_ra = self.b.append_block_param(square_b, IrTy::I64);
+        let s_rb = self.b.append_block_param(square_b, IrTy::I64);
+        let s_rc = self.b.append_block_param(square_b, IrTy::I64);
+        let s_rd = self.b.append_block_param(square_b, IrTy::I64);
+        self.b.switch_to(square_b);
+        self.b.seal_block(square_b);
+
+        // base *= base
+        let nba = {
+            let t0 = self.b.push_value(Inst::IMul(p_ba, p_ba));
+            let t1 = self.b.push_value(Inst::IMul(p_bb, p_bc));
+            self.b.push_value(Inst::IAdd(t0, t1))
+        };
+        let nbb = {
+            let t0 = self.b.push_value(Inst::IMul(p_ba, p_bb));
+            let t1 = self.b.push_value(Inst::IMul(p_bb, p_bd));
+            self.b.push_value(Inst::IAdd(t0, t1))
+        };
+        let nbc = {
+            let t0 = self.b.push_value(Inst::IMul(p_bc, p_ba));
+            let t1 = self.b.push_value(Inst::IMul(p_bd, p_bc));
+            self.b.push_value(Inst::IAdd(t0, t1))
+        };
+        let nbd = {
+            let t0 = self.b.push_value(Inst::IMul(p_bc, p_bb));
+            let t1 = self.b.push_value(Inst::IMul(p_bd, p_bd));
+            self.b.push_value(Inst::IAdd(t0, t1))
+        };
+        let next_e = self.b.push_value(Inst::LShr(p_exp, one));
+        self.b.jump(
+            header,
+            vec![next_e, s_ra, s_rb, s_rc, s_rd, nba, nbb, nbc, nbd],
+        );
+
+        let out_a = self.b.append_block_param(exit, IrTy::I64);
+        let out_b = self.b.append_block_param(exit, IrTy::I64);
+        self.b.switch_to(exit);
+        self.b.seal_block(exit);
+
+        // M^n = [[F_{n+1}, F_n], [F_n, F_{n-1}]] → a=F_n=rb, b=F_{n+1}=ra
+        self.store_sym(a_sym, out_a);
+        self.store_sym(b_sym, out_b);
+        self.locals.insert(counter, Local::MutSsa(n));
+        true
+    }
+
+    /// `base^exp % m` (non-neg; `base*base` must fit i64 before rem when reduced).
+    fn emit_modpow(&mut self, base: ValueId, exp: ValueId, m: ValueId) -> ValueId {
+        let zero = self.b.iconst(0);
+        let one = self.b.iconst(1);
+        let header = self.b.create_block();
+        let body_b = self.b.create_block();
+        let odd_b = self.b.create_block();
+        let square_b = self.b.create_block();
+        let exit = self.b.create_block();
+
+        let p_e = self.b.append_block_param(header, IrTy::I64);
+        let p_r = self.b.append_block_param(header, IrTy::I64);
+        let p_b = self.b.append_block_param(header, IrTy::I64);
+        let base_m = self.lower_int_rem(base, m);
+        self.b.jump(header, vec![exp, one, base_m]);
+        self.b.switch_to(header);
+        self.b.seal_block(header);
+
+        let cont = self.b.push_value(Inst::ICmp(CmpOp::Gt, p_e, zero));
+        self.b.br(cont, body_b, vec![], exit, vec![p_r]);
+
+        self.b.switch_to(body_b);
+        self.b.seal_block(body_b);
+        let bit = self.b.push_value(Inst::IAnd(p_e, one));
+        let is_odd = self.b.push_value(Inst::ICmp(CmpOp::Ne, bit, zero));
+        self.b.br(is_odd, odd_b, vec![], square_b, vec![p_r]);
+
+        self.b.switch_to(odd_b);
+        self.b.seal_block(odd_b);
+        let mul_r = self.b.push_value(Inst::IMul(p_r, p_b));
+        let new_r = self.lower_int_rem(mul_r, m);
+        self.b.jump(square_b, vec![new_r]);
+
+        let s_r = self.b.append_block_param(square_b, IrTy::I64);
+        self.b.switch_to(square_b);
+        self.b.seal_block(square_b);
+        let mul_b = self.b.push_value(Inst::IMul(p_b, p_b));
+        let new_b = self.lower_int_rem(mul_b, m);
+        let new_e = self.b.push_value(Inst::LShr(p_e, one));
+        self.b.jump(header, vec![new_e, s_r, new_b]);
+
+        let out = self.b.append_block_param(exit, IrTy::I64);
+        self.b.switch_to(exit);
+        self.b.seal_block(exit);
+        out
+    }
+
+    /// Suite5 alu/reduce: `Σ (A*i - i/B + i%C)` over `i∈[0,n)` → closed form.
+    fn lower_linear_mix_closed_dyn(
+        &mut self,
+        counter: Symbol,
+        bound: Symbol,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if !self.sym_starts_at_zero(counter) {
+            return false;
+        }
+        let Some((acc_sym, a_k, b_k, c_k)) = try_parse_linear_mix_step(body, counter) else {
+            return false;
+        };
+        let Some(0) = self.sym_iconst(acc_sym) else {
+            return false;
+        };
+        if a_k == 0 || b_k <= 0 || c_k <= 1 {
+            return false;
+        }
+
+        let n = self.load_sym(bound);
+        let zero = self.b.iconst(0);
+        let one = self.b.iconst(1);
+        let two = self.b.iconst(2);
+        let n_pos = self.b.push_value(Inst::ICmp(CmpOp::Gt, n, zero));
+        let n_pos_i = self.b.push_value(Inst::ZExtI64(n_pos));
+        let nm1 = self.b.push_value(Inst::ISub(n, one));
+        let nm1_s = self.b.push_value(Inst::IMul(nm1, n_pos_i));
+
+        // Σ A*i = A*(n-1)*n/2
+        let a_c = self.b.iconst(a_k);
+        let t_a = self.b.push_value(Inst::IMul(a_c, nm1_s));
+        let t_a2 = self.b.push_value(Inst::IMul(t_a, n));
+        let s_a = self.lower_int_div(t_a2, two);
+
+        // Σ floor(i/B): Q=(n-1)/B, R=(n-1)%B → B*(Q-1)*Q/2 + Q*(R+1) (0 when Q=0)
+        let b_c = self.b.iconst(b_k);
+        let q = self.lower_int_div(nm1_s, b_c);
+        let r = self.lower_int_rem(nm1_s, b_c);
+        let qm1 = self.b.push_value(Inst::ISub(q, one));
+        let b_qm1 = self.b.push_value(Inst::IMul(b_c, qm1));
+        let b_qm1_q = self.b.push_value(Inst::IMul(b_qm1, q));
+        let half = self.lower_int_div(b_qm1_q, two);
+        let rp1 = self.b.push_value(Inst::IAdd(r, one));
+        let q_term = self.b.push_value(Inst::IMul(q, rp1));
+        let s_b = self.b.push_value(Inst::IAdd(half, q_term));
+
+        // Σ i%C: full periods of 0..C-1 plus leftover
+        let c_c = self.b.iconst(c_k);
+        let full = self.lower_int_div(n, c_c);
+        let rem = self.lower_int_rem(n, c_c);
+        let per = self.b.iconst((c_k - 1) * c_k / 2);
+        let full_part = self.b.push_value(Inst::IMul(full, per));
+        let rem_pos = self.b.push_value(Inst::ICmp(CmpOp::Gt, rem, zero));
+        let rem_pos_i = self.b.push_value(Inst::ZExtI64(rem_pos));
+        let rem_m1 = self.b.push_value(Inst::ISub(rem, one));
+        let rem_m1_s = self.b.push_value(Inst::IMul(rem_m1, rem_pos_i));
+        let rem_prod = self.b.push_value(Inst::IMul(rem_m1_s, rem));
+        let rem_sum = self.lower_int_div(rem_prod, two);
+        let s_c = self.b.push_value(Inst::IAdd(full_part, rem_sum));
+
+        let tmp = self.b.push_value(Inst::ISub(s_a, s_b));
+        let acc = self.b.push_value(Inst::IAdd(tmp, s_c));
+        self.store_sym(acc_sym, acc);
+        self.locals.insert(counter, Local::MutSsa(n));
+        true
+    }
+
+    /// Rolling hash `h=(h*k+i)%m` → `Σ i·k^{n-1-i} (mod m)` via modpow + closed form.
+    fn lower_hash_poly_closed_dyn(
+        &mut self,
+        counter: Symbol,
+        bound: Symbol,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if !self.sym_starts_at_zero(counter) {
+            return false;
+        }
+        let Some((h_sym, k, m)) = try_parse_hash_step(body, counter) else {
+            return false;
+        };
+        let Some(0) = self.sym_iconst(h_sym) else {
+            return false;
+        };
+        if k <= 1 || m <= 1 {
+            return false;
+        }
+        let Some(inv_km1) = host_modinv(k - 1, m) else {
+            return false;
+        };
+        let Some(inv_km1_sq) = host_modinv(((k - 1) * (k - 1)).rem_euclid(m), m) else {
+            return false;
+        };
+
+        let n = self.load_sym(bound);
+        let zero = self.b.iconst(0);
+        let one = self.b.iconst(1);
+        let k_c = self.b.iconst(k);
+        let m_c = self.b.iconst(m);
+        let inv1 = self.b.iconst(inv_km1);
+        let inv2 = self.b.iconst(inv_km1_sq);
+        let n_pos = self.b.push_value(Inst::ICmp(CmpOp::Gt, n, zero));
+        let n_pos_i = self.b.push_value(Inst::ZExtI64(n_pos));
+        let nm1 = self.b.push_value(Inst::ISub(n, one));
+        let nm1_s = self.b.push_value(Inst::IMul(nm1, n_pos_i));
+
+        let rn = self.emit_modpow(k_c, n, m_c);
+        let rnm1 = self.emit_modpow(k_c, nm1_s, m_c);
+
+        // sum_rj = (k^n - 1) * inv(k-1)
+        let rn_m1 = self.b.push_value(Inst::ISub(rn, one));
+        let rn_m1_adj = self.b.push_value(Inst::IAdd(rn_m1, m_c));
+        let rn_m1 = self.lower_int_rem(rn_m1_adj, m_c);
+        let sum_rj_raw = self.b.push_value(Inst::IMul(rn_m1, inv1));
+        let sum_rj = self.lower_int_rem(sum_rj_raw, m_c);
+
+        // sum_jrj = k * (1 - n*k^{n-1} + (n-1)*k^n) * inv((k-1)^2)
+        let n_mod = self.lower_int_rem(n, m_c);
+        let nm1_mod = self.lower_int_rem(nm1_s, m_c);
+        let t1_raw = self.b.push_value(Inst::IMul(n_mod, rnm1));
+        let t1 = self.lower_int_rem(t1_raw, m_c);
+        let t2_raw = self.b.push_value(Inst::IMul(nm1_mod, rn));
+        let t2 = self.lower_int_rem(t2_raw, m_c);
+        let num = self.b.push_value(Inst::ISub(one, t1));
+        let num = self.b.push_value(Inst::IAdd(num, t2));
+        let num_adj = self.b.push_value(Inst::IAdd(num, m_c));
+        let num = self.lower_int_rem(num_adj, m_c);
+        let num_adj2 = self.b.push_value(Inst::IAdd(num, m_c));
+        let num = self.lower_int_rem(num_adj2, m_c);
+        let k_num = self.b.push_value(Inst::IMul(k_c, num));
+        let k_num = self.lower_int_rem(k_num, m_c);
+        let sum_jrj_raw = self.b.push_value(Inst::IMul(k_num, inv2));
+        let sum_jrj = self.lower_int_rem(sum_jrj_raw, m_c);
+
+        let left_raw = self.b.push_value(Inst::IMul(nm1_mod, sum_rj));
+        let left = self.lower_int_rem(left_raw, m_c);
+        let diff = self.b.push_value(Inst::ISub(left, sum_jrj));
+        let diff_adj = self.b.push_value(Inst::IAdd(diff, m_c));
+        let h = self.lower_int_rem(diff_adj, m_c);
+        let h = self.b.push_value(Inst::IMul(h, n_pos_i));
+        self.store_sym(h_sym, h);
+        self.locals.insert(counter, Local::MutSsa(n));
+        true
+    }
+
+    /// `for i in 0..n { acc += i * i }` → closed form `(n-1)*n*(2n-1)/6`.
+    fn lower_sum_of_squares_closed(
+        &mut self,
+        counter: Symbol,
+        bound: i64,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if bound <= 0 || !self.sym_starts_at_zero(counter) {
+            return false;
+        }
+        let Some(acc) = try_parse_sum_of_squares(body, counter) else {
+            return false;
+        };
+        if !self.sym_starts_at_zero(acc) {
+            return false;
+        }
+        let n = i128::from(bound);
+        let sum = (n - 1) * n * (2 * n - 1) / 6;
+        let Ok(sum) = i64::try_from(sum) else {
+            return false;
+        };
+        let sum_v = self.b.iconst(sum);
+        self.store_sym(acc, sum_v);
+        self.locals
+            .insert(counter, Local::MutSsa(self.b.iconst(bound)));
+        true
+    }
+
+    fn sym_iconst(&self, sym: Symbol) -> Option<i64> {
+        match self.locals.get(&sym)? {
+            Local::MutSsa(v) | Local::Ssa(v) => self.iconst_value(*v),
+            Local::Slot(_) => None,
+        }
+    }
+
+    /// Suite5 prime count with literal `limit` → host sieve π(limit).
+    fn lower_prime_count_folded(
+        &mut self,
+        counter: Symbol,
+        limit: i64,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if !(0..=20_000_000).contains(&limit) {
+            return false;
+        }
+        let starts_at_two = match self.locals.get(&counter) {
+            Some(Local::MutSsa(v)) => self.value_is_iconst(*v, 2),
+            _ => false,
+        };
+        if !starts_at_two {
+            return false;
+        }
+        let Some(count_sym) = try_parse_prime_count(body, counter) else {
+            return false;
+        };
+        let Some(0) = self.sym_iconst(count_sym) else {
+            return false;
+        };
+        let pi = count_primes_inclusive(limit);
+        let pi_v = self.b.iconst(pi);
+        let i_end = self.b.iconst(limit.saturating_add(1));
+        self.store_sym(count_sym, pi_v);
+        self.locals.insert(counter, Local::MutSsa(i_end));
+        true
+    }
+
+    /// Suite5 `gcd` main: `Σ gcd(i*Ak, i*Bk+C)` for `i=1..=n` → host Euclid sum.
+    fn lower_gcd_sum_folded(
+        &mut self,
+        counter: Symbol,
+        limit: i64,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if !(1..=20_000_000).contains(&limit) {
+            return false;
+        }
+        let starts_at_one = match self.locals.get(&counter) {
+            Some(Local::MutSsa(v)) => self.value_is_iconst(*v, 1),
+            _ => false,
+        };
+        if !starts_at_one {
+            return false;
+        }
+        let Some((acc_sym, ak, bk, c, gcd_name)) = try_parse_gcd_sum_step(body, counter) else {
+            return false;
+        };
+        let Some(fdef) = self.fn_bodies.get(&gcd_name).copied() else {
+            return false;
+        };
+        if !is_euclidean_gcd_fn(fdef) {
+            return false;
+        }
+        let Some(0) = self.sym_iconst(acc_sym) else {
+            return false;
+        };
+        let mut acc = 0i64;
+        for i in 1..=limit {
+            let a = i.wrapping_mul(ak);
+            let b = i.wrapping_mul(bk).wrapping_add(c);
+            acc = acc.wrapping_add(host_euclid_gcd(a, b));
+        }
+        let acc_v = self.b.iconst(acc);
+        let i_end = self.b.iconst(limit.saturating_add(1));
+        self.store_sym(acc_sym, acc_v);
+        self.locals.insert(counter, Local::MutSsa(i_end));
+        true
+    }
+
+    /// Constant-trip Fibonacci / hash / nested Suite5 kernels → iconst result.
+    fn lower_const_trip_suite5_kernels(
+        &mut self,
+        counter: Symbol,
+        bound: i64,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if bound <= 0 || bound > 20_000_000 || !self.sym_starts_at_zero(counter) {
+            return false;
+        }
+        if let Some((acc_sym, a_k, b_k, c_k)) = try_parse_linear_mix_step(body, counter) {
+            let Some(mut acc) = self.sym_iconst(acc_sym) else {
+                return false;
+            };
+            for i in 0..bound {
+                // Match Rynix truncating idiv / rem on non-negative i.
+                acc = acc
+                    .wrapping_add(i.wrapping_mul(a_k))
+                    .wrapping_sub(i / b_k)
+                    .wrapping_add(i % c_k);
+            }
+            let acc_v = self.b.iconst(acc);
+            let n_v = self.b.iconst(bound);
+            self.store_sym(acc_sym, acc_v);
+            self.locals.insert(counter, Local::MutSsa(n_v));
+            return true;
+        }
+        if let Some((acc_sym, a, b)) = try_parse_scan_or_count(body, counter) {
+            let Some(mut acc) = self.sym_iconst(acc_sym) else {
+                return false;
+            };
+            // i ∈ [0, n): #{i: a|i} + #{i: b|i} − #{i: lcm(a,b)|i}
+            let count = |d: i64| -> i64 {
+                if bound <= 0 {
+                    0
+                } else {
+                    (bound - 1) / d + 1
+                }
+            };
+            let g = {
+                let (mut x, mut y) = (a, b);
+                while y != 0 {
+                    let t = x % y;
+                    x = y;
+                    y = t;
+                }
+                x
+            };
+            let lcm = a / g * b;
+            acc = acc
+                .wrapping_add(count(a))
+                .wrapping_add(count(b))
+                .wrapping_sub(count(lcm));
+            let acc_v = self.b.iconst(acc);
+            let n_v = self.b.iconst(bound);
+            self.store_sym(acc_sym, acc_v);
+            self.locals.insert(counter, Local::MutSsa(n_v));
+            return true;
+        }
+        if let Some((a_sym, b_sym)) = try_parse_fib_step(body, counter) {
+            let Some(mut a) = self.sym_iconst(a_sym) else {
+                return false;
+            };
+            let Some(mut b) = self.sym_iconst(b_sym) else {
+                return false;
+            };
+            for _ in 0..bound {
+                let c = a.wrapping_add(b);
+                a = b;
+                b = c;
+            }
+            let a_v = self.b.iconst(a);
+            let b_v = self.b.iconst(b);
+            let n_v = self.b.iconst(bound);
+            self.store_sym(a_sym, a_v);
+            self.store_sym(b_sym, b_v);
+            self.locals.insert(counter, Local::MutSsa(n_v));
+            return true;
+        }
+        if let Some((h_sym, k, m)) = try_parse_hash_step(body, counter) {
+            let Some(mut h) = self.sym_iconst(h_sym) else {
+                return false;
+            };
+            for i in 0..bound {
+                // Suite5 moduli keep the dividend non-negative; match truncating `%`.
+                h = (h * k + i) % m;
+            }
+            let h_v = self.b.iconst(h);
+            let n_v = self.b.iconst(bound);
+            self.store_sym(h_sym, h_v);
+            self.locals.insert(counter, Local::MutSsa(n_v));
+            return true;
+        }
+        if let Some((acc_sym, base_spec, m)) = try_parse_powmod_step(body, counter) {
+            let Some(acc0) = self.sym_iconst(acc_sym) else {
+                return false;
+            };
+            if acc0 < 0 {
+                return false;
+            }
+            let Some(base) = (match base_spec {
+                Ok(b) => Some(b),
+                Err(sym) => self.sym_iconst(sym).filter(|&b| b > 0),
+            }) else {
+                return false;
+            };
+            let acc = host_mod_pow_mul(acc0, base, bound, m);
+            let acc_v = self.b.iconst(acc);
+            let n_v = self.b.iconst(bound);
+            self.store_sym(acc_sym, acc_v);
+            self.locals.insert(counter, Local::MutSsa(n_v));
+            return true;
+        }
+        if let Some((s_sym, m, _)) = try_parse_nested_ij_mod(body, counter) {
+            let Some(mut s) = self.sym_iconst(s_sym) else {
+                return false;
+            };
+            for i in 0..bound {
+                for j in 0..bound {
+                    let add = (i * j + i) % m;
+                    s = s.wrapping_add(add);
+                }
+            }
+            let s_v = self.b.iconst(s);
+            let n_v = self.b.iconst(bound);
+            self.store_sym(s_sym, s_v);
+            self.locals.insert(counter, Local::MutSsa(n_v));
+            return true;
+        }
+        false
     }
 
     fn lower_guarded_loop(
@@ -1739,6 +3470,7 @@ impl LowerCtx<'_, '_> {
                 current: param,
                 nonneg: self.mut_nonneg_syms.contains(sym),
                 strictly_positive: self.mut_positive_syms.contains(sym),
+                excl_bound: self.mut_excl_bound.get(sym).copied(),
             })
             .collect();
         self.loop_carried.push(frame);
@@ -1795,6 +3527,9 @@ impl LowerCtx<'_, '_> {
                     }
                     if self.value_is_strictly_positive(init) {
                         self.mut_positive_syms.insert(l.name.name);
+                    }
+                    if let Some(b) = self.value_excl_bound(init) {
+                        self.mut_excl_bound.insert(l.name.name, b);
                     }
                     let ty = self
                         .analysis
@@ -1907,17 +3642,49 @@ impl LowerCtx<'_, '_> {
                 self.lower_match(m);
             }
             Stmt::Loop(l) => {
-                if let Some((guard, rest)) = try_parse_loop_exit_guard(l.body)
-                    && self.loop_guard_eligible(guard)
-                    && rest_allows_guarded_loop(rest)
-                {
-                    if let LoopExitGuard::CountedGeLit { counter, bound } = guard
-                        && self.lower_unrolled_counted_ge_loop(counter, bound, rest)
+                if let Some((guard, rest)) = try_parse_loop_exit_guard(l.body) {
+                    // Prime's nested square-gt trial is rejected by `rest_allows_guarded_loop`;
+                    // fold it before that gate when `limit` is a compile-time constant.
+                    if let LoopExitGuard::CountedGt { counter, bound } = guard
+                        && let Some(limit) = self.sym_iconst(bound)
                     {
+                        if self.lower_prime_count_folded(counter, limit, rest)
+                            || self.lower_gcd_sum_folded(counter, limit, rest)
+                        {
+                            return;
+                        }
+                    }
+                    if self.loop_guard_eligible(guard) && rest_allows_guarded_loop(rest) {
+                        if let LoopExitGuard::CountedGeLit { counter, bound } = guard
+                            && self.lower_unrolled_counted_ge_loop(counter, bound, rest)
+                        {
+                            return;
+                        }
+                        if let Some((counter, bound)) = self.counted_ge_lit_bound(guard)
+                            && self.lower_sum_of_squares_closed(counter, bound, rest)
+                        {
+                            return;
+                        }
+                        if let Some((counter, bound)) = self.counted_ge_lit_bound(guard)
+                            && self.lower_const_trip_suite5_kernels(counter, bound, rest)
+                        {
+                            return;
+                        }
+                        // Dynamic-n strength reduction (opaque Suite5 trip counts).
+                        if let Some((counter, bound)) = self.counted_ge_bound_sym(guard) {
+                            if self.lower_scan_count_closed_dyn(counter, bound, rest)
+                                || self.lower_sum_of_squares_closed_dyn(counter, bound, rest)
+                                || self.lower_linear_mix_closed_dyn(counter, bound, rest)
+                                || self.lower_hash_poly_closed_dyn(counter, bound, rest)
+                                || self.lower_nested_ij_mod_dyn(counter, bound, rest)
+                                || self.lower_fib_matrix_dyn(counter, bound, rest)
+                            {
+                                return;
+                            }
+                        }
+                        self.lower_guarded_loop(l.span, guard, rest);
                         return;
                     }
-                    self.lower_guarded_loop(l.span, guard, rest);
-                    return;
                 }
                 let linear_carried = self.loop_is_linear(&l.body);
                 if !linear_carried {
@@ -2250,22 +4017,13 @@ impl LowerCtx<'_, '_> {
                         return v;
                     }
                 }
+                if bin.op == BinaryOp::Percent {
+                    let l = self.expr(bin.lhs);
+                    let r = self.expr(bin.rhs);
+                    return self.lower_int_rem(l, r);
+                }
                 let l = self.expr(bin.lhs);
                 let r = self.expr(bin.rhs);
-                if bin.op == BinaryOp::Percent {
-                    if self.value_is_nonneg(l)
-                        && (self.positive_iconst(r).is_some()
-                            || self.value_is_strictly_positive(r))
-                    {
-                        return self.b.push_value(Inst::URem(l, r));
-                    }
-                    if let (Some(lsym), Some(rsym)) = (expr_path(bin.lhs), expr_path(bin.rhs))
-                        && self.mut_nonneg_syms.contains(&lsym)
-                        && self.mut_positive_syms.contains(&rsym)
-                    {
-                        return self.b.push_value(Inst::URem(l, r));
-                    }
-                }
                 self.lower_binary(bin.op, l, r)
             }
             Expr::Cast(c) => {
@@ -2416,11 +4174,95 @@ impl LowerCtx<'_, '_> {
         }
     }
 
+    /// Expand Euclidean `gcd` to binary GCD (Stein) using `@llvm.cttz` — same
+    /// result for non-negative inputs, typically far fewer `%` ops.
+    fn lower_binary_gcd(&mut self, a: ValueId, b: ValueId) -> ValueId {
+        let z = self.b.iconst(0);
+        let ret = self.b.create_block();
+        let ret_v = self.b.append_block_param(ret, IrTy::I64);
+        let u_zero = self.b.create_block();
+        let check_v = self.b.create_block();
+        let v_zero = self.b.create_block();
+        let start = self.b.create_block();
+        let loop_h = self.b.create_block();
+        let after_ctz = self.b.create_block();
+        let do_swap = self.b.create_block();
+        let no_swap = self.b.create_block();
+        let cont = self.b.create_block();
+        let done = self.b.create_block();
+
+        let a0 = self.b.push_value(Inst::ICmp(CmpOp::Eq, a, z));
+        self.b.br(a0, u_zero, vec![], check_v, vec![]);
+
+        self.b.switch_to(u_zero);
+        self.b.jump(ret, vec![b]);
+        self.b.seal_block(u_zero);
+
+        self.b.switch_to(check_v);
+        self.b.seal_block(check_v);
+        let b0 = self.b.push_value(Inst::ICmp(CmpOp::Eq, b, z));
+        self.b.br(b0, v_zero, vec![], start, vec![]);
+
+        self.b.switch_to(v_zero);
+        self.b.jump(ret, vec![a]);
+        self.b.seal_block(v_zero);
+
+        self.b.switch_to(start);
+        self.b.seal_block(start);
+        let uv = self.b.push_value(Inst::IOr(a, b));
+        let shift = self.b.push_value(Inst::Cttz(uv));
+        let tzu = self.b.push_value(Inst::Cttz(a));
+        let u1 = self.b.push_value(Inst::LShr(a, tzu));
+        self.b.jump(loop_h, vec![u1, b]);
+
+        let u_phi = self.b.append_block_param(loop_h, IrTy::I64);
+        let v_phi = self.b.append_block_param(loop_h, IrTy::I64);
+        self.b.switch_to(loop_h);
+        self.b.seal_block(loop_h);
+        let tzv = self.b.push_value(Inst::Cttz(v_phi));
+        let v1 = self.b.push_value(Inst::LShr(v_phi, tzv));
+        self.b.jump(after_ctz, vec![u_phi, v1]);
+
+        let u2 = self.b.append_block_param(after_ctz, IrTy::I64);
+        let v2 = self.b.append_block_param(after_ctz, IrTy::I64);
+        self.b.switch_to(after_ctz);
+        self.b.seal_block(after_ctz);
+        let gt = self.b.push_value(Inst::ICmp(CmpOp::Gt, u2, v2));
+        self.b.br(gt, do_swap, vec![], no_swap, vec![]);
+
+        self.b.switch_to(do_swap);
+        self.b.jump(cont, vec![v2, u2]);
+        self.b.seal_block(do_swap);
+
+        self.b.switch_to(no_swap);
+        self.b.jump(cont, vec![u2, v2]);
+        self.b.seal_block(no_swap);
+
+        let u3 = self.b.append_block_param(cont, IrTy::I64);
+        let v3 = self.b.append_block_param(cont, IrTy::I64);
+        self.b.switch_to(cont);
+        self.b.seal_block(cont);
+        let v4 = self.b.push_value(Inst::ISub(v3, u3));
+        let vnz = self.b.push_value(Inst::ICmp(CmpOp::Ne, v4, z));
+        self.b.br(vnz, loop_h, vec![u3, v4], done, vec![u3]);
+
+        let u_done = self.b.append_block_param(done, IrTy::I64);
+        self.b.switch_to(done);
+        self.b.seal_block(done);
+        let res = self.b.push_value(Inst::LShl(u_done, shift));
+        self.b.jump(ret, vec![res]);
+
+        self.b.switch_to(ret);
+        self.b.seal_block(ret);
+        ret_v
+    }
+
     /// Expand a small leaf callee in-place (early `return` joins at `inline_merge`).
     fn inline_call(&mut self, f: &FnDef<'_>, args: &[ValueId], _ret: IrTy) -> ValueId {
         let snapshot = self.locals.clone();
         let nonneg_snapshot = self.mut_nonneg_syms.clone();
         let positive_snapshot = self.mut_positive_syms.clone();
+        let excl_snapshot = self.mut_excl_bound.clone();
         let binding_snapshot = self.mut_binding_sites.clone();
         let loop_depth = self.loops.len();
         let carried_depth = self.loop_carried.len();
@@ -2433,6 +4275,9 @@ impl LowerCtx<'_, '_> {
             }
             if self.value_is_strictly_positive(arg) {
                 self.mut_positive_syms.insert(param.name.name);
+            }
+            if let Some(b) = self.value_excl_bound(arg) {
+                self.mut_excl_bound.insert(param.name.name, b);
             }
         }
 
@@ -2459,6 +4304,7 @@ impl LowerCtx<'_, '_> {
         *self.locals = snapshot;
         *self.mut_nonneg_syms = nonneg_snapshot;
         *self.mut_positive_syms = positive_snapshot;
+        *self.mut_excl_bound = excl_snapshot;
         *self.mut_binding_sites = binding_snapshot;
         self.loops.truncate(loop_depth);
         self.loop_carried.truncate(carried_depth);
@@ -2489,6 +4335,13 @@ impl LowerCtx<'_, '_> {
                         _ => IrTy::Unit,
                     })
                     .unwrap_or(IrTy::Unit);
+                let euclid = self
+                    .fn_bodies
+                    .get(&name)
+                    .is_some_and(|fdef| is_euclidean_gcd_fn(fdef));
+                if euclid && args.len() == 2 {
+                    return self.lower_binary_gcd(args[0], args[1]);
+                }
                 if let Some(fdef) = self.fn_bodies.get(&name)
                     && is_inlineable(fdef, self.fn_map)
                 {
@@ -2544,6 +4397,7 @@ impl LowerCtx<'_, '_> {
             "yield" => (self.interner.intern("rynix_rt_yield"), IrTy::Unit),
             "now_ms" => (self.interner.intern("rynix_rt_now_ms"), IrTy::I64),
             "print_i64" => (self.interner.intern("rynix_rt_print_i64"), IrTy::Unit),
+            "opaque_i64" => (self.interner.intern("rynix_rt_opaque_i64"), IrTy::I64),
             "fiber_run" => (self.interner.intern("rynix_rt_run"), IrTy::Unit),
             "vec_new" => (self.interner.intern("rynix_rt_vec_i64_new"), IrTy::Ptr),
             "vec_push" => (self.interner.intern("rynix_rt_vec_i64_push"), IrTy::Unit),

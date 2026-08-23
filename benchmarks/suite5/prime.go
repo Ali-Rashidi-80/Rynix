@@ -2,7 +2,7 @@ package main
 
 
 func main() {
-	const limit int64 = 100000
+	limit := suite5OpaqueI64(100000)
 	var count int64
 	for i := int64(2); i <= limit; i++ {
 		prime := int64(1)

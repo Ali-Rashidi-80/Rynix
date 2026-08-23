@@ -11,3 +11,9 @@ pub fn suite5_print_i64(n: i64) {
     }
     println!("{n}");
 }
+
+
+#[inline(never)]
+pub fn suite5_opaque_i64(x: i64) -> i64 {
+    std::hint::black_box(x)
+}

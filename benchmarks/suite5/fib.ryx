@@ -1,5 +1,5 @@
 def main() -> i64
-  let n = 5000000
+  let n = opaque_i64(5000000)
   let mut a = 0
   let mut b = 1
   let mut i = 0

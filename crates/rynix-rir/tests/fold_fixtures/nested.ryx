@@ -1,0 +1,21 @@
+def main() -> i64
+  let n = 450
+  let mut i = 0
+  let mut s = 0
+  loop
+    if i >= n
+      break
+    end
+    let mut j = 0
+    loop
+      if j >= n
+        break
+      end
+      s = s + (i * j + i) % 97
+      j += 1
+    end
+    i += 1
+  end
+  print_i64(s)
+  return 0
+end

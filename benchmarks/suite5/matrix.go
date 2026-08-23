@@ -10,7 +10,7 @@ func main() {
 			c[i][j] = 0
 		}
 	}
-	const reps int64 = 900000
+	reps := suite5OpaqueI64(900000)
 	var trace int64
 	for r := int64(0); r < reps; r++ {
 		for i := 0; i < 4; i++ {

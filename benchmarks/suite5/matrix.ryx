@@ -18,7 +18,7 @@ def main() -> i64
   let c11 = cell(1, 1)
   let c22 = cell(2, 2)
   let c33 = cell(3, 3)
-  let per = 225000
+  let per = opaque_i64(225000)
   let trace = per * (c00 + c11 + c22 + c33)
   print_i64(trace)
   return 0

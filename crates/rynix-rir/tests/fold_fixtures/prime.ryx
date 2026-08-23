@@ -1,0 +1,28 @@
+def main() -> i64
+  let limit = 100000
+  let mut count = 0
+  let mut i = 2
+  loop
+    if i > limit
+      break
+    end
+    let mut prime = 1
+    let mut j = 2
+    loop
+      if j * j > i
+        break
+      end
+      if i % j == 0
+        prime = 0
+        break
+      end
+      j += 1
+    end
+    if prime != 0
+      count += 1
+    end
+    i += 1
+  end
+  print_i64(count)
+  return 0
+end

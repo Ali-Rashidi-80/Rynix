@@ -15,7 +15,7 @@ fn gcd64(a: i64, b: i64) i64 {
 }
 
 pub fn main() void {
-    const n: i64 = 2_500_000;
+    const n: i64 = bench.opaqueI64(2500000);
     var acc: i64 = 0;
     var i: i64 = 1;
     while (i <= n) : (i += 1) {

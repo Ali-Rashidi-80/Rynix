@@ -1,5 +1,5 @@
 def main() -> i64
-  let limit = 100000
+  let limit = opaque_i64(100000)
   let mut count = 0
   let mut i = 2
   loop

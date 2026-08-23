@@ -13,7 +13,7 @@ def gcd64(a: i64, b: i64) -> i64
 end
 
 def main() -> i64
-  let n = 2500000
+  let n = opaque_i64(2500000)
   let mut acc = 0
   let mut i = 1
   loop

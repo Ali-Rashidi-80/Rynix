@@ -454,6 +454,7 @@ fn analyze_func(
             | Inst::IRem(a, b)
             | Inst::URem(a, b)
             | Inst::IAnd(a, b)
+            | Inst::IOr(a, b)
             | Inst::LShr(a, b)
             | Inst::LShl(a, b)
             | Inst::FAdd(a, b)
@@ -470,6 +471,9 @@ fn analyze_func(
                 touch_uses(&mut site_last_use, &points, &[*a], ii as u32);
             }
             Inst::CtPop(a) => {
+                touch_uses(&mut site_last_use, &points, &[*a], ii as u32);
+            }
+            Inst::Cttz(a) => {
                 touch_uses(&mut site_last_use, &points, &[*a], ii as u32);
             }
             _ => {}

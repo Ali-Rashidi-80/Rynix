@@ -25,7 +25,7 @@ pub use escape::{
     analyze_escape, explain_alloc_human, explain_alloc_json, inject_regions, module_call_graph,
     Escape, EscapeReport, Placement, SiteInfo,
 };
-pub use interp::{interpret_module, InterpError, InterpValue};
+pub use interp::{interpret_module, interpret_module_print, InterpError, InterpValue};
 pub use ir::*;
 pub use lower::lower_module;
 pub use parse::{parse_module, ParseError};
