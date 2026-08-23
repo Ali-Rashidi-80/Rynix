@@ -294,8 +294,9 @@ optimize = true
 
 `rynixc build` / `run` pick up `[build]` when a `rynix.toml` is present; broken path
 deps fail the build gate. Resolve with `rynixc deps [path] --error-format=json`
-(includes a `lock` object). Pin with `rynixc deps --lock` → `rynix.lock.toml`;
-`--locked` requires a matching pin. Soft `fs_*` builtins cover whole-file I/O
+(includes a `lock` object). Pin with `rynixc deps --lock` → `rynix.lock.toml` at package or workspace root;
+`--locked` requires a matching pin. Workspace members use `{ workspace = true }`
+(SPEC §6.6). Soft `fs_*` builtins cover whole-file I/O
 (`fs_write_file` / `fs_read_file` / `fs_exists` / `fs_remove_file`).
 
 ### Verify (CI-equivalent)

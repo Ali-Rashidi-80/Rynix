@@ -35,7 +35,7 @@ lib  = { path = "../lib" }     # unchanged path form
    in sema; `import std::X` loads real `std/X.ryx` defs when present.
 6. Optional **`rynix.lock.toml`** pins resolved local deps with sha256 over
    ordered sources (`rynixc deps --lock` / `--locked`; verify on build when
-   present). Still no network CDN.
+   present). Lock path is the workspace root when applicable. Still no network CDN.
 
 ## Consequences
 

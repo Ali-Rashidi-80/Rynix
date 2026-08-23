@@ -392,4 +392,25 @@ end
 
 Evidence: `std/math.ryx`, `testdata/pkg_std_app`, `build_pkg_std_app_loads_math`.
 
+### 6.6 Workspace monorepo
+
+A workspace root may declare sibling packages:
+
+```toml
+[workspace]
+members = ["app", "lib"]
+```
+
+Members reference each other by `[package].name`:
+
+```toml
+[dependencies]
+util = { workspace = true }
+```
+
+Resolution is local only (no CDN). `rynix.lock.toml` lives beside the workspace
+root manifest and applies to all members. Path and registry deps still work.
+
+Evidence: `testdata/ws_monorepo`, `build_ws_monorepo_app`, `deps_resolves_workspace_member`.
+
 

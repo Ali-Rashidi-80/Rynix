@@ -1,0 +1,10 @@
+[package]
+name = "ws_app"
+version = "0.1.0"
+entry = "main.ryx"
+
+[build]
+runtime = "portable"
+
+[dependencies]
+util = { workspace = true }

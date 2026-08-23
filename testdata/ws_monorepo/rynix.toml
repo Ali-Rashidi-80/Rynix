@@ -1,0 +1,3 @@
+# Workspace root — shared lock + member packages (SPEC §6.6).
+[workspace]
+members = ["app", "lib"]

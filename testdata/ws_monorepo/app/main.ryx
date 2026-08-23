@@ -1,0 +1,5 @@
+## Workspace app — calls sibling `util` via `{ workspace = true }`.
+def main() -> i64
+  print_i64(util_answer())
+  return 0
+end

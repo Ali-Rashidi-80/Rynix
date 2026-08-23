@@ -552,6 +552,84 @@ fn deps_reports_multifile_sources() {
 }
 
 #[test]
+fn deps_resolves_workspace_member() {
+    let root = repo_root();
+    let app = root.join("testdata/ws_monorepo/app");
+    let out = rynixc()
+        .args(["deps", app.to_str().unwrap(), "--error-format=json"])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["package"], "ws_app");
+    assert!(v["workspace"].as_str().unwrap().contains("ws_monorepo"));
+    let deps = v["dependencies"].as_array().expect("deps");
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0]["name"], "util");
+    assert_eq!(deps[0]["kind"], "workspace");
+    assert_eq!(deps[0]["ok"], true);
+}
+
+#[test]
+fn build_ws_monorepo_app() {
+    let root = repo_root();
+    let main = root.join("testdata/ws_monorepo/app/main.ryx");
+    let out_dir = root.join("target/test-ws-monorepo");
+    std::fs::create_dir_all(&out_dir).ok();
+    let exe = out_dir.join(if cfg!(windows) {
+        "ws_app.exe"
+    } else {
+        "ws_app"
+    });
+    let build = rynixc()
+        .args([
+            "build",
+            main.to_str().unwrap(),
+            "-o",
+            exe.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .output()
+        .expect("spawn build");
+    assert!(
+        build.status.success(),
+        "build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let run = Command::new(&exe).output().expect("run");
+    assert!(run.status.success(), "run failed");
+    assert!(
+        String::from_utf8_lossy(&run.stdout).contains("42"),
+        "expected 42 from workspace util"
+    );
+}
+
+#[test]
+fn deps_lock_writes_at_workspace_root() {
+    let root = repo_root();
+    let app = root.join("testdata/ws_monorepo/app");
+    let ws_root = root.join("testdata/ws_monorepo");
+    let lock = ws_root.join("rynix.lock.toml");
+    let _ = std::fs::remove_file(&lock);
+    let out = rynixc()
+        .args(["deps", app.to_str().unwrap(), "--lock"])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(lock.is_file(), "lock should be at workspace root");
+    let _ = std::fs::remove_file(&lock);
+}
+
+#[test]
 fn deps_lock_write_verify_and_tamper() {
     let root = repo_root();
     let core = root.join("testdata/pkg_core");

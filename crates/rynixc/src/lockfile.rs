@@ -23,10 +23,13 @@ pub struct LockFile {
 }
 
 pub fn lock_path_for_manifest(manifest_path: &Path) -> PathBuf {
-    manifest_path
+    let dir = manifest_path
         .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join("rynix.lock.toml")
+        .unwrap_or_else(|| Path::new("."));
+    if let Some(ws) = crate::manifest::find_workspace_root(dir) {
+        return ws.join("rynix.lock.toml");
+    }
+    dir.join("rynix.lock.toml")
 }
 
 pub fn sha256_file(path: &Path) -> Result<String, String> {

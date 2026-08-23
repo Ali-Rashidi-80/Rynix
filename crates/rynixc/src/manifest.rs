@@ -23,6 +23,8 @@ pub struct Manifest {
     pub optimize: Option<bool>,
     /// Local package index root (`[registry] path = "vendor"`).
     pub registry_path: Option<PathBuf>,
+    /// Workspace member dirs relative to this manifest (`[workspace] members`).
+    pub workspace_members: Vec<PathBuf>,
     pub deps: Vec<DepSpec>,
 }
 
@@ -37,6 +39,8 @@ pub enum DepKind {
     Path(PathBuf),
     /// Exact version string resolved under the local registry index.
     Version(String),
+    /// `{ workspace = true }` — sibling member by `[package].name`.
+    Workspace,
 }
 
 #[derive(Debug, Clone)]
@@ -57,6 +61,8 @@ pub struct DepsReport {
     pub root_manifest: PathBuf,
     pub package: String,
     pub registry: Option<PathBuf>,
+    /// Nearest ancestor workspace root, if any.
+    pub workspace: Option<PathBuf>,
     pub deps: Vec<ResolvedDep>,
 }
 
@@ -108,6 +114,7 @@ impl DepsReport {
             "manifest": self.root_manifest.display().to_string(),
             "package": self.package,
             "registry": self.registry.as_ref().map(|p| p.display().to_string()),
+            "workspace": self.workspace.as_ref().map(|p| p.display().to_string()),
             "status": if self.all_ok() { "ok" } else { "error" },
             "dependencies": self.deps.iter().map(|d| json!({
                 "name": d.name,
@@ -142,6 +149,27 @@ pub fn find_manifest(start: &Path) -> Option<PathBuf> {
     }
 }
 
+/// Nearest ancestor directory whose `rynix.toml` declares `[workspace] members`.
+pub fn find_workspace_root(start: &Path) -> Option<PathBuf> {
+    let mut cur = if start.is_file() {
+        start.parent()?.to_path_buf()
+    } else {
+        start.to_path_buf()
+    };
+    loop {
+        let cand = cur.join("rynix.toml");
+        if cand.is_file()
+            && let Ok(m) = load_manifest(&cand)
+            && !m.workspace_members.is_empty()
+        {
+            return Some(cur);
+        }
+        if !cur.pop() {
+            return None;
+        }
+    }
+}
+
 pub fn load_manifest(path: &Path) -> Result<Manifest, String> {
     let content = fs::read_to_string(path)
         .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
@@ -159,6 +187,86 @@ pub fn load_manifest(path: &Path) -> Result<Manifest, String> {
             .unwrap_or_else(|| "unnamed".into());
     }
     Ok(m)
+}
+
+fn resolve_workspace_member(manifest: &Manifest, dep_name: &str) -> ResolvedDep {
+    let Some(ws_root) = find_workspace_root(&manifest.dir) else {
+        return ResolvedDep {
+            name: dep_name.into(),
+            kind: "workspace".into(),
+            path: manifest.dir.clone(),
+            version: None,
+            entry: None,
+            sources: Vec::new(),
+            ok: false,
+            detail: "workspace dep requires `[workspace] members` in an ancestor rynix.toml"
+                .into(),
+        };
+    };
+    let ws_toml = ws_root.join("rynix.toml");
+    let ws = match load_manifest(&ws_toml) {
+        Ok(m) => m,
+        Err(e) => {
+            return ResolvedDep {
+                name: dep_name.into(),
+                kind: "workspace".into(),
+                path: ws_root,
+                version: None,
+                entry: None,
+                sources: Vec::new(),
+                ok: false,
+                detail: e,
+            };
+        }
+    };
+    for rel in &ws.workspace_members {
+        let member_dir = ws_root.join(rel);
+        let member_toml = member_dir.join("rynix.toml");
+        if !member_toml.is_file() {
+            continue;
+        }
+        let member = match load_manifest(&member_toml) {
+            Ok(m) => m,
+            Err(e) => {
+                return ResolvedDep {
+                    name: dep_name.into(),
+                    kind: "workspace".into(),
+                    path: member_dir,
+                    version: None,
+                    entry: None,
+                    sources: Vec::new(),
+                    ok: false,
+                    detail: e,
+                };
+            }
+        };
+        if member.name == dep_name {
+            let abs = fs::canonicalize(&member_dir).unwrap_or(member_dir);
+            return resolve_one_dir(
+                dep_name,
+                "workspace",
+                abs,
+                if member.version.is_empty() {
+                    None
+                } else {
+                    Some(member.version)
+                },
+            );
+        }
+    }
+    ResolvedDep {
+        name: dep_name.into(),
+        kind: "workspace".into(),
+        path: ws_root.clone(),
+        version: None,
+        entry: None,
+        sources: Vec::new(),
+        ok: false,
+        detail: format!(
+            "workspace member `{dep_name}` not found under {}",
+            ws_root.display()
+        ),
+    }
 }
 
 fn resolve_one_dir(name: &str, kind: &str, abs: PathBuf, version: Option<String>) -> ResolvedDep {
@@ -360,10 +468,12 @@ pub fn resolve_deps(manifest: &Manifest) -> DepsReport {
         };
         fs::canonicalize(&abs).unwrap_or(abs)
     });
+    let workspace = find_workspace_root(&manifest.dir);
     DepsReport {
         root_manifest: manifest.dir.join("rynix.toml"),
         package: manifest.name.clone(),
         registry,
+        workspace,
         deps: out,
     }
 }
@@ -387,6 +497,7 @@ fn resolve_deps_rec(
                 resolve_one_dir(&dep.name, "path", abs, None)
             }
             DepKind::Version(ver) => resolve_registry_version(manifest, &dep.name, ver),
+            DepKind::Workspace => resolve_workspace_member(manifest, &dep.name),
         };
         if !resolved.ok {
             out.push(resolved);
@@ -457,6 +568,11 @@ fn parse_manifest_toml(content: &str) -> Manifest {
                         name,
                         kind: DepKind::Path(PathBuf::from(path)),
                     });
+                } else if extract_workspace_from_inline_table(rhs) {
+                    m.deps.push(DepSpec {
+                        name,
+                        kind: DepKind::Workspace,
+                    });
                 } else if let Some(ver) = parse_bare_string(rhs) {
                     m.deps.push(DepSpec {
                         name,
@@ -470,6 +586,12 @@ fn parse_manifest_toml(content: &str) -> Manifest {
                     m.deps.push(DepSpec {
                         name,
                         kind: DepKind::Path(PathBuf::from(path)),
+                    });
+                    pending_dep = None;
+                } else if parse_bool_assign(line, "workspace") == Some(true) {
+                    m.deps.push(DepSpec {
+                        name,
+                        kind: DepKind::Workspace,
                     });
                     pending_dep = None;
                 }
@@ -499,6 +621,11 @@ fn parse_manifest_toml(content: &str) -> Manifest {
                     m.runtime = Some(v);
                 } else if let Some(v) = parse_bool_assign(line, "optimize") {
                     m.optimize = Some(v);
+                }
+            }
+            "[workspace]" => {
+                if let Some(members) = parse_string_array_assign(line, "members") {
+                    m.workspace_members = members.into_iter().map(PathBuf::from).collect();
                 }
             }
             _ => {}
@@ -533,6 +660,20 @@ fn extract_path_from_inline_table(rhs: &str) -> Option<String> {
         }
     }
     None
+}
+
+fn extract_workspace_from_inline_table(rhs: &str) -> bool {
+    let rhs = rhs.trim();
+    if !rhs.starts_with('{') {
+        return false;
+    }
+    for part in rhs.trim_matches(|c| c == '{' || c == '}').split(',') {
+        let part = part.trim();
+        if parse_bool_assign(part, "workspace") == Some(true) {
+            return true;
+        }
+    }
+    false
 }
 
 fn parse_string_assign(line: &str, key: &str) -> Option<String> {
@@ -601,6 +742,45 @@ fn parse_bool_assign(line: &str, key: &str) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_workspace_members_and_dep() {
+        let m = parse_manifest_toml(
+            r#"
+[workspace]
+members = ["app", "lib"]
+
+[package]
+name = "root"
+"#,
+        );
+        assert_eq!(m.workspace_members.len(), 2);
+        let app = parse_manifest_toml(
+            r#"
+[package]
+name = "app"
+entry = "main.ryx"
+
+[dependencies]
+util = { workspace = true }
+"#,
+        );
+        assert_eq!(app.deps.len(), 1);
+        assert!(matches!(app.deps[0].kind, DepKind::Workspace));
+    }
+
+    #[test]
+    fn resolves_workspace_member_by_package_name() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata/ws_monorepo/app");
+        let root = root.canonicalize().expect("testdata");
+        let m = load_manifest(&root.join("rynix.toml")).expect("manifest");
+        let report = resolve_deps(&m);
+        assert!(report.all_ok(), "{:?}", report.deps);
+        assert_eq!(report.deps.len(), 1);
+        assert_eq!(report.deps[0].name, "util");
+        assert_eq!(report.deps[0].kind, "workspace");
+        assert!(report.workspace.is_some());
+    }
 
     #[test]
     fn parses_path_dep_inline() {

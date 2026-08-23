@@ -9,6 +9,7 @@
     "manifest": { "type": "string" },
     "package": { "type": "string" },
     "registry": { "type": ["string", "null"] },
+    "workspace": { "type": ["string", "null"] },
     "status": { "type": "string", "enum": ["ok", "error"] },
     "dependencies": {
       "type": "array",
@@ -17,7 +18,7 @@
         "required": ["name", "kind", "path", "ok", "detail"],
         "properties": {
           "name": { "type": "string" },
-          "kind": { "type": "string", "enum": ["path", "registry"] },
+          "kind": { "type": "string", "enum": ["path", "registry", "workspace"] },
           "path": { "type": "string" },
           "version": { "type": ["string", "null"] },
           "entry": { "type": ["string", "null"] },
