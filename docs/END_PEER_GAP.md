@@ -58,24 +58,24 @@ Cross-repo speed claims must name the **exact harness and source file**.
 4. Literal-bound host-fold outside Suite5 remains a normal compiler feature
    (unit-tested under `crates/rynix-rir/tests/fold_fixtures/`).
 
-### Latest local Suite5 (2026-08-23, Windows) — Rynix rank / 5
-
-End skipped (`endc` not on PATH this run). Numbers vary by machine (±5–15% typical).
+### Latest local Suite5 (2026-08-23, Windows) — Rynix rank / 6
 
 | Workload | Best | Rynix | Rank | vs best |
 |----------|------|------:|-----:|--------:|
-| alu | rynix 7.1 | 7.1 | **1** | 0% |
-| nested | rynix 5.5 | 5.5 | **1** | 0% |
-| fib | rynix 6.0 | 6.0 | **1** | 0% |
-| hash | rynix 5.6 | 5.6 | **1** | 0% |
-| prime | rynix 9.1 | 9.1 | **1** | 0% |
-| sum | rust 6.6 | 7.6 | 3 | +15% spawn noise |
-| bits | rynix 88 | 88 | **1** | 0% |
-| matrix | rynix 5.7 | 5.7 | **1** | 0% |
+| alu | rynix 5.7 | 5.7 | **1** | 0% |
+| nested | end 5.4 | 5.9 | 2 | +10% |
+| fib | rynix 5.6 | 5.6 | **1** | 0% |
+| hash | rynix 5.1 | 5.1 | **1** | 0% |
+| prime | rynix 8.3 | 8.3 | **1** | 0% |
+| sum | rynix 5.8 | 5.8 | **1** | 0% |
+| bits | rynix 89 | 89 | **1** | 0% |
+| matrix | rynix 5.3 | 5.3 | **1** | 0% |
 | scan | rynix 5.5 | 5.5 | **1** | 0% |
-| powmod | rynix 10.8 | 10.8 | **1** | 0% |
-| gcd | rynix 113 | 113 | **1** | 0% |
-| reduce | rynix 6.2 | 6.2 | **1** | 0% |
+| powmod | rynix 11.8 | 11.8 | **1** | 0% |
+| gcd | rynix 115 | 115 | **1** | 0% |
+| reduce | rynix 7.9 | 7.9 | **1** | 0% |
+
+Rynix leads **11/12**; End edges `nested` (~10%). Full ms matrix: root [README.md](../README.md).
 
 Refresh: `python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary`
 
