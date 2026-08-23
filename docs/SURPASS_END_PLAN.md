@@ -1,5 +1,8 @@
 # Surpass End — ordered development plan
 
+**Status (2026-08-23):** Phases A→E complete in-tree. Deferred items (C11, UI/canvas,
+network registry CDN) stay ADR-gated — see [ROADMAP.md](ROADMAP.md) Phase 11.
+
 Reference peer: local `D:\0\End-peer` ↔ [IrMaho/End](https://github.com/IrMaho/End)
 (`endc` 2.0.0 crate / marketed as `0.4.0-alpha`).
 
@@ -114,8 +117,8 @@ Each phase ends only when **SPEC/ADR (if language) + tests + README honesty** la
 | Step | Deliverable | Acceptance |
 |------|-------------|------------|
 | D1 | TLS for TCP (SChannel Win; OpenSSL via `-DRYNIX_RT_OPENSSL`) | ✅ echo smoke `tls_echo_smoke_c` (real crypto; End “TLS” is simulated) |
-| D2 | Better async I/O on Windows (IOCP or documented poll quality) | ✅ `--runtime=iocp` + `iocp_echo_smoke` (WSARecv/WSASend) |
-| D3 | Local package story: `rynix.toml` **path** deps + `rynixc new` | ✅ deps/build gate + `new` scaffold + `testdata/pkg_*` |
+| D2 | Better async I/O on Windows (IOCP or documented poll quality) | ✅ `--runtime=iocp` + `iocp_echo_smoke` (AcceptEx/ConnectEx + WSARecv/WSASend) |
+| D3 | Local package story: `rynix.toml` **path** deps + `rynixc new` | ✅ deps/build gate + local `[registry]` index (ADR-0010) + `testdata/pkg_reg_app` |
 | D4 | Lockfile + reproducible builds note | ✅ root `Cargo.lock` + CI `--locked`; see note below |
 | D5 | Optional C11 emit (ADR-0008) only if LLVM path blocked somewhere | ✅ **deferred with rationale** — LLVM + C RT; ADR-0008 reaffirmed 2026-08-23 |
 
@@ -123,8 +126,9 @@ Each phase ends only when **SPEC/ADR (if language) + tests + README honesty** la
 
 **D4 note:** Rust builds are reproducible via the committed workspace
 [`Cargo.lock`](../Cargo.lock). CI runs `cargo test --workspace --all-targets --locked`
-so drift fails the job. Rynix path packages (`rynix.toml` deps) intentionally have
-**no** separate lockfile yet — only local `{ path = … }` resolution (no registry).
+so drift fails the job. Rynix packages resolve via path deps and/or a local
+`[registry]` filesystem index ([ADR-0010](adr/0010-local-package-index.md)) —
+no network CDN lockfile yet.
 
 ---
 
@@ -133,7 +137,7 @@ so drift fails the job. Rynix path packages (`rynix.toml` deps) intentionally ha
 | Step | Deliverable | Acceptance |
 |------|-------------|------------|
 | E1 | VS Code CodeLens (diag / alloc / impact) | ✅ `editors/vscode` CodeLens + `npm run compile` |
-| E2 | Optional suite12 *ports* or honest refuse | ✅ policy + ALU/HFT/JSON/FSM checksum gates |
+| E2 | Optional suite12 *ports* or honest refuse | ✅ policy + 9 MATCH ports (ALU/trees/HFT/SHA/JSON/FSM/DNA/GEMM/MC checksum gates) |
 | E3 | Binary size matrix automation in CI | ✅ `size-gate` job + `hello_binary_under_300kb` |
 | E4 | Signed releases (beyond SHA256SUMS) | ✅ `scripts/build_release.ps1` + optional GPG in `release.yml` (secret-gated) |
 | E5 | Install polish (`new` + INSTALL scripts) | ✅ `rynixc new` + INSTALL.md / install.ps1 |
@@ -160,8 +164,9 @@ Beating End on **value** means: **same or better real features + stricter eviden
 | Wave 2 | C1–C4, A5 | Real HTTP + crypto; Suite5 nested/powmod |
 | Wave 3 | C5, D1–D3, B4–B5 | KV + TLS + packages + security/scope |
 | Wave 4 | E1–E3, D4 | Editor + optional suite12 + size CI |
+| Wave 5 | follow-on | WS 64-bit + fragmentation, binary trees #2, SHA #4, local registry index |
 
-After Wave 2, re-score [END_PEER_GAP.md](END_PEER_GAP.md) §3 (“more valuable?”).
+After Wave 2, re-score [END_PEER_GAP.md](END_PEER_GAP.md) §3 (“more valuable?”) — done 2026-08-23.
 
 ---
 
@@ -191,6 +196,6 @@ After Wave 2, re-score [END_PEER_GAP.md](END_PEER_GAP.md) §3 (“more valuable?
 
 ## Tracking
 
-- Update this file when a step gains in-tree tests (move to ✅ in ROADMAP Phase 11).
+- Phase 11 items with in-tree tests are ✅ in [ROADMAP.md](ROADMAP.md).
+- Follow-on gates landed: `build_pkg_reg_app_resolves_registry_deps`, `ws_large_echo_smoke_c`.
 - Do not widen language surface without SPEC + tests.
-- Prefer fixing compiler over loosening tests.

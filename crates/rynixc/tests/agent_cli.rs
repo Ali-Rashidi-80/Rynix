@@ -292,6 +292,38 @@ fn deps_resolves_local_registry_version() {
 }
 
 #[test]
+fn build_pkg_reg_app_resolves_registry_deps() {
+    let root = repo_root();
+    let main = root.join("testdata/pkg_reg_app/main.ryx");
+    let out_dir = root.join("target/test-pkg-reg-app");
+    std::fs::create_dir_all(&out_dir).ok();
+    let exe = out_dir.join(if cfg!(windows) {
+        "pkg_reg_app.exe"
+    } else {
+        "pkg_reg_app"
+    });
+    let build = rynixc()
+        .args([
+            "build",
+            main.to_str().unwrap(),
+            "-o",
+            exe.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .output()
+        .expect("spawn build");
+    assert!(
+        build.status.success(),
+        "build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let run = Command::new(&exe).output().expect("run");
+    assert!(run.status.success(), "run failed");
+    let stdout = String::from_utf8_lossy(&run.stdout);
+    assert!(stdout.contains('1'), "expected 1 on stdout, got: {stdout}");
+}
+
+#[test]
 fn deps_fails_missing_path() {
     let dir = std::env::temp_dir().join("rynix_deps_missing");
     let _ = std::fs::remove_dir_all(&dir);

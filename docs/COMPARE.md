@@ -13,20 +13,21 @@ driver (`endc` / `rynixc`) and lean on **C** for native runtime.
 | README / packaging | Strong (logo, badges, 12-bench matrix) | Suite5 **12** × 5 langs + bakeoff (checksum CI) |
 | Benchmark matrix | **suite12** heavy sims (SDF, HFT, SHA, …) | **Suite5** integer microkernels (different algorithms) |
 | End in same harness | End is a first-class suite12 lang | **`end` slot** in Suite5 when `endc` + `.end` ports exist |
-| AI CLI | `graph` / `impact` / `slice` / `eval` / `patch` / `arch` | Same + MCP (11 tools) |
-| Agent contracts | 50-feature Intent→Verify pipeline | Not shipped (gap — see END_PEER_GAP P1) |
-| Editor | VS Code / LSP (CodeLens, studio) | VS Code + LSP (diag, hover, go-to-def) |
+| AI CLI | `graph` / `impact` / `slice` / `eval` / `patch` / `arch` | Same + MCP (18 tools) + `verify`/`precheck`/`context`/`security`/`scope`/`deps`/`dna` |
+| Agent contracts | 50-feature Intent→Verify pipeline | Wave 1 toolchain evidence ([ADR-0009](adr/0009-agent-contracts-toolchain.md)); not End syntax clone |
+| Editor | VS Code / LSP (CodeLens, studio) | VS Code + LSP + CodeLens (check/alloc/impact) |
 | Frameworks | EndHyper, EndForge, UI canvas | Deferred ([ADR-0007](adr/0007-deferred-ui-frameworks.md)) |
-| Concurrency | Threads / channels / OpenMP (per End docs) | Colorless **fibers** + PARKED + fiber-aware **io_uring** |
+| Concurrency | Threads / channels / OpenMP (per End docs) | Colorless **fibers** + PARKED + io_uring (Linux) / IOCP (Windows) |
+| Packages | Registry staging (per End docs) | Path deps + local filesystem index ([ADR-0010](adr/0010-local-package-index.md); no CDN) |
 | Memory story | 4-tier regions + leases + borrow | Escape → stack/region/heap + injected free |
 | Backend | **C11 shipping** + LLVM alpha | Textual LLVM ([ADR-0005](adr/0005-textual-llvm-ir-first.md)); C11 deferred ([ADR-0008](adr/0008-deferred-c11-backend.md)) |
 | Correctness gates | checksum per bench | **CI: C ↔ Rynix all 12** + LLVM↔interp diff |
-| Release | Signed binaries (claimed) | GitHub Release + **SHA256SUMS** |
+| Release | Signed binaries (claimed) | GitHub Release + **SHA256SUMS** + optional GPG (`release.yml`) |
 
-**Verdict (2026-08):** End leads on **editor richness**, **framework breadth**, and
-**README spectacle**. Rynix leads on **test-gated correctness**, **escape transparency**,
-and several **Suite5 rows vs C/Rust/Go/Zig** when strength reduction applies — but is
-**not** “better overall” until language surface and product breadth catch up. See
+**Verdict (2026-08-23):** End still leads on **framework/editor spectacle** and suite12
+marketing rows. Rynix leads on **test-gated correctness**, **escape transparency**,
+real HTTP/crypto/KV/TLS/WS, agent verify stack, local packages, Suite5 vs End when
+strength reduction applies, and suite12 MATCH checksum ports where peers agree. See
 [END_PEER_GAP.md](END_PEER_GAP.md) for methodology honesty.
 
 ## Why the compiler is Rust (not Zig/Go)

@@ -21,12 +21,14 @@ ad-hoc scraping.
 - Path deps: `rynixc deps` → `rynix.deps.v1` (path + local `[registry]` index; no network)
 - Conventions: `rynixc dna` → `rynix.dna.v1` (heuristic; not “80 layers”)
 - Scaffold: `rynixc new <name>` → local package (no registry CDN)
+
 ## Honesty rules
 
 - Do not mark ROADMAP items ✅ without in-tree tests.
 - Do not widen language surface in docs without SPEC + tests.
 - Prefer fixing the compiler over loosening a test.
-- Windows uses `--runtime=portable`; Linux may use `--runtime=uring`.
+- Windows: `--runtime=portable` (default) or `--runtime=iocp` (AcceptEx/ConnectEx);
+  Linux may use `--runtime=uring`.
 - Suite5: opaque trip counts block literal fold; strength reduction is allowed only when
   checksums match and docs/Notes disclose it. Do not claim identical instruction work
   across languages after reductions.

@@ -94,7 +94,7 @@ int64_t rynix_rt_aes128_gcm_nist_empty_tag_first_i64(void);
 /* RFC 6455 WebSocket accept-key helpers. */
 int64_t rynix_rt_ws_accept_key_eq(const char *client_key, const char *want);
 int64_t rynix_rt_ws_accept_sha1_first_i64(const char *client_key);
-/* Frame encode/decode (payload ≤65535; 16-bit extended length). */
+/* Frame encode/decode (7/16/64-bit lengths up to RYNIX_WS_MAX_PAYLOAD). */
 int64_t rynix_rt_ws_frame_encode(int64_t opcode, const char *payload, int64_t n,
                                  const unsigned char *mask4, unsigned char *out,
                                  int64_t out_cap);
@@ -110,6 +110,8 @@ int64_t rynix_rt_ws_message_decode(const unsigned char *in, int64_t in_len, char
 int64_t rynix_rt_ws_frame_roundtrip_ok(void);
 int64_t rynix_rt_ws_serve_once_echo(int64_t port);
 int64_t rynix_rt_ws_client_echo(const char *host, int64_t port, const char *msg);
+int64_t rynix_rt_ws_serve_once_echo_n(int64_t port, const char *msg, int64_t n);
+int64_t rynix_rt_ws_client_echo_n(const char *host, int64_t port, const char *msg, int64_t n);
 void *rynix_rt_kv_new(int32_t region);
 void rynix_rt_kv_put(void *kv, const char *key, int64_t value);
 int64_t rynix_rt_kv_get(void *kv, const char *key);

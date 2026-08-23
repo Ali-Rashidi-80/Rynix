@@ -5,6 +5,7 @@ Honest, reproducible harnesses — **checksum gates** before speed claims.
 ```text
 benchmarks/
 ├── suite5/          # 12 integer microbenches × 5 languages (see below)
+├── suite12/         # checksum-locked End suite12 C ports (MATCH ids only)
 scripts/
 ├── bakeoff_go_echo.go   # optional TCP echo peer
 docs/
@@ -69,15 +70,20 @@ algorithms. We **do** match the **12-workload × 5-language** shape with transpa
 
 Conceptual mapping (spirit, not algorithm identity):
 
-| End suite12 (theme) | Rynix Suite5 (closest) |
-|---------------------|-------------------------|
-| Super-Scalar ALU (10M) | `reduce`, `alu` |
-| GEMM 512×512 | `matrix` |
-| SHA-256 / hash | `hash` |
-| FSM Lexer stream | lexer gate in `docs/benchmarks.md` |
-| JSON microservice | `json_get_i64` runtime tests (not Suite5) |
-| N-body / orbit | — (deferred heavy sim) |
-| TCP / HFT engine | `docs/bakeoff.md` fiber echo RPS |
+| End suite12 (theme) | Rynix Suite5 (closest) | Rynix suite12 port |
+|---------------------|-------------------------|-------------------|
+| Super-Scalar ALU (10M) | `reduce`, `alu` | `alu_reduction.c` (#12) |
+| Binary trees | — | `binary_trees.c` (#2) |
+| HFT engine | — | `hft_engine.c` (#3) |
+| SHA-256 blocks | `hash` | `sha256_blocks.c` (#4) |
+| GEMM 512×512 | `matrix` | `gemm_matrix.c` (#10) |
+| FSM Lexer stream | lexer gate in `docs/benchmarks.md` | `fsm_lexer.c` (#9) |
+| JSON microservice | `json_get_i64` runtime tests (not Suite5) | `json_serializer.c` (#8) |
+| DNA / Levenshtein | — | `dna_levenshtein.c` (#7) |
+| Monte Carlo BS | — | `monte_carlo_bs.c` (#11) |
+| N-body / orbit | — (deferred; End checksum diverges) | skip #5 |
+| SDF raymarch | — (deferred; End checksum diverges) | skip #1 |
+| TCP / HFT engine | `docs/bakeoff.md` fiber echo RPS | see HFT port |
 
 ---
 

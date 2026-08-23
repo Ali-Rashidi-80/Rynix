@@ -408,6 +408,90 @@ static int64_t ws_sock_recv_at_least(int64_t fd, void *buf, int64_t want, int64_
   return got;
 }
 
+/* Total on-wire bytes for one frame once the length header is complete. */
+static int64_t ws_peek_frame_wire_len(const uint8_t *in, int64_t in_len) {
+  int64_t len_code;
+  int64_t len_hdr;
+  int64_t plen;
+  int masked;
+  int i;
+  if (!in || in_len < 2) {
+    return -1;
+  }
+  masked = (in[1] & 0x80) != 0;
+  len_code = in[1] & 0x7f;
+  len_hdr = ws_len_hdr_bytes(len_code);
+  if (len_hdr < 0 || in_len < len_hdr) {
+    return -1;
+  }
+  if (len_code <= 125) {
+    plen = len_code;
+  } else if (len_code == 126) {
+    plen = ((int64_t)in[2] << 8) | (int64_t)in[3];
+  } else {
+    if (in[2] & 0x80) {
+      return -1;
+    }
+    plen = 0;
+    for (i = 0; i < 8; i++) {
+      plen = (plen << 8) | (int64_t)in[2 + i];
+    }
+    if (plen > RYNIX_WS_MAX_PAYLOAD) {
+      return -1;
+    }
+  }
+  return len_hdr + (masked ? 4 : 0) + plen;
+}
+
+/* Read one complete WS frame from TCP (heap-allocated). Caller frees *frame_out. */
+static int64_t ws_tcp_read_frame(int64_t fd, uint8_t **frame_out, int64_t *frame_len_out) {
+  uint8_t hdr[14];
+  int64_t got;
+  int64_t len_hdr;
+  int64_t total;
+  uint8_t *frame;
+  int64_t r;
+
+  if (!frame_out || !frame_len_out) {
+    return -1;
+  }
+  got = ws_sock_recv_at_least(fd, hdr, 2, (int64_t)sizeof(hdr));
+  if (got < 2) {
+    return -1;
+  }
+  len_hdr = ws_len_hdr_bytes(hdr[1] & 0x7f);
+  if (len_hdr < 0) {
+    return -1;
+  }
+  while (got < len_hdr) {
+    r = rynix_rt_tcp_recv(fd, hdr + got, (int64_t)sizeof(hdr) - got);
+    if (r <= 0) {
+      return -1;
+    }
+    got += r;
+  }
+  total = ws_peek_frame_wire_len(hdr, got);
+  if (total < 0 || total > RYNIX_WS_MAX_PAYLOAD + 14) {
+    return -1;
+  }
+  frame = (uint8_t *)malloc((size_t)total);
+  if (!frame) {
+    return -1;
+  }
+  memcpy(frame, hdr, (size_t)got);
+  while (got < total) {
+    r = rynix_rt_tcp_recv(fd, frame + got, total - got);
+    if (r <= 0) {
+      free(frame);
+      return -1;
+    }
+    got += r;
+  }
+  *frame_out = frame;
+  *frame_len_out = total;
+  return 0;
+}
+
 static int extract_ws_key(const char *req, char *key_out, size_t key_cap) {
   const char *p = strstr(req, "Sec-WebSocket-Key:");
   size_t i = 0;
@@ -611,6 +695,189 @@ int64_t rynix_rt_ws_client_echo(const char *host, int64_t port, const char *msg)
     return -1;
   }
   return 0;
+}
+
+/* Large-payload WS echo (16-bit or 64-bit length on wire). msg may be non-NUL. */
+int64_t rynix_rt_ws_serve_once_echo_n(int64_t port, const char *msg, int64_t n) {
+  int64_t listen_fd;
+  int64_t client;
+  char accept[32];
+  uint8_t *in_frame = NULL;
+  int64_t in_len = 0;
+  char *payload = NULL;
+  uint8_t *out_frame = NULL;
+  int64_t opcode = 0;
+  int64_t plen;
+  int64_t wire;
+  int64_t out_cap;
+
+  if (port <= 0 || n < 0 || n > RYNIX_WS_MAX_PAYLOAD || (n > 0 && !msg)) {
+    return -1;
+  }
+  listen_fd = rynix_rt_tcp_listen(port);
+  if (listen_fd < 0) {
+    return -1;
+  }
+  client = rynix_rt_tcp_accept(listen_fd);
+  if (client < 0) {
+    rynix_rt_tcp_close(listen_fd);
+    return -1;
+  }
+  {
+    char req[2048];
+    char key[128];
+    char resp[512];
+    int64_t got;
+    int64_t rn;
+    got = ws_sock_recv_at_least(client, req, 4, (int64_t)sizeof(req) - 1);
+    if (got < 0) {
+      goto fail;
+    }
+    req[got] = '\0';
+    while (strstr(req, "\r\n\r\n") == NULL && got < (int64_t)sizeof(req) - 1) {
+      int64_t r = rynix_rt_tcp_recv(client, req + got, (int64_t)sizeof(req) - 1 - got);
+      if (r <= 0) {
+        break;
+      }
+      got += r;
+      req[got] = '\0';
+    }
+    if (extract_ws_key(req, key, sizeof(key)) != 0) {
+      goto fail;
+    }
+    ws_accept_b64(key, accept);
+    rn = snprintf(resp, sizeof(resp),
+                  "HTTP/1.1 101 Switching Protocols\r\n"
+                  "Upgrade: websocket\r\n"
+                  "Connection: Upgrade\r\n"
+                  "Sec-WebSocket-Accept: %s\r\n"
+                  "\r\n",
+                  accept);
+    if (rn <= 0 || ws_sock_send_all(client, resp, rn) != rn) {
+      goto fail;
+    }
+  }
+  if (ws_tcp_read_frame(client, &in_frame, &in_len) != 0) {
+    goto fail;
+  }
+  payload = (char *)malloc((size_t)n + 1);
+  if (!payload) {
+    goto fail;
+  }
+  plen = rynix_rt_ws_frame_decode(in_frame, in_len, payload, n, &opcode);
+  free(in_frame);
+  in_frame = NULL;
+  if (plen != n || (n > 0 && memcmp(payload, msg, (size_t)n) != 0)) {
+    goto fail;
+  }
+  out_cap = 10 + n;
+  out_frame = (uint8_t *)malloc((size_t)out_cap);
+  if (!out_frame) {
+    goto fail;
+  }
+  wire = rynix_rt_ws_frame_encode(opcode, payload, n, NULL, out_frame, out_cap);
+  free(payload);
+  payload = NULL;
+  if (wire < 0 || ws_sock_send_all(client, out_frame, wire) != wire) {
+    goto fail;
+  }
+  free(out_frame);
+  rynix_rt_tcp_close(client);
+  rynix_rt_tcp_close(listen_fd);
+  return 0;
+fail:
+  free(in_frame);
+  free(payload);
+  free(out_frame);
+  rynix_rt_tcp_close(client);
+  rynix_rt_tcp_close(listen_fd);
+  return -1;
+}
+
+int64_t rynix_rt_ws_client_echo_n(const char *host, int64_t port, const char *msg, int64_t n) {
+  static const uint8_t mask[4] = {0x12, 0x34, 0x56, 0x78};
+  int64_t fd;
+  char req[512];
+  char resp[1024];
+  uint8_t *out_frame = NULL;
+  uint8_t *in_frame = NULL;
+  int64_t in_len = 0;
+  char *back = NULL;
+  int64_t got;
+  int64_t wire;
+  int64_t out_cap;
+  int64_t opcode = 0;
+  const char *key = "dGhlIHNhbXBsZSBub25jZQ==";
+
+  if (!host || port <= 0 || n < 0 || n > RYNIX_WS_MAX_PAYLOAD || (n > 0 && !msg)) {
+    return -1;
+  }
+  fd = rynix_rt_tcp_connect(host, port);
+  if (fd < 0) {
+    return -1;
+  }
+  got = snprintf(req, sizeof(req),
+                 "GET / HTTP/1.1\r\n"
+                 "Host: %s\r\n"
+                 "Upgrade: websocket\r\n"
+                 "Connection: Upgrade\r\n"
+                 "Sec-WebSocket-Key: %s\r\n"
+                 "Sec-WebSocket-Version: 13\r\n"
+                 "\r\n",
+                 host, key);
+  if (got <= 0 || ws_sock_send_all(fd, req, got) != got) {
+    goto fail;
+  }
+  got = ws_sock_recv_at_least(fd, resp, 12, (int64_t)sizeof(resp) - 1);
+  if (got < 0) {
+    goto fail;
+  }
+  resp[got] = '\0';
+  while (strstr(resp, "\r\n\r\n") == NULL && got < (int64_t)sizeof(resp) - 1) {
+    int64_t r = rynix_rt_tcp_recv(fd, resp + got, (int64_t)sizeof(resp) - 1 - got);
+    if (r <= 0) {
+      break;
+    }
+    got += r;
+    resp[got] = '\0';
+  }
+  if (strstr(resp, "101") == NULL) {
+    goto fail;
+  }
+  out_cap = 10 + 4 + n;
+  out_frame = (uint8_t *)malloc((size_t)out_cap);
+  if (!out_frame) {
+    goto fail;
+  }
+  wire = rynix_rt_ws_frame_encode(1 /* text */, msg, n, mask, out_frame, out_cap);
+  if (wire < 0 || ws_sock_send_all(fd, out_frame, wire) != wire) {
+    goto fail;
+  }
+  free(out_frame);
+  out_frame = NULL;
+  if (ws_tcp_read_frame(fd, &in_frame, &in_len) != 0) {
+    goto fail;
+  }
+  back = (char *)malloc((size_t)n);
+  if (!back) {
+    goto fail;
+  }
+  wire = rynix_rt_ws_frame_decode(in_frame, in_len, back, n, &opcode);
+  free(in_frame);
+  in_frame = NULL;
+  rynix_rt_tcp_close(fd);
+  if (wire != n || opcode != 1 || (n > 0 && memcmp(back, msg, (size_t)n) != 0)) {
+    free(back);
+    return -1;
+  }
+  free(back);
+  return 0;
+fail:
+  free(out_frame);
+  free(in_frame);
+  free(back);
+  rynix_rt_tcp_close(fd);
+  return -1;
 }
 
 /* Offline KATs: short, 16-bit, 64-bit, and fragmented message. Returns 0 on OK. */

@@ -103,9 +103,10 @@ simulated** surfaces we refuse to copy.
 | Escape / alloc transparency | `--explain-alloc`, MCP explain |
 | `@llvm.ctpop` / bits workload | Suite5 `bits` + RIR tests |
 | Fiber + io_uring tests | `rt/tests/`, Linux CI |
-| Agent verify stack + MCP (17 tools) | `verify`/`precheck`/`context`/`security`/`scope`/`deps` |
-| Real HTTP / JSON / frame / TLS / SHA-256 / KV | `size_echo_gates` + `std/*` |
-| Local path packages | `rynixc deps` + build gate |
+| Agent verify stack + MCP (18 tools) | `verify`/`precheck`/`context`/`security`/`scope`/`deps`/`dna` |
+| Real HTTP / JSON / frame / TLS / SHA-256 / KV / WS | `size_echo_gates` + `std/*` |
+| Local path + index packages | `rynixc deps` + `testdata/pkg_reg_app` + ADR-0010 |
+| Suite12 checksum-locked ports | `benchmarks/suite12/` + `suite12_*_checksum` gates |
 | VS Code CodeLens | check / alloc / impact |
 | Honest docs / no fake ✅ | `AGENTS.md`, this document |
 
@@ -113,10 +114,10 @@ simulated** surfaces we refuse to copy.
 
 | Area | End claim / surface |
 |------|---------------------|
-| suite12 heavy-sim marketing | Different harness; optional Rynix ports later |
+| suite12 heavy-sim marketing | Different harness; Rynix has 9 MATCH C ports (skip divergent ids) |
 | C11-first backend | Rynix: LLVM + ADR-0008 |
 | UI canvas / hot-reload | Deferred ADR-0007 |
-| Registry packages | We ship path deps only (no fake registry) |
+| Network package registry CDN | Local path + filesystem index only ([ADR-0010](adr/0010-local-package-index.md)) |
 | denser `std/` naming / `dna` heuristics | Optional polish |
 
 ### Overlap (both ship)
@@ -170,8 +171,7 @@ Priority is **evidence-first** (test or CI before README ✅).
 - [x] Use-after-move for linear types (`RYX2011`)
 - [x] `#^ effect: pure` static purity (`RYX2012`)
 - [x] `rynixc security` + `scope` (deny-by-default patch write)
-- [x] Local path packages (`rynix.toml` `[dependencies]` + `rynixc deps` / build gate; no registry)
-- [x] Local path packages + filesystem package index ([ADR-0010](adr/0010-local-package-index.md); no network CDN)
+- [x] Local path packages + filesystem package index ([ADR-0010](adr/0010-local-package-index.md); build gate `build_pkg_reg_app_resolves_registry_deps`)
 - [x] C11 backend **deferred** ([ADR-0008](adr/0008-deferred-c11-backend.md))
 - [x] UI/canvas **deferred** ([ADR-0007](adr/0007-deferred-ui-frameworks.md))
 
@@ -195,8 +195,9 @@ Full-runtime hello gate remains **&lt;300 KiB**.
 
 - [x] HTTP POST + JSON echo beyond GET/serve-once smoke
 - [x] TLS echo (SChannel/OpenSSL) — not End’s simulated session layer
-- [x] WebSocket frames + upgrade echo (RFC 6455; ≤65535 + fragmentation) — canvas/UI still [ADR-0007](adr/0007-deferred-ui-frameworks.md)
-- [x] suite12 checksum-locked C ports (ALU/HFT/JSON/FSM/DNA/GEMM/MC; skip divergent ids)
+- [x] WebSocket frames + upgrade echo (RFC 6455; 7/16/64-bit lengths + fragmentation; 70 KiB wire smoke) — canvas/UI still [ADR-0007](adr/0007-deferred-ui-frameworks.md)
+- [x] Windows IOCP runtime (`--runtime=iocp`; AcceptEx/ConnectEx + WSARecv/WSASend)
+- [x] suite12 checksum-locked C ports (ALU/trees/HFT/SHA/JSON/FSM/DNA/GEMM/MC; skip divergent ids #1/#5/#6)
 
 ### P3 — editor & release polish
 
@@ -219,7 +220,8 @@ Full-runtime hello gate remains **&lt;300 KiB**.
 **Rynix now leads on auditable systems + agent toolchain depth for features End
 actually ships in working code** (HTTP/crypto/KV/TLS, region/pipe/effects, verify
 stack, MCP/fibers/LLVM). End still leads on **spectacle and deferred UI/C11**.
-Catch-up polish: suite12 MATCH ports and GPG smoke are in-tree; UI/C11 stay ADR-deferred.
+Phase 11 backlog is closed in-tree (suite12 MATCH ports, WS 64-bit, local registry index,
+IOCP, GPG smoke). UI/C11/network registry stay ADR-deferred.
 
 See also: [COMPARE.md](COMPARE.md), [ROADMAP.md](ROADMAP.md),
 [benchmarks/README.md](../benchmarks/README.md).

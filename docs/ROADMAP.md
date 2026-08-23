@@ -78,6 +78,8 @@ present). Differential: `diff_llvm_vs_interp`.
   `rynix_rt_run`; APIs for read/write/**accept**/**connect**;
   `tcp_accept`/`tcp_connect` use uring when the ring is ready (else poll);
   `tcp_recv`/`tcp_send` stay non-blocking poll+yield
+- **IOCP (Windows):** `--runtime=iocp` — AcceptEx/ConnectEx +
+  WSARecv/WSASend; fiber park/unpark; `iocp_echo_smoke`
 - Pipe echo + fiber smoke + ASan CI; `uring_sqe_smoke`
 
 ## Phase 9 — Std / tooling / AI ✅
@@ -115,10 +117,10 @@ present). Differential: `diff_llvm_vs_interp`.
 | Std json/http in `.ryx` | ✅ | `json_get_i64`, `http_get_json_i64`, `examples/05_http_json.ryx` |
 | GitHub Release binaries | ✅ | `.github/workflows/release.yml` + SHA256SUMS |
 | Optional C11 backend | 🔄 deferred | [ADR-0008](adr/0008-deferred-c11-backend.md) |
-| End peer benchmarks + gap closure | 🔄 Phase 11 | [END_PEER_GAP.md](END_PEER_GAP.md) |
+| End peer benchmarks + gap closure | ✅ Phase 11 | [END_PEER_GAP.md](END_PEER_GAP.md) |
 | UI / hot-reload / canvas frameworks | 🔄 out of scope v0.1 | [ADR-0007](adr/0007-deferred-ui-frameworks.md) |
 
-## Phase 11 — Peer parity vs End (in progress)
+## Phase 11 — Peer parity vs End ✅
 
 Close product gaps **without** copying End prose or claiming unverified ✅.
 Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
@@ -134,7 +136,7 @@ Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
 | README domain maturity matrix | ✅ | root `README.md` |
 | Agent contracts approach | ✅ design | [ADR-0009](adr/0009-agent-contracts-toolchain.md) |
 | Close End wins on Suite5 rows | ✅ local | opaque bounds + disclosed strength reduction; see END_PEER_GAP |
-| Broader HTTP / frameworks | 🔄 C1–C5 landed | serve/post/echo, sha256, kv; ADR-0007 for UI |
+| Broader HTTP / frameworks | ✅ C1–C5 landed | serve/post/echo, sha256, kv, TLS, WS; ADR-0007 for UI |
 | Agent verify / precheck / context | ✅ | `verify`/`precheck`/`context` + schemas + MCP |
 | Explicit `region` scopes | ✅ | SPEC §3.1 + `examples/08_region.ryx` |
 | Pipeline `|>` | ✅ | SPEC §3.2 + `pipe_desugar` + `examples/09_pipe.ryx` |
@@ -146,7 +148,7 @@ Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
 | TLS echo (SChannel / OpenSSL) | ✅ | `tls_echo_smoke_c` + soft builtins |
 | HMAC + AES-GCM KAT | ✅ | RFC 4231 + NIST empty-tag; `crypto_kv_smoke` |
 | VS Code CodeLens (check/alloc/impact) | ✅ | `editors/vscode` CodeLens provider |
-| Suite12 MATCH ports | ✅ | ALU/HFT/JSON/FSM/DNA/GEMM/MC/trees checksum gates |
+| Suite12 MATCH ports | ✅ | ALU/HFT/JSON/FSM/DNA/GEMM/MC/trees/SHA checksum gates |
 | WS RFC6455 (64-bit + frag) | ✅ | `ws_frames_smoke_c` KATs |
 | Windows IOCP runtime | ✅ | AcceptEx/ConnectEx + WSARecv/WSASend |
 | GPG release path | ✅ | `release.yml` + `gpg_sign_smoke` |
@@ -160,4 +162,6 @@ Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): `cargo test` on
 Ubuntu + Windows; clippy; VS Code extension compile; Suite5 + arch gates;
-ASan fiber/echo/TCP/load/json; uring SQE + uring TCP smoke on Linux.
+ASan fiber/echo/TCP/load/json; uring SQE + uring TCP smoke on Linux;
+optional `suite5-with-end` when `endc` on PATH; `size_echo_gates` suite12 +
+WS/IOCP/TLS/crypto smokes; release GPG smoke (`gpg_detach_sign_smoke`).

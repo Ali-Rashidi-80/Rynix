@@ -9,8 +9,11 @@
 
 Payload single-frame cap: 1 MiB (`RYNIX_WS_MAX_PAYLOAD`).
 
-`ws_serve_once_echo(port) -> i64` — HTTP Upgrade + one text frame echo.
+`ws_serve_once_echo(port) -> i64` — HTTP Upgrade + one text frame echo (≤125 B).
 `ws_client_echo(host, port, msg) -> i64` — client side; `0` on match.
+
+Large payloads on wire: `ws_serve_once_echo_n` / `ws_client_echo_n` (C ABI;
+evidence: `rt/tests/ws_large_echo_smoke.c`, 70 KiB 16-bit length).
 
 ```
 let k = ws_accept_key_eq("dGhlIHNhbXBsZSBub25jZQ==", "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")
@@ -20,6 +23,5 @@ let r = ws_frame_roundtrip_ok()
 Evidence: `rt/tests/ws_frames_smoke.c` / `ws_accept_smoke.c`.
 
 C ABI also exposes `ws_frame_encode_ex` / `ws_message_decode` for fragmentation.
-64-bit length (127) is not implemented yet.
 
 Length-prefixed binary framing (non-WS) remains in `std/frame.ryx`.

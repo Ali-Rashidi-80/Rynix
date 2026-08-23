@@ -666,6 +666,15 @@ fn suite12_binary_trees_checksum() {
 }
 
 #[test]
+fn suite12_sha256_blocks_checksum() {
+    suite12_checksum_gate(
+        "benchmarks/suite12/sha256_blocks.c",
+        "rynix_suite12_sha256",
+        "checksum=-4721506799343634759",
+    );
+}
+
+#[test]
 fn ws_accept_smoke_c() {
     let Some(clang) = clang() else {
         eprintln!("skip: no clang on PATH");
@@ -742,6 +751,46 @@ fn ws_frames_smoke_c() {
     assert!(
         Command::new(exe).status().unwrap().success(),
         "ws_frames smoke failed"
+    );
+}
+
+#[test]
+fn ws_large_echo_smoke_c() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = std::env::temp_dir().join("rynix_ws_large_echo_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/ws_large_echo_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld")
+            .arg("-lws2_32")
+            .arg("-lsecur32")
+            .arg("-lcrypt32")
+            .arg("-lbcrypt");
+    }
+    assert!(
+        cmd.status().unwrap().success(),
+        "ws_large_echo smoke compile failed"
+    );
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(
+        Command::new(exe).status().unwrap().success(),
+        "ws_large_echo smoke failed"
     );
 }
 

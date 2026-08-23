@@ -44,8 +44,10 @@ parked). `tcp_accept` / `tcp_connect` use uring when the ring is ready.
 | `rynix_rt_http_serve_once_echo_json_i64` | `i64(port, path, field)` | One-shot echo request JSON field |
 | `rynix_rt_frame_serve_once_echo` / `_client_echo` | framed TCP echo | Length-prefixed binary framing |
 | `rynix_rt_ws_accept_key_eq` / `_accept_sha1_first_i64` | WS accept | RFC 6455 Sec-WebSocket-Accept |
-| `rynix_rt_ws_frame_encode` / `_decode` / `_roundtrip_ok` | WS frames | Payload ≤125; mask XOR |
-| `rynix_rt_ws_serve_once_echo` / `_client_echo` | WS upgrade echo | HTTP 101 + one text frame |
+| `rynix_rt_ws_frame_encode` / `_decode` / `_roundtrip_ok` | WS frames | 7/16/64-bit lengths; mask XOR; fragmentation KATs |
+| `rynix_rt_ws_message_decode` | WS reassembly | Fragmented message decode (cap `RYNIX_WS_MAX_PAYLOAD`) |
+| `rynix_rt_ws_serve_once_echo` / `_client_echo` | WS upgrade echo | HTTP 101 + one text frame (short) |
+| `rynix_rt_ws_serve_once_echo_n` / `_client_echo_n` | WS large echo | 16/64-bit length on wire (≤1 MiB) |
 | `rynix_rt_tls_serve_once_echo` / `_client_echo` | TLS echo | SChannel (Win); OpenSSL if `-DRYNIX_RT_OPENSSL`; else `-2` |
 | `rynix_rt_sha256_first_i64` | `i64(data)` | SHA-256 first 8 bytes BE (soft std) |
 | `rynix_rt_hmac_sha256_first_i64` | `i64(key, data)` | HMAC-SHA256 first 8 bytes BE (RFC 4231) |
@@ -77,4 +79,6 @@ parked). `tcp_accept` / `tcp_connect` use uring when the ring is ready.
 rynixc build hello.ryx -o hello --runtime=portable
 # Linux:
 # rynixc build hello.ryx -o hello --runtime=uring
+# Windows:
+# rynixc build hello.ryx -o hello --runtime=iocp
 ```

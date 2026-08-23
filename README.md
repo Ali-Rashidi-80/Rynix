@@ -79,10 +79,12 @@ Where End markets “every domain,” Rynix statuses are **evidence-gated** (tes
 | Systems / native binaries | 🟢 Shipping | LLVM + ThinLTO, `size_echo_gates` |
 | Backend / TCP | 🟢 Shipping | fiber TCP, bakeoff docs, ASan CI |
 | AI-native tooling | 🟢 Shipping | MCP 18 tools, graph/impact/eval/deps/dna schemas |
-| Editor (VS Code + LSP) | 🟢 Shipping | `editors/vscode/`, `lsp-serve` (no CodeLens yet) |
+| Editor (VS Code + LSP) | 🟢 Shipping | `editors/vscode/`, CodeLens (check/alloc/impact) |
 | Memory / Zero-GC | 🟢 Shipping | escape → stack/region/heap, `--explain-alloc` |
 | Microbench matrix | 🟢 Shipping | Suite5 × 5–6 langs, C↔Rynix CI gate |
-| HTTP / JSON helpers | 🔵 Narrow | `json_get_i64`, `http_get_json_i64` smoke |
+| suite12 MATCH ports | 🟢 Shipping | `benchmarks/suite12/` checksum gates (9 ids) |
+| HTTP / JSON / TLS / WS / crypto / KV | 🟢 Shipping | `size_echo_gates`, `std/*` |
+| Packages (path + local index) | 🟢 Shipping | `rynixc deps`, ADR-0010, `testdata/pkg_reg_app` |
 | Web frameworks / UI canvas | ⚪ Deferred | [ADR-0007](docs/adr/0007-deferred-ui-frameworks.md) |
 | C11 backend | ⚪ Deferred | [ADR-0008](docs/adr/0008-deferred-c11-backend.md) |
 | Agent contract DSL | ⚪ Design only | [ADR-0009](docs/adr/0009-agent-contracts-toolchain.md) — toolchain evidence, not End syntax |
@@ -100,14 +102,15 @@ schemas agents can consume without scraping.
 | ----------------------- | ------------------------------------------------ | ------------------------------------------------ |
 | **Canonical syntax**    | `def`/`end`, newline statements                  | [`docs/SPEC.md`](docs/SPEC.md), parser snapshots |
 | **Zero-GC path**        | Escape → stack / region / heap + injected `free` | `--explain-alloc`, MCP `rynix_explain_alloc`     |
-| **Colorless I/O**       | Fibers + `PARKED`; io_uring harvest on Linux     | `rt/tests/`, ASan CI                             |
+| **Colorless I/O**       | Fibers + `PARKED`; io_uring (Linux) / IOCP (Win) | `rt/tests/`, ASan CI                             |
 | **AI-native toolchain** | NDJSON diags, MCP (18 tools), graph/impact/eval/deps/dna  | [`docs/schemas/`](docs/schemas/), `agent_cli`    |
 | **Editor + arch guard** | VS Code + LSP; `Architecture.toml`               | `phase10_gates`, `editors/vscode/`               |
 | **Small binaries**      | Hello under **300 KiB** (clang gate)             | `size_echo_gates`                                |
 
 
-> **vs [End](https://github.com/IrMaho/End):** Rynix leads on **test-gated correctness** and
-> several Suite5 rows vs C/Rust/Go/Zig; End leads **README/framework/editor breadth** —
+> **vs [End](https://github.com/IrMaho/End):** Rynix leads on **test-gated correctness**,
+> agent toolchain depth, and real HTTP/crypto/KV/TLS/WS for features End ships in working code;
+> End leads **README/framework/editor spectacle** —
 > [`docs/END_PEER_GAP.md`](docs/END_PEER_GAP.md) (honest, not a marketing win claim).
 
 ---
@@ -175,7 +178,8 @@ Config:   rynix.toml (optional project file)
 ## Runtime & fibers
 
 Blocking-looking std calls lower to **fiber yield + PARKED**; Linux builds can
-harvest **io_uring** completions inside `rynix_rt_run`.
+harvest **io_uring** completions inside `rynix_rt_run`; Windows can use **IOCP**
+(AcceptEx/ConnectEx + WSARecv/WSASend) with `--runtime=iocp`.
 
 ```text
   main thread                         fiber A              fiber B
@@ -186,6 +190,7 @@ harvest **io_uring** completions inside `rynix_rt_run`.
       │       │      └─ PARKED ─────────▶│                    │
       │       ├─ run ready fiber ────────────────────────────▶│
       │       └─ io_uring CQ harvest (Linux, --runtime=uring) │
+      │       └─ IOCP completions (Windows, --runtime=iocp) │
       │                                  │                    │
       └─ resume on I/O complete ◀────────┴────────────────────┘
 ```
@@ -195,6 +200,7 @@ harvest **io_uring** completions inside `rynix_rt_run`.
 | -------- | -------------------- | -------------------------------------- |
 | Portable | `--runtime=portable` | Windows (default), Linux fallback      |
 | io_uring | `--runtime=uring`    | Linux when built with `RYNIX_RT_URING` |
+| IOCP     | `--runtime=iocp`     | Windows when built with `RYNIX_RT_IOCP` |
 
 
 ABI reference: [`docs/abi.md`](docs/abi.md)
@@ -275,9 +281,14 @@ entry = "src/main.ryx"
 runtime = "portable"   # Windows default; Linux may use "uring"
 optimize = true
 
-# Local path packages only (no registry). See `rynixc deps` / rynix.deps.v1.
+# Path deps and optional local package index (no network CDN).
+# See docs/adr/0010-local-package-index.md and `rynixc deps`.
 [dependencies]
 # util = { path = "../util" }
+# util = "0.1.0"   # resolves via [registry] below
+#
+# [registry]
+# path = "vendor"
 ```
 
 `rynixc build` / `run` pick up `[build]` when a `rynix.toml` is present; broken path
@@ -437,7 +448,7 @@ Times from [\suite5_results.json\](benchmarks/suite5/suite5_results.json). Refre
 python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary
 python benchmarks/suite5/analyze_results.py
 \
-Details: [\enchmarks/suite5/README.md\](benchmarks/suite5/README.md)
+Details: [benchmarks/suite5/README.md](benchmarks/suite5/README.md)
 
 #### Performance honesty
 
@@ -462,7 +473,9 @@ residue nested loops, `--bench` sink RT.
 
 
 Different algorithms — **not row-comparable**. Rynix matches the **honest multi-lang**
-shape; End still leads on spectacle benches. Mapping: [`benchmarks/README.md`](benchmarks/README.md).
+shape for Suite5; End still leads on spectacle benches. For End suite12 workloads
+where checksums agree across peers, see [`benchmarks/suite12/README.md`](benchmarks/suite12/README.md).
+Mapping: [`benchmarks/README.md`](benchmarks/README.md).
 
 ### Other harnesses
 
@@ -493,9 +506,10 @@ Every ✅ in [`docs/ROADMAP.md`](docs/ROADMAP.md) maps to a test or CI job.
 | Gate                       | Evidence                                              |
 | -------------------------- | ----------------------------------------------------- |
 | Hello under 300 KiB        | `size_echo_gates` (skipped if clang absent)           |
-| Fiber / TCP / load / uring | `rt/tests/`                                           |
-| JSON unit + smoke          | `json_unit.c`, `json_smoke.c`                         |
-| HTTP connect-fail          | `http_smoke.c`                                        |
+| Fiber / TCP / load / uring / IOCP | `rt/tests/`                                           |
+| JSON / HTTP / TLS / WS / crypto / KV | `size_echo_gates` smokes (incl. `ws_large_echo_smoke_c`) |
+| suite12 MATCH checksum ports | `benchmarks/suite12/` + `suite12_*_checksum`          |
+| Local package deps           | `agent_cli` (`build_pkg_reg_app_resolves_registry_deps`) |
 | LLVM ↔ interpreter         | `diff_llvm_vs_interp`                                 |
 | Phase 10 surface           | `phase10_gates` (arch, Suite5×12, http LLVM, VS Code) |
 | RIR lowering patterns      | `binary_gcd`, `matrix_unroll`, `reduce_nonneg`, `scan_hash_lower`, … |
@@ -519,7 +533,8 @@ cd editors/vscode && npm install && npm run compile
                          │
                          ├── diagnostics (check pipeline)
                          ├── hover (types)
-                         └── go-to-definition
+                         ├── go-to-definition
+                         └── CodeLens (check / alloc / impact)
 ```
 
 
@@ -529,7 +544,7 @@ cd editors/vscode && npm install && npm run compile
 | `rynix.enableLsp`    | Enable language server |
 
 
-**v0.1:** grammar, diag, hover, def. **Not yet:** CodeLens, studio ([ADR-0007](docs/adr/0007-deferred-ui-frameworks.md)).
+**v0.1:** grammar, diag, hover, def, CodeLens. **Deferred:** studio / canvas ([ADR-0007](docs/adr/0007-deferred-ui-frameworks.md)).
 
 ---
 
