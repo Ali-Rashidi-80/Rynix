@@ -17,6 +17,8 @@ pub struct Manifest {
     pub name: String,
     pub version: String,
     pub entry: Option<PathBuf>,
+    /// Extra `.ryx` sources after `entry` (manifest order; SPEC §6.3).
+    pub files: Vec<PathBuf>,
     pub runtime: Option<String>,
     pub optimize: Option<bool>,
     /// Local package index root (`[registry] path = "vendor"`).
@@ -44,6 +46,8 @@ pub struct ResolvedDep {
     pub path: PathBuf,
     pub version: Option<String>,
     pub entry: Option<PathBuf>,
+    /// Ordered sources: entry then `[package] files` (absolute).
+    pub sources: Vec<PathBuf>,
     pub ok: bool,
     pub detail: String,
 }
@@ -61,37 +65,41 @@ impl DepsReport {
         self.deps.iter().all(|d| d.ok)
     }
 
-    /// Entry units for unity compile: `(package_name, entry_path)`.
-    pub fn compile_units(&self) -> Result<Vec<(String, PathBuf)>, String> {
+    /// Unity compile units: `(package_name, ordered source paths)`.
+    pub fn compile_units(&self) -> Result<Vec<(String, Vec<PathBuf>)>, String> {
         let mut out = Vec::new();
         for d in &self.deps {
             if !d.ok {
                 return Err(format!("{}: {}", d.name, d.detail));
             }
-            match &d.entry {
-                Some(p) if p.is_file() => out.push((d.name.clone(), p.clone())),
-                Some(p) => {
+            if d.sources.is_empty() {
+                return Err(format!(
+                    "dependency `{}` has no compile sources (need `[package].entry`)",
+                    d.name
+                ));
+            }
+            for p in &d.sources {
+                if !p.is_file() {
                     return Err(format!(
-                        "dependency `{}` entry missing for compile: {}",
+                        "dependency `{}` source missing: {}",
                         d.name,
                         p.display()
                     ));
                 }
-                None => {
-                    return Err(format!(
-                        "dependency `{}` has no `[package].entry` — cannot compile into the app",
-                        d.name
-                    ));
-                }
             }
+            out.push((d.name.clone(), d.sources.clone()));
         }
         Ok(out)
     }
 
-    /// Entry `.ryx` paths (tests / helpers).
+    /// Entry `.ryx` paths (first source of each unit).
     #[allow(dead_code)]
     pub fn compile_entry_paths(&self) -> Result<Vec<PathBuf>, String> {
-        Ok(self.compile_units()?.into_iter().map(|(_, p)| p).collect())
+        Ok(self
+            .compile_units()?
+            .into_iter()
+            .filter_map(|(_, paths)| paths.into_iter().next())
+            .collect())
     }
 
     pub fn to_json(&self) -> Value {
@@ -107,6 +115,7 @@ impl DepsReport {
                 "path": d.path.display().to_string(),
                 "version": d.version,
                 "entry": d.entry.as_ref().map(|p| p.display().to_string()),
+                "sources": d.sources.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
                 "ok": d.ok,
                 "detail": d.detail,
             })).collect::<Vec<_>>(),
@@ -161,6 +170,7 @@ fn resolve_one_dir(name: &str, kind: &str, abs: PathBuf, version: Option<String>
             path: abs,
             version,
             entry: None,
+            sources: Vec::new(),
             ok: false,
             detail: "path is not a directory".into(),
         };
@@ -172,6 +182,7 @@ fn resolve_one_dir(name: &str, kind: &str, abs: PathBuf, version: Option<String>
             path: abs,
             version,
             entry: None,
+            sources: Vec::new(),
             ok: false,
             detail: "missing rynix.toml in dependency path".into(),
         };
@@ -182,8 +193,33 @@ fn resolve_one_dir(name: &str, kind: &str, abs: PathBuf, version: Option<String>
                 let p = dm.dir.join(e);
                 fs::canonicalize(&p).unwrap_or(p)
             });
+            let mut sources = Vec::new();
+            if let Some(e) = &entry {
+                sources.push(e.clone());
+            }
+            for rel in &dm.files {
+                let p = dm.dir.join(rel);
+                let p = fs::canonicalize(&p).unwrap_or(p);
+                if entry.as_ref().is_some_and(|e| e == &p) {
+                    continue;
+                }
+                sources.push(p);
+            }
             let (ok, detail) = match &entry {
-                Some(p) if p.is_file() => (true, format!("entry {}", p.display())),
+                Some(p) if p.is_file() => {
+                    let missing: Vec<_> = sources.iter().filter(|s| !s.is_file()).collect();
+                    if missing.is_empty() {
+                        (
+                            true,
+                            format!("entry {} ({} source(s))", p.display(), sources.len()),
+                        )
+                    } else {
+                        (
+                            false,
+                            format!("source missing: {}", missing[0].display()),
+                        )
+                    }
+                }
                 Some(p) => (false, format!("entry missing: {}", p.display())),
                 None => (true, "manifest ok (no entry — check-only dep)".into()),
             };
@@ -193,6 +229,7 @@ fn resolve_one_dir(name: &str, kind: &str, abs: PathBuf, version: Option<String>
                 path: abs,
                 version,
                 entry,
+                sources,
                 ok,
                 detail,
             }
@@ -203,6 +240,7 @@ fn resolve_one_dir(name: &str, kind: &str, abs: PathBuf, version: Option<String>
             path: abs,
             version,
             entry: None,
+            sources: Vec::new(),
             ok: false,
             detail: e,
         },
@@ -217,6 +255,7 @@ fn resolve_registry_version(manifest: &Manifest, name: &str, ver_req: &str) -> R
             path: manifest.dir.clone(),
             version: Some(ver_req.into()),
             entry: None,
+            sources: Vec::new(),
             ok: false,
             detail: "version dep requires [registry] path = \"…\" (local index only)".into(),
         };
@@ -252,6 +291,7 @@ fn resolve_registry_version(manifest: &Manifest, name: &str, ver_req: &str) -> R
                 path: reg.clone(),
                 version: Some(ver_req.into()),
                 entry: None,
+                sources: Vec::new(),
                 ok: false,
                 detail: format!(
                     "invalid version req `{ver_req}` for `{name}`: {e} (use exact dir, ^x.y.z, or >=x.y.z)"
@@ -298,6 +338,7 @@ fn resolve_registry_version(manifest: &Manifest, name: &str, ver_req: &str) -> R
         path: reg.clone(),
         version: Some(ver_req.into()),
         entry: None,
+        sources: Vec::new(),
         ok: false,
         detail: format!(
             "package `{name}` req `{ver_req}` not found under local registry (exact dir or semver range under {}/{{name}}/)",
@@ -359,6 +400,7 @@ fn resolve_deps_rec(
                 path: resolved.path,
                 version: resolved.version,
                 entry: resolved.entry,
+                sources: Vec::new(),
                 ok: false,
                 detail: format!("cyclic dependency involving `{}`", dep.name),
             });
@@ -443,6 +485,8 @@ fn parse_manifest_toml(content: &str) -> Manifest {
                     m.version = v;
                 } else if let Some(v) = parse_string_assign(line, "entry") {
                     m.entry = Some(PathBuf::from(v));
+                } else if let Some(files) = parse_string_array_assign(line, "files") {
+                    m.files = files.into_iter().map(PathBuf::from).collect();
                 }
             }
             "[registry]" => {
@@ -508,6 +552,32 @@ fn parse_string_assign(line: &str, key: &str) -> Option<String> {
     } else {
         Some(val.to_string())
     }
+}
+
+/// `files = ["a.ryx", "b.ryx"]` — inline string array only.
+fn parse_string_array_assign(line: &str, key: &str) -> Option<Vec<String>> {
+    let prefix = format!("{key}");
+    let line = line.trim();
+    if !line.starts_with(&prefix) {
+        return None;
+    }
+    let rest = line[prefix.len()..].trim_start();
+    if !rest.starts_with('=') {
+        return None;
+    }
+    let val = rest[1..].trim();
+    if !val.starts_with('[') || !val.ends_with(']') {
+        return None;
+    }
+    let inner = &val[1..val.len() - 1];
+    let mut out = Vec::new();
+    for part in inner.split(',') {
+        let s = part.trim().trim_matches(|c| c == '"' || c == '\'');
+        if !s.is_empty() {
+            out.push(s.to_string());
+        }
+    }
+    Some(out)
 }
 
 fn parse_bool_assign(line: &str, key: &str) -> Option<bool> {

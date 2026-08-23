@@ -1,2 +1,1 @@
-## Filesystem — API reserved; portable open/read/write land with net.
-## Prefer rynix_rt_read / rynix_rt_write on fds for now.
+## Soft builtins `fs_*` lower to `rynix_rt_fs_*` (abi.md). Real defs may land later.

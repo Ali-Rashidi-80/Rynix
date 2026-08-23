@@ -25,6 +25,7 @@ mod eval_cmd;
 mod fix;
 mod fmt_cmd;
 mod lex_cmd;
+mod lockfile;
 mod lsp_cmd;
 mod manifest;
 mod mcp_cmd;

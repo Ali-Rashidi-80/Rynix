@@ -243,6 +243,10 @@ impl<'a> Checker<'a> {
         self.soft_fn("kv_put", vec![p, s, i], unit);
         self.soft_fn("kv_get", vec![p, s], i);
         self.soft_fn("kv_len", vec![p], i);
+        // Portable path filesystem (fopen-backed).
+        self.soft_fn("fs_write_file", vec![s, s], i);
+        self.soft_fn("fs_read_file", vec![s], s);
+        self.soft_fn("fs_read_file_eq", vec![s, s], i);
     }
 
     fn soft_fn(&mut self, name: &str, params: Vec<TypeId>, ret: TypeId) {

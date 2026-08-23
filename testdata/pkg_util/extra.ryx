@@ -1,0 +1,4 @@
+## Extra unit file for multifile package (`files = [...]`).
+def util_bonus() -> i64
+  return 0
+end

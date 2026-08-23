@@ -522,6 +522,144 @@ fn build_pkg_std_app_loads_math() {
 }
 
 #[test]
+fn deps_reports_multifile_sources() {
+    let root = repo_root();
+    let app = root.join("testdata/pkg_app");
+    let out = rynixc()
+        .args(["deps", app.to_str().unwrap(), "--error-format=json"])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    let deps = v["dependencies"].as_array().expect("deps");
+    let util = deps.iter().find(|d| d["name"] == "util").expect("util");
+    let sources = util["sources"].as_array().expect("sources");
+    assert_eq!(sources.len(), 2, "entry + extra.ryx");
+    let joined = sources
+        .iter()
+        .map(|s| s.as_str().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("|");
+    assert!(joined.contains("lib.ryx"), "{joined}");
+    assert!(joined.contains("extra.ryx"), "{joined}");
+}
+
+#[test]
+fn deps_lock_write_verify_and_tamper() {
+    let root = repo_root();
+    let core = root.join("testdata/pkg_core");
+    let dir = std::env::temp_dir().join("rynix_deps_lock_test");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let core_path = core.display().to_string().replace('\\', "/");
+    std::fs::write(
+        dir.join("rynix.toml"),
+        format!(
+            r#"
+[package]
+name = "lock_app"
+entry = "main.ryx"
+
+[dependencies]
+core = {{ path = "{core_path}" }}
+"#
+        ),
+    )
+    .unwrap();
+    std::fs::write(dir.join("main.ryx"), "def main() -> i64\n  return 0\nend\n").unwrap();
+
+    let lock_write = rynixc()
+        .args(["deps", dir.to_str().unwrap(), "--lock"])
+        .output()
+        .expect("spawn lock");
+    assert!(
+        lock_write.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&lock_write.stderr)
+    );
+    assert!(dir.join("rynix.lock.toml").is_file());
+
+    let locked_ok = rynixc()
+        .args(["deps", dir.to_str().unwrap(), "--locked"])
+        .output()
+        .expect("spawn locked");
+    assert!(
+        locked_ok.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&locked_ok.stderr)
+    );
+
+    // Tamper lock sha so verify fails.
+    let lock_path = dir.join("rynix.lock.toml");
+    let lock_text = std::fs::read_to_string(&lock_path).unwrap();
+    let mut rebuilt = String::new();
+    for line in lock_text.lines() {
+        if line.starts_with("sha256 = ") {
+            rebuilt.push_str(
+                "sha256 = \"0000000000000000000000000000000000000000000000000000000000000000\"\n",
+            );
+        } else {
+            rebuilt.push_str(line);
+            rebuilt.push('\n');
+        }
+    }
+    std::fs::write(&lock_path, rebuilt).unwrap();
+
+    let locked_bad = rynixc()
+        .args(["deps", dir.to_str().unwrap(), "--locked"])
+        .output()
+        .expect("spawn locked bad");
+    assert!(!locked_bad.status.success());
+    let err = String::from_utf8_lossy(&locked_bad.stderr);
+    assert!(
+        err.contains("sha256") || err.contains("lock"),
+        "{err}"
+    );
+}
+
+#[test]
+fn build_fs_roundtrip() {
+    let root = repo_root();
+    let main = root.join("testdata/fs_roundtrip.ryx");
+    let out_dir = root.join("target/test-fs-roundtrip");
+    std::fs::create_dir_all(&out_dir).ok();
+    let exe = out_dir.join(if cfg!(windows) {
+        "fs_roundtrip.exe"
+    } else {
+        "fs_roundtrip"
+    });
+    let build = rynixc()
+        .args([
+            "build",
+            main.to_str().unwrap(),
+            "-o",
+            exe.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .output()
+        .expect("spawn build");
+    assert!(
+        build.status.success(),
+        "build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let run = Command::new(&exe)
+        .current_dir(&out_dir)
+        .output()
+        .expect("run");
+    assert!(run.status.success(), "run failed: {}", String::from_utf8_lossy(&run.stderr));
+    assert!(
+        String::from_utf8_lossy(&run.stdout).contains('0'),
+        "expected 0 from fs round-trip"
+    );
+}
+
+#[test]
 fn deps_fails_missing_path() {
     let dir = std::env::temp_dir().join("rynix_deps_missing");
     let _ = std::fs::remove_dir_all(&dir);

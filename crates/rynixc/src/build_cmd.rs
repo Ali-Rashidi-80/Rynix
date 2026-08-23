@@ -5,6 +5,7 @@ use std::process::{Command, ExitCode};
 
 use crate::cli::{BuildOptions, PgoMode, RuntimeKind};
 use crate::codegen_pipe;
+use crate::lockfile;
 use crate::manifest::{resolve_for_source, DepsReport};
 
 pub fn run(options: &BuildOptions) -> ExitCode {
@@ -435,12 +436,13 @@ fn compile_units_from_report(
             fails.join("\n  ")
         ));
     }
+    lockfile::verify_if_present(report)?;
     report
         .compile_units()
         .map(|units| {
             units
                 .into_iter()
-                .map(|(name, path)| codegen_pipe::CompileUnit { name, path })
+                .map(|(name, paths)| codegen_pipe::CompileUnit { name, paths })
                 .collect()
         })
         .map_err(|e| format!("dependency compile failed:\n  {e}"))

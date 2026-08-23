@@ -1,0 +1,14 @@
+## Soft std fs_* round-trip (portable fopen).
+def main() -> i64
+  let path = "rynix_fs_ryx_smoke.tmp"
+  if fs_write_file(path, "rynix-fs-ok") != 0
+    print_i64(-1)
+    return 1
+  end
+  if fs_read_file_eq(path, "rynix-fs-ok") != 0
+    print_i64(-2)
+    return 1
+  end
+  print_i64(0)
+  return 0
+end

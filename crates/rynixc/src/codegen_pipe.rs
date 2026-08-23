@@ -24,11 +24,12 @@ pub struct CodegenResult {
     pub const_print_i64: Option<i64>,
 }
 
-/// One unity-compile unit: package name (mangling prefix) + entry path.
+/// One unity-compile unit: package name (mangling prefix) + ordered source paths.
 #[derive(Debug, Clone)]
 pub struct CompileUnit {
     pub name: String,
-    pub path: PathBuf,
+    /// Entry first, then optional `[package] files` extras (SPEC §6.3).
+    pub paths: Vec<PathBuf>,
 }
 
 /// Compile one primary `.ryx` (no package deps).
@@ -55,7 +56,7 @@ pub fn compile_to_llvm_with_deps(
         .iter()
         .map(|p| CompileUnit {
             name: package_name_from_entry(p),
-            path: p.clone(),
+            paths: vec![p.clone()],
         })
         .collect();
     compile_to_llvm_with_units(primary, &units, optimize, error_format)
@@ -142,20 +143,34 @@ fn build_unity_source(
     let mut pkg_prefixes: HashMap<String, String> = HashMap::new();
 
     for unit in dep_units {
-        let text = std::fs::read_to_string(&unit.path)
-            .map_err(|e| format!("cannot read dependency {}: {e}", unit.path.display()))?;
-        if has_def_main(&text) {
-            return Err(format!(
-                "dependency entry {} defines `main` — library packages must not",
-                unit.path.display()
-            ));
+        let mut text = String::new();
+        for (i, path) in unit.paths.iter().enumerate() {
+            let part = std::fs::read_to_string(path)
+                .map_err(|e| format!("cannot read dependency {}: {e}", path.display()))?;
+            if has_def_main(&part) {
+                return Err(format!(
+                    "dependency source {} defines `main` — library packages must not",
+                    path.display()
+                ));
+            }
+            if i > 0 {
+                text.push_str(&format!("## file: {}\n", path.display()));
+            }
+            text.push_str(&part);
+            if !part.ends_with('\n') {
+                text.push('\n');
+            }
+            text.push('\n');
         }
         let prefix = sanitize_pkg_prefix(&unit.name);
         pkg_prefixes.insert(unit.name.clone(), prefix.clone());
         let mangled = mangle_unit(&prefix, &text, &mut exports)?;
         unity.push_str(&format!(
             "## package unit: {} ({prefix}__*)\n",
-            unit.path.display()
+            unit.paths
+                .first()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| unit.name.clone())
         ));
         unity.push_str(&mangled);
         if !mangled.ends_with('\n') {

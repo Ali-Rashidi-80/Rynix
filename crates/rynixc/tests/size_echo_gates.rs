@@ -501,6 +501,40 @@ fn crypto_kv_smoke_c() {
 }
 
 #[test]
+fn fs_smoke_c() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = std::env::temp_dir().join("rynix_fs_smoke_rt");
+    let mut cmd = Command::new(&clang);
+    // `fs.c` is self-contained (stdio); avoid linking full portable + Winsock.
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/src/fs.c")
+        .arg("rt/tests/fs_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld");
+    }
+    assert!(cmd.status().unwrap().success(), "fs smoke compile failed");
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(
+        Command::new(exe).status().unwrap().success(),
+        "fs smoke failed"
+    );
+}
+
+#[test]
 fn tls_echo_smoke_c() {
     let Some(clang) = clang() else {
         eprintln!("skip: no clang on PATH");

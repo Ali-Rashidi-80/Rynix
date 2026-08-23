@@ -15,3 +15,4 @@
 #include "src/ws.c"
 #include "src/uring.c"
 #include "src/iocp.c"
+#include "src/fs.c"

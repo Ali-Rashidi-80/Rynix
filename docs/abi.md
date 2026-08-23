@@ -51,6 +51,9 @@ parked). `tcp_accept` / `tcp_connect` use uring when the ring is ready.
 | `rynix_rt_tls_serve_once_echo` / `_client_echo` | TLS echo | SChannel (Win); OpenSSL if `-DRYNIX_RT_OPENSSL`; else `-2` |
 | `rynix_rt_sha256_first_i64` | `i64(data)` | SHA-256 first 8 bytes BE (soft std) |
 | `rynix_rt_hmac_sha256_first_i64` | `i64(key, data)` | HMAC-SHA256 first 8 bytes BE (RFC 4231) |
+| `rynix_rt_fs_write_file` | `i64(path, data)` | Whole-file write (`0` / `-1`) |
+| `rynix_rt_fs_read_file` | `ptr(path)` | Heap NUL string or NULL |
+| `rynix_rt_fs_read_file_eq` | `i64(path, expect)` | Compare file to string (`0` / `-1`) |
 | `rynix_rt_aes128_gcm_nist_empty_tag_first_i64` | `i64()` | AES-GCM NIST empty tag (BCrypt/OpenSSL) |
 | `rynix_rt_kv_new` / `_put` / `_get` / `_len` | region string→i64 map | Arena KV (soft std) |
 | `rynix_rt_vec_i64_*` / `map_i64_*` | (see header) | Region Vec/Map |

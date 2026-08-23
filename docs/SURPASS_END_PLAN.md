@@ -127,8 +127,9 @@ Each phase ends only when **SPEC/ADR (if language) + tests + README honesty** la
 **D4 note:** Rust builds are reproducible via the committed workspace
 [`Cargo.lock`](../Cargo.lock). CI runs `cargo test --workspace --all-targets --locked`
 so drift fails the job. Rynix packages resolve via path deps and/or a local
-`[registry]` filesystem index ([ADR-0010](adr/0010-local-package-index.md)) —
-no network CDN lockfile yet.
+`[registry]` filesystem index ([ADR-0010](adr/0010-local-package-index.md)).
+Optional `rynix.lock.toml` pins resolved local sources with sha256
+(`rynixc deps --lock`); still no network CDN.
 
 ---
 

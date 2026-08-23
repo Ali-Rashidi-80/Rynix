@@ -12,4 +12,5 @@
 src/alloc.c
 src/fiber.c
 src/io_portable.c
+src/fs.c
 src/uring_stub.c

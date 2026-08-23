@@ -266,6 +266,9 @@ lower to `rynix_rt_*` symbols documented in [abi.md](abi.md):
 | `frame_serve_once_echo` / `frame_client_echo` | length-prefixed binary frame echo |
 | `sha256_first_i64(data)` | SHA-256 → first 8 bytes as i64 |
 | `kv_new` / `kv_put` / `kv_get` / `kv_len` | arena string→i64 map |
+| `fs_write_file(path, data)` | write whole file (0 / -1) |
+| `fs_read_file(path)` | read whole file as `str` (or fail) |
+| `fs_read_file_eq(path, expect)` | compare file to string (0 / -1) |
 | `tensor`, `signal`, `agent` | smart primitives (stubs / hooks) |
 
 Notes in `std/*.ryx` that contain **no** `def` remain documentation for soft
@@ -308,24 +311,47 @@ out of scope for CDN. Exact directory names still work; ranges pick the
 **highest** matching `{registry}/{name}/{version}/` folder
 ([ADR-0010](adr/0010-local-package-index.md)).
 
-### 6.3 Unity compile of dependency entries
+### 6.3 Unity compile of dependency sources
 
-`rynixc build` / `emit-ll` load each resolved dependency’s `[package].entry`
-**before** the app source and parse them as **one** compilation unit.
-Dependency `def` names are mangled to `pkg__fn` (double underscore). App bare
-calls to unique exports are rewritten to the mangled name; `pkg.fn(...)` is
-rewritten the same way. Soft builtins stay unmangled.
+`rynixc build` / `emit-ll` load each resolved dependency’s sources **before**
+the app and parse them as **one** compilation unit. Sources are:
+
+1. `[package].entry` (required)
+2. Optional `[package].files = ["a.ryx", …]` extras in manifest order
+
+```toml
+[package]
+name = "util"
+entry = "lib.ryx"
+files = ["extra.ryx"]
+```
+
+There is no blind `**/*.ryx` scan. Dependency `def` names are mangled to
+`pkg__fn` (double underscore). App bare calls to unique exports are rewritten
+to the mangled name; `pkg.fn(...)` is rewritten the same way. Soft builtins
+stay unmangled.
 
 Rules:
 
 - Every declared dependency must have a resolvable `entry` file at compile time
-- Dependency entries must **not** define `def main`
+- Extra `files` paths are relative to the package directory and must exist
+- Dependency sources must **not** define `def main`
 - Duplicate bare `def` names across packages are a compile error
 - Transitive deps are included; network registries stay out of scope
 - Soft `std` builtins remain injected by sema
 
-Evidence: `testdata/pkg_app`, `testdata/pkg_reg_app`,
-`build_pkg_app_calls_path_dep`, `build_pkg_reg_app_resolves_registry_deps`.
+Evidence: `testdata/pkg_app`, `testdata/pkg_util` (`files = ["extra.ryx"]`),
+`testdata/pkg_reg_app`, `build_pkg_app_calls_path_dep`,
+`build_pkg_reg_app_resolves_registry_deps`.
+
+### 6.3.1 Local lockfile (`rynix.lock.toml`)
+
+`rynixc deps --lock` writes `rynix.lock.toml` beside the root manifest with
+per-dep `sha256` over ordered sources (no network CDN). If a lockfile is
+present, `deps` / `build` / `emit-ll` verify pins. `deps --locked` fails when
+the lockfile is missing.
+
+Evidence: `deps_lock_write_verify_and_tamper`.
 
 ### 6.4 `import` and qualified calls
 

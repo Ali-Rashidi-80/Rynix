@@ -21,6 +21,10 @@
           "path": { "type": "string" },
           "version": { "type": ["string", "null"] },
           "entry": { "type": ["string", "null"] },
+          "sources": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
           "ok": { "type": "boolean" },
           "detail": { "type": "string" }
         }

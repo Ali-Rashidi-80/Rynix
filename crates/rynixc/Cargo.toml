@@ -18,6 +18,7 @@ rynix-rir = { workspace = true }
 rynix-codegen = { workspace = true }
 serde_json = { workspace = true }
 semver = { workspace = true }
+sha2 = { workspace = true }
 
 [lints]
 workspace = true

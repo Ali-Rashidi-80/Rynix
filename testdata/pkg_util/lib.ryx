@@ -1,4 +1,5 @@
 ## Path-dep library; depends on `core` transitively into the app unity unit.
+## Calls `util_bonus` from `files = ["extra.ryx"]` (SPEC §6.3 multifile).
 def util_answer() -> i64
-  return core_id() + 35
+  return core_id() + 35 + util_bonus()
 end

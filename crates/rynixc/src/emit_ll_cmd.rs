@@ -4,6 +4,7 @@ use std::process::ExitCode;
 
 use crate::cli::EmitLlOptions;
 use crate::codegen_pipe::{self, CompileUnit};
+use crate::lockfile;
 use crate::manifest::{resolve_for_source, DepsReport};
 
 pub fn run(options: &EmitLlOptions) -> ExitCode {
@@ -58,6 +59,7 @@ fn units_from_report(report: &DepsReport) -> Result<Vec<CompileUnit>, String> {
             fails.join("\n  ")
         ));
     }
+    lockfile::verify_if_present(report)?;
     if report.deps.is_empty() {
         return Ok(Vec::new());
     }
@@ -66,7 +68,7 @@ fn units_from_report(report: &DepsReport) -> Result<Vec<CompileUnit>, String> {
         .map(|units| {
             units
                 .into_iter()
-                .map(|(name, path)| CompileUnit { name, path })
+                .map(|(name, paths)| CompileUnit { name, paths })
                 .collect()
         })
         .map_err(|e| format!("dependency compile failed:\n  {e}"))

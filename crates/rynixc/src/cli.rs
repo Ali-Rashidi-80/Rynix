@@ -63,6 +63,8 @@ Options for `scope`:
   --error-format=FMT  human or json
 
 Options for `deps`:
+  --lock              Write rynix.lock.toml beside the manifest
+  --locked            Require rynix.lock.toml and verify sha256 pins
   --error-format=FMT  human or json (rynix.deps.v1)
 
 Options for `dna`:
@@ -262,6 +264,10 @@ pub struct ScopeOptions {
 #[derive(Debug)]
 pub struct DepsOptions {
     pub path: Option<PathBuf>,
+    /// Write `rynix.lock.toml` after a successful resolve.
+    pub lock: bool,
+    /// Fail unless `rynix.lock.toml` exists and matches resolve.
+    pub locked: bool,
     pub error_format: ErrorFormat,
 }
 
@@ -909,10 +915,14 @@ fn parse_scope(args: &[String]) -> Result<Command, String> {
 
 fn parse_deps(args: &[String]) -> Result<Command, String> {
     let mut path = None;
+    let mut lock = false;
+    let mut locked = false;
     let mut error_format = ErrorFormat::Human;
     for arg in args {
         match arg.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
+            "--lock" => lock = true,
+            "--locked" => locked = true,
             other if other.starts_with("--error-format") => {
                 error_format = parse_error_format(other)?;
             }
@@ -927,6 +937,8 @@ fn parse_deps(args: &[String]) -> Result<Command, String> {
     }
     Ok(Command::Deps(DepsOptions {
         path,
+        lock,
+        locked,
         error_format,
     }))
 }

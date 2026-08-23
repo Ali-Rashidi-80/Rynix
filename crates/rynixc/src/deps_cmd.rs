@@ -4,6 +4,9 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use crate::cli::{DepsOptions, ErrorFormat};
+use crate::lockfile::{
+    lock_from_report, lock_path_for_manifest, read_lock, verify_report, write_lock,
+};
 use crate::manifest::{find_manifest, load_manifest, resolve_deps};
 
 pub fn run(options: &DepsOptions) -> ExitCode {
@@ -47,11 +50,17 @@ pub fn run(options: &DepsOptions) -> ExitCode {
                     .as_ref()
                     .map(|v| format!(" @{v}"))
                     .unwrap_or_default();
+                let nsrc = if d.sources.is_empty() {
+                    String::new()
+                } else {
+                    format!(" [{} src]", d.sources.len())
+                };
                 println!(
-                    "  [{mark}] {} ({}){} -> {} ({})",
+                    "  [{mark}] {} ({}){}{} -> {} ({})",
                     d.name,
                     d.kind,
                     ver,
+                    nsrc,
                     d.path.display(),
                     d.detail
                 );
@@ -61,9 +70,46 @@ pub fn run(options: &DepsOptions) -> ExitCode {
             }
         }
     }
-    if report.all_ok() {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::from(1)
+    if !report.all_ok() {
+        return ExitCode::from(1);
     }
+
+    let lock_path = lock_path_for_manifest(&report.root_manifest);
+    if options.locked {
+        if !lock_path.is_file() {
+            eprintln!(
+                "error: --locked requires {} (run `rynixc deps --lock` first)",
+                lock_path.display()
+            );
+            return ExitCode::from(1);
+        }
+        match read_lock(&lock_path).and_then(|lock| verify_report(&report, &lock)) {
+            Ok(()) => {}
+            Err(e) => {
+                eprintln!("error: {e}");
+                return ExitCode::from(1);
+            }
+        }
+    } else if lock_path.is_file() {
+        if let Err(e) = read_lock(&lock_path).and_then(|lock| verify_report(&report, &lock)) {
+            eprintln!("error: {e}");
+            return ExitCode::from(1);
+        }
+    }
+
+    if options.lock {
+        match lock_from_report(&report).and_then(|lock| write_lock(&lock_path, &lock)) {
+            Ok(()) => {
+                if matches!(options.error_format, ErrorFormat::Human) {
+                    eprintln!("wrote {}", lock_path.display());
+                }
+            }
+            Err(e) => {
+                eprintln!("error: {e}");
+                return ExitCode::from(1);
+            }
+        }
+    }
+
+    ExitCode::SUCCESS
 }

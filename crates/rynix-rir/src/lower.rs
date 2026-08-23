@@ -4643,6 +4643,9 @@ impl LowerCtx<'_, '_> {
             "kv_put" => (self.interner.intern("rynix_rt_kv_put"), IrTy::Unit),
             "kv_get" => (self.interner.intern("rynix_rt_kv_get"), IrTy::I64),
             "kv_len" => (self.interner.intern("rynix_rt_kv_len"), IrTy::I64),
+            "fs_write_file" => (self.interner.intern("rynix_rt_fs_write_file"), IrTy::I64),
+            "fs_read_file" => (self.interner.intern("rynix_rt_fs_read_file"), IrTy::Str),
+            "fs_read_file_eq" => (self.interner.intern("rynix_rt_fs_read_file_eq"), IrTy::I64),
             "signal" | "agent" => (name, IrTy::Unit),
             _ => {
                 let ret = self

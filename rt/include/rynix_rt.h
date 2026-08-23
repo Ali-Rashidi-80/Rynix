@@ -117,6 +117,11 @@ void rynix_rt_kv_put(void *kv, const char *key, int64_t value);
 int64_t rynix_rt_kv_get(void *kv, const char *key);
 int64_t rynix_rt_kv_len(void *kv);
 
+/* ---- filesystem (portable fopen) -------------------------------------- */
+int64_t rynix_rt_fs_write_file(const char *path, const char *data);
+char *rynix_rt_fs_read_file(const char *path);
+int64_t rynix_rt_fs_read_file_eq(const char *path, const char *expect);
+
 /* ---- TLS (SChannel on Windows; OpenSSL when available; else -2) ------- */
 int64_t rynix_rt_tls_serve_once_echo(int64_t port);
 int64_t rynix_rt_tls_client_echo(const char *host, int64_t port, const char *msg);
