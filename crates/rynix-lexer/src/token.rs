@@ -16,7 +16,7 @@ pub enum TokenKind {
     // --- Identifier (1) ---------------------------------------------------
     Ident,
 
-    // --- Keywords (26) ----------------------------------------------------
+    // --- Keywords (27) ----------------------------------------------------
     Def,
     End,
     Let,
@@ -43,6 +43,7 @@ pub enum TokenKind {
     Not,
     As,
     Spawn,
+    Region,
 
     // --- Reserved keywords (4), rejected in Phase 2+ ----------------------
     Match,
@@ -80,6 +81,8 @@ pub enum TokenKind {
     Percent,
     Amp,
     Shr,
+    /// Pipeline `|>` (left into call); distinct from bitwise/shift.
+    Pipe,
     PlusEq,
     MinusEq,
     StarEq,
@@ -131,8 +134,9 @@ impl TokenKind {
             Agent, And, Arrow, As, BangEq, Break, Colon, ColonColon, Comma, Continue, Def, Dot,
             DotDot, DotDotEq, Elif, Else, End, Enum, Eq, EqEq, False, For, Gt, GtEq, If, Import,
             In, LBrace, LBracket, LParen, Let, Loop, Lt, LtEq, Match, Minus, MinusEq, Mut, Nil,
-            Not, Or, Percent, PercentEq, Plus, PlusEq, Pub, RBrace, RBracket, RParen, Return,
-            Signal, Slash, SlashEq, Spawn, Star, StarEq, Struct, Tensor, True, Type, Amp, Shr,
+            Not, Or, Percent, PercentEq, Plus, PlusEq, Pub, RBrace, RBracket, Region, Return,
+            RParen, Signal, Slash, SlashEq, Spawn, Star, StarEq, Struct, Tensor, True, Type, Amp,
+            Pipe, Shr,
         };
         Some(match self {
             Def => "def",
@@ -161,6 +165,7 @@ impl TokenKind {
             Not => "not",
             As => "as",
             Spawn => "spawn",
+            Region => "region",
             Match => "match",
             Agent => "agent",
             Signal => "signal",
@@ -192,6 +197,7 @@ impl TokenKind {
             Percent => "%",
             Amp => "&",
             Shr => ">>",
+            Pipe => "|>",
             PlusEq => "+=",
             MinusEq => "-=",
             StarEq => "*=",
@@ -254,8 +260,8 @@ impl Token {
 pub(crate) fn keyword_kind(bytes: &[u8]) -> Option<TokenKind> {
     use TokenKind::{
         Agent, And, As, Break, Continue, Def, Elif, Else, End, Enum, False, For, If, Import, In,
-        Let, Loop, Match, Mut, Nil, Not, Or, Pub, Return, Signal, Spawn, Struct, Tensor, True,
-        Type,
+        Let, Loop, Match, Mut, Nil, Not, Or, Pub, Region, Return, Signal, Spawn, Struct, Tensor,
+        True, Type,
     };
     Some(match bytes.len() {
         2 => match bytes {
@@ -300,6 +306,7 @@ pub(crate) fn keyword_kind(bytes: &[u8]) -> Option<TokenKind> {
             b"import" => Import,
             b"signal" => Signal,
             b"tensor" => Tensor,
+            b"region" => Region,
             _ => return None,
         },
         8 => match bytes {
@@ -351,12 +358,13 @@ mod tests {
             TokenKind::Not,
             TokenKind::As,
             TokenKind::Spawn,
+            TokenKind::Region,
             TokenKind::Match,
             TokenKind::Agent,
             TokenKind::Signal,
             TokenKind::Tensor,
         ];
-        assert_eq!(all.len(), 30, "27 keywords + 3 reserved");
+        assert_eq!(all.len(), 31, "28 keywords + 3 reserved");
         for kind in all {
             let text = kind.spelling().expect("keyword has a spelling");
             assert_eq!(keyword_kind(text.as_bytes()), Some(kind), "{text}");

@@ -515,6 +515,11 @@ fn walk_stmt_for_expr(stmt: &Stmt<'_>, offset: u32, best: &mut Option<(u32, ryni
                 walk_stmt_for_expr(s, offset, best);
             }
         }
+        Stmt::Region(r) => {
+            for s in r.body {
+                walk_stmt_for_expr(s, offset, best);
+            }
+        }
         Stmt::For(f) => {
             consider_expr(f.iter, offset, best);
             for s in f.body {
@@ -627,6 +632,11 @@ fn walk_stmt_idents(stmt: &Stmt<'_>, offset: u32, found: &mut Option<Ident>) {
                 walk_stmt_idents(s, offset, found);
             }
         }
+        Stmt::Region(r) => {
+            for s in r.body {
+                walk_stmt_idents(s, offset, found);
+            }
+        }
         Stmt::For(f) => {
             if f.binder.span.contains(offset) {
                 *found = Some(f.binder);
@@ -736,6 +746,11 @@ fn walk_stmt<'a>(stmt: &Stmt<'a>, on_path: &mut dyn FnMut(&'a AstPath<'a>)) {
         }
         Stmt::Loop(l) => {
             for s in l.body {
+                walk_stmt(s, on_path);
+            }
+        }
+        Stmt::Region(r) => {
+            for s in r.body {
                 walk_stmt(s, on_path);
             }
         }

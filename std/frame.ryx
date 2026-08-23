@@ -1,0 +1,12 @@
+## Binary framing — soft builtins (C3)
+
+Length-prefixed frames: `[u32 BE length][payload]` over TCP.
+
+`frame_serve_once_echo(port) -> i64` — accept one connection, echo one frame.
+
+`frame_client_echo(host, port, msg) -> i64` — send `msg`, expect identical echo;
+returns `0` on match.
+
+See `rt/tests/frame_echo_smoke.c` (fiber pair). Full WebSocket upgrade is in
+`std/ws.ryx` (`ws_serve_once_echo` / `ws_client_echo`).
+

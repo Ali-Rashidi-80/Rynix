@@ -1,7 +1,9 @@
 //! `rynixc mcp-serve` — JSON-RPC 2.0 over stdio (Content-Length framing).
 //!
 //! Tools: `diagnostics`/`rynix_check`, `rynix_format`, `rynix_explain_alloc`,
-//! `compile`, `ast_query`, `apply_fix`, `rynix_graph`, `rynix_impact`, `rynix_eval`, `rynix_arch`.
+//! `compile`, `ast_query`, `apply_fix`, `rynix_graph`, `rynix_impact`, `rynix_eval`,
+//! `rynix_arch`, `rynix_verify`, `rynix_precheck`, `rynix_context`, `rynix_security`,
+//! `rynix_scope`, `rynix_deps`, `rynix_dna`.
 
 #![allow(clippy::too_many_lines)]
 
@@ -10,6 +12,11 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use crate::architecture::ArchitectureEngine;
+use crate::contract::ContractEngine;
+use crate::dna::mine_dna;
+use crate::manifest::{find_manifest, load_manifest, resolve_deps};
+use crate::scope::load_scope;
+use crate::security::scan_source;
 
 use rynix_ast::{dump_module, format_module, AstArena};
 use rynix_codegen::emit_llvm;
@@ -180,6 +187,89 @@ fn tool_defs() -> Value {
                     "config": { "type": "string", "description": "Path to Architecture.toml" }
                 }
             }
+        },
+        {
+            "name": "rynix_verify",
+            "description": "Verify agent contract evidence (rynix.verify.v1)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "contract": { "type": "string", "description": "Path to contract TOML" },
+                    "root": { "type": "string" },
+                    "run": { "type": "boolean", "description": "Run cargo_test evidence" }
+                },
+                "required": ["contract"]
+            }
+        },
+        {
+            "name": "rynix_precheck",
+            "description": "Blast-radius + write gate (rynix.precheck.v1)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string" },
+                    "fn": { "type": "string" },
+                    "allow_write": { "type": "boolean" }
+                },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "rynix_context",
+            "description": "Budgeted interface outline (rynix.context.v1)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string" },
+                    "budget": { "type": "integer", "minimum": 1 }
+                },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "rynix_security",
+            "description": "Pattern CWE-798-class scan (rynix.security.v1)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string" }
+                },
+                "required": ["source"]
+            }
+        },
+        {
+            "name": "rynix_scope",
+            "description": "Agent permission profile (rynix.scope.v1)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "config": { "type": "string" }
+                }
+            }
+        },
+        {
+            "name": "rynix_deps",
+            "description": "Resolve local path deps from rynix.toml (rynix.deps.v1)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "File or directory to start search" }
+                }
+            }
+        },
+        {
+            "name": "rynix_dna",
+            "description": "Heuristic project conventions (rynix.dna.v1)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string", "description": "Project root (default .)" },
+                    "prompt": { "type": "boolean", "description": "Prefer agent prompt text" }
+                }
+            }
         }
     ])
 }
@@ -213,6 +303,64 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         let report = ArchitectureEngine::check_project(&config, Path::new(root));
         return Ok(json!({
             "content": [{ "type": "text", "text": report.to_json().to_string() }]
+        }));
+    }
+
+    if name == "rynix_verify" {
+        let contract_path = args
+            .get("contract")
+            .and_then(|c| c.as_str())
+            .ok_or_else(|| rpc_error(-32602, "missing contract"))?;
+        let root = args.get("root").and_then(|r| r.as_str()).unwrap_or(".");
+        let run = args
+            .get("run")
+            .and_then(|r| r.as_bool())
+            .unwrap_or(false);
+        let contract = ContractEngine::load(Path::new(contract_path))
+            .map_err(|e| rpc_error(-32000, e))?;
+        let report = ContractEngine::verify(&contract, Path::new(root), run);
+        return Ok(json!({
+            "content": [{ "type": "text", "text": report.to_json().to_string() }]
+        }));
+    }
+
+    if name == "rynix_scope" {
+        let config = args.get("config").and_then(|c| c.as_str()).map(Path::new);
+        let report = load_scope(config);
+        return Ok(json!({
+            "content": [{ "type": "text", "text": report.to_json().to_string() }]
+        }));
+    }
+
+    if name == "rynix_deps" {
+        let start = args
+            .get("path")
+            .and_then(|p| p.as_str())
+            .unwrap_or(".");
+        let Some(m_path) = find_manifest(Path::new(start)) else {
+            return Err(rpc_error(-32000, "no rynix.toml found"));
+        };
+        let manifest = load_manifest(&m_path).map_err(|e| rpc_error(-32000, e))?;
+        let report = resolve_deps(&manifest);
+        return Ok(json!({
+            "content": [{ "type": "text", "text": report.to_json().to_string() }]
+        }));
+    }
+
+    if name == "rynix_dna" {
+        let start = args.get("path").and_then(|p| p.as_str()).unwrap_or(".");
+        let report = mine_dna(Path::new(start));
+        let prompt = args
+            .get("prompt")
+            .and_then(|p| p.as_bool())
+            .unwrap_or(false);
+        let text = if prompt {
+            report.to_prompt()
+        } else {
+            report.to_json().to_string()
+        };
+        return Ok(json!({
+            "content": [{ "type": "text", "text": text }]
         }));
     }
 
@@ -274,6 +422,82 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
             let impact = crate::agent_lib::impact_json(path, &mut parsed, target)
                 .map_err(|e| rpc_error(-32000, e))?;
             Ok(json!({ "content": [{ "type": "text", "text": impact.to_string() }] }))
+        }
+        "rynix_precheck" => {
+            let path = args
+                .get("path")
+                .and_then(|p| p.as_str())
+                .unwrap_or("mcp.ryx");
+            let target = args.get("fn").and_then(|f| f.as_str());
+            let allow_write = args
+                .get("allow_write")
+                .and_then(|b| b.as_bool())
+                .unwrap_or(false);
+            let arena = AstArena::new();
+            let mut parsed = crate::agent_lib::parse_text(path, source, &arena);
+            if parsed.sink.error_count() > 0 {
+                return Err(rpc_error(-32000, "parse/sema errors"));
+            }
+            let impact = crate::agent_lib::impact_json(path, &mut parsed, target)
+                .map_err(|e| rpc_error(-32000, e))?;
+            let report = json!({
+                "schema": "rynix.precheck.v1",
+                "path": path,
+                "write_allowed": allow_write,
+                "fn": target,
+                "impact": impact,
+            });
+            Ok(json!({ "content": [{ "type": "text", "text": report.to_string() }] }))
+        }
+        "rynix_context" => {
+            let path = args
+                .get("path")
+                .and_then(|p| p.as_str())
+                .unwrap_or("mcp.ryx");
+            let budget = args
+                .get("budget")
+                .and_then(|b| b.as_u64())
+                .unwrap_or(2000) as usize;
+            let budget = budget.max(1);
+            let arena = AstArena::new();
+            let parsed = crate::agent_lib::parse_text(path, source, &arena);
+            if parsed.sink.error_count() > 0 {
+                return Err(rpc_error(-32000, "parse/sema errors"));
+            }
+            let all = crate::agent_lib::slice_lines(&parsed);
+            let mut lines = Vec::new();
+            let mut used = 0usize;
+            let mut truncated = false;
+            for line in all {
+                let add = if lines.is_empty() {
+                    line.len()
+                } else {
+                    line.len() + 1
+                };
+                if used + add > budget {
+                    truncated = true;
+                    break;
+                }
+                used += add;
+                lines.push(line);
+            }
+            let report = json!({
+                "schema": "rynix.context.v1",
+                "path": path,
+                "budget": budget,
+                "chars_used": used,
+                "truncated": truncated,
+                "lines": lines,
+            });
+            Ok(json!({ "content": [{ "type": "text", "text": report.to_string() }] }))
+        }
+        "rynix_security" => {
+            let path = args
+                .get("path")
+                .and_then(|p| p.as_str())
+                .unwrap_or("mcp.ryx");
+            let report = scan_source(path, source);
+            Ok(json!({ "content": [{ "type": "text", "text": report.to_json().to_string() }] }))
         }
         other => Err(rpc_error(-32602, format!("unknown tool: {other}"))),
     }

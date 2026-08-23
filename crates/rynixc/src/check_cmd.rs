@@ -7,7 +7,7 @@ use rynix_diag::VecSink;
 use rynix_rir::{
     analyze_escape, explain_alloc_human, explain_alloc_json, lower_module,
 };
-use rynix_sema::analyze;
+use rynix_sema::analyze_with_source;
 use rynix_span::{Interner, SourceMap};
 
 use crate::cli::{CheckOptions, ErrorFormat};
@@ -37,7 +37,13 @@ pub fn run(options: &CheckOptions) -> ExitCode {
 
     // Always run sema on the (possibly recovered) tree so AI agents see the
     // full diagnostic set for a single `check` invocation.
-    let analysis = analyze(module, &mut interner, &mut sink);
+    let analysis = analyze_with_source(
+        module,
+        &mut interner,
+        &mut sink,
+        Some(file.text()),
+        file.start_pos(),
+    );
 
     let code = driver::emit_diagnostics(&sink, &sources, options.error_format);
     if code != ExitCode::SUCCESS || !options.explain_alloc {

@@ -7,12 +7,14 @@
 mod check;
 mod def;
 mod dump;
+mod effects;
 mod errors;
 mod scope;
 mod ty;
 
-pub use check::{Analysis, analyze};
+pub use check::{Analysis, analyze, analyze_with_source};
 pub use def::{DefId, DefKind};
 pub use dump::dump_types;
+pub use effects::{EffectSet, builtin_effects, check_module_effects};
 pub use scope::{ScopeId, ScopeKind};
 pub use ty::{TypeCtx, TypeId, TypeKind};

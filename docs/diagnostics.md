@@ -150,3 +150,17 @@ signature.
 ### RYX2010 — value is not callable
 
 A call was attempted on a non-function value.
+
+### RYX2011 — use of moved value
+
+A binding of a linear type (`Vec`, `Map`, `struct`, `enum`, slice, or
+opaque `ptr`) was used after ownership transferred via `let`, assignment, or
+a call argument. Reinitialize the binding before using it again. Integer,
+float, bool, and `str` values are copy and do not move.
+
+### RYX2012 — pure function has impure effects
+
+A function marked `#^ effect: pure` (or `#^ effects: pure`) transitively
+performs `io` and/or `network` (soft builtins such as `print`, `http_*`,
+`tcp_*`, `kv_*`, or a call to another impure function). Remove the pure
+marker or isolate the side effect.

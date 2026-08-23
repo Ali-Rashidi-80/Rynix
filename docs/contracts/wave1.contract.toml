@@ -1,0 +1,40 @@
+# Wave-1 agent toolchain contract (static evidence)
+
+[contract]
+name = "wave1-agent-toolchain"
+
+[[evidence]]
+id = "verify-schema"
+kind = "file"
+path = "docs/schemas/rynix.verify.v1.json"
+contains = "rynix.verify.v1"
+
+[[evidence]]
+id = "precheck-schema"
+kind = "file"
+path = "docs/schemas/rynix.precheck.v1.json"
+contains = "rynix.precheck.v1"
+
+[[evidence]]
+id = "context-schema"
+kind = "file"
+path = "docs/schemas/rynix.context.v1.json"
+contains = "rynix.context.v1"
+
+[[evidence]]
+id = "adr-0009"
+kind = "file"
+path = "docs/adr/0009-agent-contracts-toolchain.md"
+contains = "verify --contract"
+
+[[evidence]]
+id = "agent-cli-tests"
+kind = "cargo_test"
+package = "rynixc"
+filter = "graph_emits_schema"
+
+[[evidence]]
+id = "effect-pure-tests"
+kind = "cargo_test"
+package = "rynix-sema"
+filter = "pure_rejects_print"

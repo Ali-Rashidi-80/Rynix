@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.dna.v1.json",
+  "title": "rynix.dna.v1",
+  "type": "object",
+  "required": ["schema", "root", "project_name", "scanned_files", "naming", "confidence", "disclaimer"],
+  "properties": {
+    "schema": { "const": "rynix.dna.v1" },
+    "root": { "type": "string" },
+    "project_name": { "type": "string" },
+    "scanned_files": { "type": "integer", "minimum": 0 },
+    "scanned_defs": { "type": "integer", "minimum": 0 },
+    "naming": { "type": "object" },
+    "signals": { "type": "object" },
+    "architecture_style": { "type": "string" },
+    "concurrency_model": { "type": "string" },
+    "memory_strategy": { "type": "string" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "disclaimer": { "type": "string" }
+  }
+}

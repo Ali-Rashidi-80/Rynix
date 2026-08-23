@@ -1,0 +1,12 @@
+## JSON has + offline HTTP surface check (no network)
+
+def main() -> i64
+  let body = "{\"n\": 42, \"neg\": -1}"
+  let has_n = json_has_i64(body, "n")
+  let has_missing = json_has_i64(body, "nope")
+  let neg = json_get_i64(body, "neg")
+  print_i64(has_n)
+  print_i64(has_missing)
+  print_i64(neg)
+  return 0
+end

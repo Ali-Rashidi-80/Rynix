@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Test
-        run: cargo test --workspace --all-targets
+        run: cargo test --workspace --all-targets --locked
 
   suite5-check:
     runs-on: ubuntu-latest
@@ -114,3 +114,41 @@ jobs:
           clang -O1 -DRYNIX_RT_URING -I rt/include \
             rt/portable.c rt/tests/load_harness.c -o /tmp/load_uring
           /tmp/load_uring
+
+  size-gate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install LLVM-MinGW clang (PATH)
+        shell: bash
+        run: |
+          echo "Relying on runner or skip if no mingw clang — cargo test skips gracefully"
+      - name: Binary size gate (hello <300KiB + RT smokes)
+        run: cargo test -p rynixc --test size_echo_gates hello_binary_under_300kb crypto_kv_smoke_c tls_echo_smoke_c -- --nocapture
+
+  # Optional: when `endc`/`end` is on PATH (self-hosted or ENDC_PATH), also gate End.
+  # Default GitHub-hosted runners skip cleanly — not a required green badge without endc.
+  suite5-with-end:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install clang
+        run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Build rynixc
+        run: cargo build -p rynixc --release
+      - name: Suite5 C + Rynix + End (skip if no endc)
+        env:
+          ENDC_PATH: ${{ vars.ENDC_PATH }}
+        run: |
+          set -e
+          if [ -n "$ENDC_PATH" ] && [ -x "$ENDC_PATH" ]; then
+            export PATH="$(dirname "$ENDC_PATH"):$PATH"
+          fi
+          if command -v endc >/dev/null 2>&1 || command -v end >/dev/null 2>&1; then
+            echo "endc/end found — running Suite5 with end"
+            python benchmarks/suite5/run_suite5.py --langs c,rynix,end
+          else
+            echo "skip: endc/end not on PATH (set repo variable ENDC_PATH on self-hosted runners)"
+          fi

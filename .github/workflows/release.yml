@@ -67,11 +67,22 @@ jobs:
             find . -maxdepth 1 -type f ! -name '*.sha256' ! -name 'SHA256SUMS.txt' -exec sha256sum {} + > SHA256SUMS.txt
           fi
           cat SHA256SUMS.txt
+      - name: Optional GPG detach-sign SHA256SUMS
+        working-directory: artifacts
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "No GPG_PRIVATE_KEY secret — shipping SHA256SUMS only"
+            exit 0
+          fi
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --detach-sign --armor SHA256SUMS.txt
+          ls -la SHA256SUMS.txt*
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/*
           generate_release_notes: true
-
-  # Optional GPG detach-sign (set repository secret GPG_PRIVATE_KEY + GPG_PASSPHRASE):
-  # - import key, gpg --detach-sign SHA256SUMS.txt, upload *.asc alongside artifacts.

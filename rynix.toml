@@ -12,3 +12,7 @@ optimize = true
 
 [fmt]
 # Canonical formatter has no knobs — this table is reserved / ignored.
+
+# Local path deps only (SURPASS D3). Example:
+# [dependencies]
+# util = { path = "testdata/pkg_util" }

@@ -16,6 +16,10 @@ pub fn run_pipeline(module: &mut Module) -> Vec<String> {
     crate::bounds::eliminate_bounds_checks(module);
     simplify_cfg(module);
     dce(module);
+    // Dead-code removal can expose jump-only blocks; fold again then DCE.
+    simplify_cfg(module);
+    const_fold(module);
+    dce(module);
     verify_module(module)
 }
 
@@ -164,7 +168,10 @@ pub fn dce(module: &mut Module) {
             }
         }
 
-        // Replace dead pure insts with nop-like iconst 0 (keep ids stable).
+        // Replace dead pure insts with nop-like iconst 0 (keep ids stable),
+        // then drop them from block bodies so codegen does not emit noise
+        // (Suite5 `matrix` was losing to End on hundreds of `add i64 0, 0`).
+        let mut dead_iids = FxHashSet::default();
         for (ii, inst) in func.insts.iter_mut().enumerate() {
             if is_effectful(inst) || inst.is_terminator() {
                 continue;
@@ -176,6 +183,12 @@ pub fn dce(module: &mut Module) {
                 && !used.contains(&v)
             {
                 *inst = Inst::IConst(0);
+                dead_iids.insert(crate::ir::InstId(ii as u32));
+            }
+        }
+        if !dead_iids.is_empty() {
+            for block in &mut func.blocks {
+                block.insts.retain(|iid| !dead_iids.contains(iid));
             }
         }
     }

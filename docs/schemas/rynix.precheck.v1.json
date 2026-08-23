@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.precheck.v1.json",
+  "title": "rynix.precheck.v1",
+  "type": "object",
+  "required": ["schema", "path", "write_allowed", "impact"],
+  "properties": {
+    "schema": { "const": "rynix.precheck.v1" },
+    "path": { "type": "string" },
+    "write_allowed": { "type": "boolean" },
+    "fn": { "type": ["string", "null"] },
+    "impact": { "type": "object" }
+  }
+}

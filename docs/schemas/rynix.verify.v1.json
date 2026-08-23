@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.verify.v1.json",
+  "title": "rynix.verify.v1",
+  "type": "object",
+  "required": ["schema", "contract", "status", "ran_tests", "passed", "failed", "evidence"],
+  "properties": {
+    "schema": { "const": "rynix.verify.v1" },
+    "contract": { "type": "string" },
+    "status": { "type": "string", "enum": ["passed", "failed"] },
+    "ran_tests": { "type": "boolean" },
+    "passed": { "type": "integer", "minimum": 0 },
+    "failed": { "type": "integer", "minimum": 0 },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "ok", "detail"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string" },
+          "ok": { "type": "boolean" },
+          "detail": { "type": "string" }
+        }
+      }
+    }
+  }
+}

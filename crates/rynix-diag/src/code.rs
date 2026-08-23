@@ -81,6 +81,8 @@ pub mod codes {
         BREAK_OUTSIDE_LOOP  = ("RYX2008", "break/continue outside loop");
         CONTINUE_OUTSIDE_LOOP = ("RYX2009", "continue outside loop");
         NOT_CALLABLE        = ("RYX2010", "value is not callable");
+        USE_AFTER_MOVE      = ("RYX2011", "use of moved value");
+        PURITY_VIOLATION    = ("RYX2012", "pure function has impure effects");
     }
 }
 

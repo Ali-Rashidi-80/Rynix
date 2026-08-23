@@ -39,9 +39,33 @@
           "type": "boolean",
           "default": true,
           "description": "Start rynixc lsp-serve for diagnostics and navigation"
+        },
+        "rynix.enableCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show check / alloc / impact CodeLens above def lines"
+        },
+        "rynix.enableHover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show soft-builtin / def hover tips"
         }
       }
-    }
+    },
+    "commands": [
+      {
+        "command": "rynix.codeLens.check",
+        "title": "Rynix: Check file (CodeLens)"
+      },
+      {
+        "command": "rynix.codeLens.alloc",
+        "title": "Rynix: Explain alloc (CodeLens)"
+      },
+      {
+        "command": "rynix.codeLens.impact",
+        "title": "Rynix: Impact (CodeLens)"
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",

@@ -300,6 +300,7 @@ impl<'arena> Parser<'arena, '_, '_> {
         let (op, left, right) = match self.peek().kind {
             TokenKind::Or => (BinaryOp::Or, 1, 2),
             TokenKind::And => (BinaryOp::And, 3, 4),
+            TokenKind::Pipe => (BinaryOp::Pipe, 0, 1), // loosest; left-assoc via Pratt
             // Comparisons: structurally left-associative so the chain check
             // sees `(a < b) < c`; we then reject that shape (SPEC: non-associative).
             TokenKind::EqEq => (BinaryOp::EqEq, 5, 6),

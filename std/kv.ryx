@@ -1,0 +1,12 @@
+## String-key KV — soft builtins
+
+Arena-backed map of `str -> i64` (EndKV-class; not a disk database).
+
+```
+let store = kv_new(0)
+kv_put(store, "a", 1)
+let v = kv_get(store, "a")
+let n = kv_len(store)
+```
+
+Missing keys return `0`. Evidence: `rt/tests/crypto_kv_smoke.c`.

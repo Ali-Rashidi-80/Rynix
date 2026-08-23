@@ -239,8 +239,13 @@ def build_end(name: str) -> Path | None:
 
     Copies the source into ``target/suite5/`` first so End's C11 emit does not
     overwrite ``benchmarks/suite5/{name}.c``.
+    Honors ``ENDC_PATH`` when it points at an executable.
     """
-    endc = which("endc") or which("end")
+    endc_env = os.environ.get("ENDC_PATH", "").strip()
+    if endc_env and Path(endc_env).is_file():
+        endc = endc_env
+    else:
+        endc = which("endc") or which("end")
     if not endc:
         return None
     src = SUITE / f"{name}.end"

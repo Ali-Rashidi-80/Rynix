@@ -1,0 +1,23 @@
+## WebSocket (RFC 6455) — soft builtins
+
+### Accept key
+`ws_accept_key_eq(client_key, want) -> i64` — `0` if accept matches (RFC §1.3).
+`ws_accept_sha1_first_i64(client_key) -> i64` — first 8 SHA-1 bytes BE.
+
+### Frames (payload ≤ 65535; 16-bit extended length)
+`ws_frame_roundtrip_ok() -> i64` — short + extended + fragmented KATs; `0` on success.
+
+`ws_serve_once_echo(port) -> i64` — HTTP Upgrade + one text frame echo.
+`ws_client_echo(host, port, msg) -> i64` — client side; `0` on match.
+
+```
+let k = ws_accept_key_eq("dGhlIHNhbXBsZSBub25jZQ==", "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")
+let r = ws_frame_roundtrip_ok()
+```
+
+Evidence: `rt/tests/ws_frames_smoke.c` / `ws_accept_smoke.c`.
+
+C ABI also exposes `ws_frame_encode_ex` / `ws_message_decode` for fragmentation.
+64-bit length (127) is not implemented yet.
+
+Length-prefixed binary framing (non-WS) remains in `std/frame.ryx`.

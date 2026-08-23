@@ -60,7 +60,27 @@ pub fn emit_llvm(
     out.push_str("declare i64 @llvm.cttz.i64(i64, i1)\n");
     out.push_str("declare void @rynix_rt_tcp_close(i64)\n");
     out.push_str("declare i64 @rynix_rt_json_get_i64(ptr, ptr)\n");
-    out.push_str("declare i64 @rynix_rt_http_get_json_i64(ptr, i64, ptr, ptr)\n\n");
+    out.push_str("declare i64 @rynix_rt_json_has_i64(ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_http_get_json_i64(ptr, i64, ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_http_post_json_i64(ptr, i64, ptr, ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_http_serve_once_json_i64(i64, ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_http_serve_once_echo_json_i64(i64, ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_frame_serve_once_echo(i64)\n");
+    out.push_str("declare i64 @rynix_rt_frame_client_echo(ptr, i64, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_tls_serve_once_echo(i64)\n");
+    out.push_str("declare i64 @rynix_rt_tls_client_echo(ptr, i64, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_sha256_first_i64(ptr)\n");
+    out.push_str("declare i64 @rynix_rt_hmac_sha256_first_i64(ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_aes128_gcm_nist_empty_tag_first_i64()\n");
+    out.push_str("declare i64 @rynix_rt_ws_accept_key_eq(ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_ws_accept_sha1_first_i64(ptr)\n");
+    out.push_str("declare i64 @rynix_rt_ws_frame_roundtrip_ok()\n");
+    out.push_str("declare i64 @rynix_rt_ws_serve_once_echo(i64)\n");
+    out.push_str("declare i64 @rynix_rt_ws_client_echo(ptr, i64, ptr)\n");
+    out.push_str("declare ptr @rynix_rt_kv_new(i32)\n");
+    out.push_str("declare void @rynix_rt_kv_put(ptr, ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_kv_get(ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_kv_len(ptr)\n\n");
     out.push_str(
         "@.rynix.bounds = private unnamed_addr constant [20 x i8] c\"index out of bounds\\00\", align 1\n\n",
     );
@@ -310,7 +330,11 @@ fn emit_function(
 
     // Pass 1: emit block bodies so all SSA names exist before phi operands are resolved.
     let latches = loop_latch_hints(func);
+    let reachable = reachable_blocks(func);
     for (bi, block) in func.blocks.iter().enumerate() {
+        if !reachable[bi] {
+            continue;
+        }
         let latch = latches.get(&(bi as u32)).copied();
         for &iid in &block.insts {
             emit_inst(
@@ -329,6 +353,9 @@ fn emit_function(
 
     // Pass 2: labels, phi nodes, then buffered bodies.
     for (bi, block) in func.blocks.iter().enumerate() {
+        if !reachable[bi] {
+            continue;
+        }
         let bid = BlockId(bi as u32);
         if bi == 0 {
             let _ = writeln!(ctx.final_out, "entry:");
@@ -370,6 +397,44 @@ fn emit_function(
     }
 
     let _ = writeln!(ctx.final_out, "}}");
+}
+
+fn reachable_blocks(func: &rynix_rir::Function) -> Vec<bool> {
+    let n = func.blocks.len();
+    let mut reachable = vec![false; n];
+    if n == 0 {
+        return reachable;
+    }
+    let mut stack = vec![func.entry.0 as usize];
+    reachable[func.entry.0 as usize] = true;
+    while let Some(bi) = stack.pop() {
+        let Some(&term) = func.blocks[bi].insts.last() else {
+            continue;
+        };
+        match func.inst(term) {
+            Inst::Jump { target, .. } => {
+                let t = target.0 as usize;
+                if t < n && !reachable[t] {
+                    reachable[t] = true;
+                    stack.push(t);
+                }
+            }
+            Inst::Br {
+                then_target,
+                else_target,
+                ..
+            } => {
+                for t in [then_target.0 as usize, else_target.0 as usize] {
+                    if t < n && !reachable[t] {
+                        reachable[t] = true;
+                        stack.push(t);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    reachable
 }
 
 /// True back-edges only: jump to an earlier header (structured lowering).
@@ -860,36 +925,40 @@ fn emit_inst(
                 );
                 ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_spawn" {
-                // First arg may be an sconst naming the fiber entry; bitcast @name.
-                let fn_ptr = if let Some(a) = args.first() {
-                    // If bound to a string global, we cannot bitcast easily; use null.
-                    // Prefer looking up function by resolving sconst content.
-                    let _ = a;
-                    "null".to_string()
-                } else {
-                    "null".into()
-                };
-                // Better: if first arg is SConst of a known function name, use @name.
-                let fn_ptr = match args.first().and_then(|a| {
-                    // Recover symbol from RIR if this value is an SConst.
-                    for (ii, inst) in func.insts.iter().enumerate() {
-                        if let Inst::SConst(sym) = inst {
-                            let iid = rynix_rir::InstId(ii as u32);
-                            if result_of(func, iid) == Some(*a) {
-                                let name = ctx.interner.resolve(*sym);
+                // Prefer named fiber entry: first arg is often an SConst of the fn name.
+                let fn_ptr = args
+                    .first()
+                    .and_then(|a| {
+                        for (ii, inst) in func.insts.iter().enumerate() {
+                            if let Inst::SConst(sym) = inst {
+                                let iid = rynix_rir::InstId(ii as u32);
+                                if result_of(func, iid) == Some(*a) {
+                                    let name = ctx.interner.resolve(*sym);
+                                    if ctx.module.func_names.iter().any(|&n| {
+                                        ctx.interner.resolve(n) == name
+                                    }) {
+                                        return Some(format!("@{name}"));
+                                    }
+                                }
+                            }
+                        }
+                        // Fallback: value already bound to @.str.K → resolve string table.
+                        let bound = ctx.val(*a);
+                        if let Some(idx) = bound
+                            .strip_prefix("@.str.")
+                            .and_then(|s| s.parse::<usize>().ok())
+                        {
+                            if let Some(name) = ctx.strings.get(idx) {
                                 if ctx.module.func_names.iter().any(|&n| {
-                                    ctx.interner.resolve(n) == name
+                                    ctx.interner.resolve(n) == name.as_str()
                                 }) {
                                     return Some(format!("@{name}"));
                                 }
                             }
                         }
-                    }
-                    None
-                }) {
-                    Some(p) => p,
-                    None => fn_ptr,
-                };
+                        None
+                    })
+                    .unwrap_or_else(|| "null".into());
                 let t = ctx.tmp();
                 let _ = writeln!(
                     out,
@@ -920,12 +989,34 @@ fn emit_inst(
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_now_ms()");
                 ctx.bind(result.unwrap(), t);
-            } else if n == "rynix_rt_vec_i64_new" || n == "rynix_rt_map_i64_new" {
+            } else if n == "rynix_rt_vec_i64_new"
+                || n == "rynix_rt_map_i64_new"
+                || n == "rynix_rt_kv_new"
+            {
                 let rid = args.first().map(|a| ctx.val(*a)).unwrap_or_else(|| "0".into());
                 let trunc = ctx.tmp();
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {trunc} = trunc i64 {rid} to i32");
                 let _ = writeln!(out, "  {t} = call ptr @{n}(i32 {trunc})");
+                ctx.bind(result.unwrap(), t);
+            } else if n == "rynix_rt_kv_put" {
+                let kv = ctx.val(args[0]);
+                let key = ctx.val(args[1]);
+                let val = ctx.val(args[2]);
+                let _ = writeln!(
+                    out,
+                    "  call void @rynix_rt_kv_put(ptr {kv}, ptr {key}, i64 {val})"
+                );
+            } else if n == "rynix_rt_kv_get" {
+                let kv = ctx.val(args[0]);
+                let key = ctx.val(args[1]);
+                let t = ctx.tmp();
+                let _ = writeln!(out, "  {t} = call i64 @rynix_rt_kv_get(ptr {kv}, ptr {key})");
+                ctx.bind(result.unwrap(), t);
+            } else if n == "rynix_rt_kv_len" {
+                let kv = ctx.val(args[0]);
+                let t = ctx.tmp();
+                let _ = writeln!(out, "  {t} = call i64 @rynix_rt_kv_len(ptr {kv})");
                 ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_vec_i64_push" {
                 let v = ctx.val(args[0]);
@@ -970,11 +1061,14 @@ fn emit_inst(
                 let fd = args.first().map(|a| ctx.val(*a)).unwrap_or_else(|| "0".into());
                 let _ = writeln!(out, "  call void @rynix_rt_tcp_close(i64 {fd})");
             } else {
-                // Unknown external: declare on the fly and call.
+                // Unknown external: type args from RIR value types (not all-ptr).
                 let rty = llvm_abi_ty(*ret);
                 let arg_s: Vec<_> = args
                     .iter()
-                    .map(|a| format!("ptr {}", ctx.val(*a)))
+                    .map(|a| {
+                        let ty = func.value_ty(*a);
+                        format!("{} {}", llvm_abi_ty(ty), ctx.val(*a))
+                    })
                     .collect();
                 if *ret == IrTy::Unit {
                     let _ = writeln!(

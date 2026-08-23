@@ -82,6 +82,41 @@ fn json_get_i64_example_runs() {
 }
 
 #[test]
+fn json_has_i64_example_runs() {
+    let root = repo_root();
+    let example = root.join("examples/10_json_http_post.ryx");
+    let out_dir = root.join("target/test-json-has");
+    std::fs::create_dir_all(&out_dir).ok();
+    let exe = out_dir.join(if cfg!(windows) {
+        "10_json_http_post.exe"
+    } else {
+        "10_json_http_post"
+    });
+    let build = rynixc()
+        .args([
+            "build",
+            example.to_str().unwrap(),
+            "-o",
+            exe.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .output()
+        .expect("build");
+    assert!(
+        build.status.success(),
+        "build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let run = Command::new(&exe).output().expect("run");
+    assert!(run.status.success(), "run failed");
+    let stdout = String::from_utf8_lossy(&run.stdout);
+    assert!(
+        stdout.contains("1") && stdout.contains("0") && stdout.contains("-1"),
+        "expected has/get prints, got: {stdout}"
+    );
+}
+
+#[test]
 fn http_get_json_i64_sema_and_lower() {
     let root = repo_root();
     let src = root.join("target/phase10_http_check.ryx");

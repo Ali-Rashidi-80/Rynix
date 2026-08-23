@@ -148,3 +148,67 @@ end
 ");
     assert!(codes(&sink).contains(&"RYX2002"), "{:?}", sink.diags);
 }
+
+#[test]
+fn use_after_move_vec_let() {
+    let (_, sink) = run("\
+def main() -> i64
+  let v: Vec[i64] = vec_new(0)
+  let w = v
+  return v.len()
+end
+");
+    assert!(codes(&sink).contains(&"RYX2011"), "{:?}", sink.diags);
+}
+
+#[test]
+fn use_after_move_call_arg() {
+    let (_, sink) = run("\
+def take(v: Vec[i64]) -> i64
+  return v.len()
+end
+def main() -> i64
+  let v: Vec[i64] = vec_new(0)
+  let _n = take(v)
+  return v.len()
+end
+");
+    assert!(codes(&sink).contains(&"RYX2011"), "{:?}", sink.diags);
+}
+
+#[test]
+fn move_reinit_allows_use() {
+    let (_, sink) = run("\
+def main() -> i64
+  let mut v: Vec[i64] = vec_new(0)
+  let w = v
+  v = vec_new(0)
+  return v.len() + w.len()
+end
+");
+    assert_eq!(sink.error_count(), 0, "{:?}", sink.diags);
+}
+
+#[test]
+fn i64_copy_not_move() {
+    let (_, sink) = run("\
+def main() -> i64
+  let x = 1
+  let y = x
+  return x + y
+end
+");
+    assert_eq!(sink.error_count(), 0, "{:?}", sink.diags);
+}
+
+#[test]
+fn vec_method_receiver_not_move() {
+    let (_, sink) = run("\
+def main() -> i64
+  let v: Vec[i64] = vec_new(0)
+  v.push(1)
+  return v.len()
+end
+");
+    assert_eq!(sink.error_count(), 0, "{:?}", sink.diags);
+}

@@ -121,19 +121,41 @@ present). Differential: `diff_llvm_vs_interp`.
 ## Phase 11 — Peer parity vs End (in progress)
 
 Close product gaps **without** copying End prose or claiming unverified ✅.
-Full backlog: [END_PEER_GAP.md](END_PEER_GAP.md).
+Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
+**Ordered execution plan:** [SURPASS_END_PLAN.md](SURPASS_END_PLAN.md)
+(Phases A→E: language → agent CLI → stdlib → runtime/packages → polish).
 
 | Item | Status | Evidence |
 |------|--------|----------|
 | Suite5 `end` builder + 12× `.end` ports | ✅ | `benchmarks/suite5/*.end`, checksums validated vs C |
-| End checksum validation (local) | ✅ | `endc` + all 12 OK (CI optional) |
+| End checksum validation (local) | ✅ | `endc` + all 12 OK; CI `suite5-with-end` when present |
 | End-style link flags (`-flto`, `-funroll-loops`, strip) | ✅ | `build_cmd.rs`; Suite5 rebench |
 | `--bench` minimal RT (size vs End) | ✅ | `rt/bench_rt.c` + const-print C; ~18 KiB MSVCRT |
 | README domain maturity matrix | ✅ | root `README.md` |
 | Agent contracts approach | ✅ design | [ADR-0009](adr/0009-agent-contracts-toolchain.md) |
 | Close End wins on Suite5 rows | ✅ local | opaque bounds + disclosed strength reduction; see END_PEER_GAP |
-| Broader HTTP / frameworks | ⬜ | ADR-0007 |
-| C11 backend | 🔄 deferred | ADR-0008 |
+| Broader HTTP / frameworks | 🔄 C1–C5 landed | serve/post/echo, sha256, kv; ADR-0007 for UI |
+| Agent verify / precheck / context | ✅ | `verify`/`precheck`/`context` + schemas + MCP |
+| Explicit `region` scopes | ✅ | SPEC §3.1 + `examples/08_region.ryx` |
+| Pipeline `|>` | ✅ | SPEC §3.2 + `pipe_desugar` + `examples/09_pipe.ryx` |
+| Use-after-move (linear types) | ✅ | `RYX2011` + `sema_unit` |
+| `#^ effect: pure` | ✅ | `RYX2012` + `effects_pure` + wave1 contract |
+| Agent `security` / `scope` | ✅ | `agent_cli` + MCP `rynix_security` / `rynix_scope` |
+| Local path packages (`rynix.toml` deps) | ✅ | `deps` + `rynix.deps.v1` + build gate; `testdata/pkg_*` |
+| `rynixc new` / `dna` | ✅ | scaffold + `rynix.dna.v1` + MCP |
+| TLS echo (SChannel / OpenSSL) | ✅ | `tls_echo_smoke_c` + soft builtins |
+| HMAC + AES-GCM KAT | ✅ | RFC 4231 + NIST empty-tag; `crypto_kv_smoke` |
+| VS Code CodeLens (check/alloc/impact) | ✅ | `editors/vscode` CodeLens provider |
+| Suite12 honesty + checksum ports | ✅ | ALU/HFT/JSON/FSM gates; skip divergent End ids |
+| WS accept-key + frames (RFC 6455) | ✅ | `ws_frames_smoke_c` + soft builtins |
+| Windows IOCP runtime | ✅ | `--runtime=iocp` AcceptEx/ConnectEx + WSARecv/WSASend |
+| WS frames ≤65535 + fragmentation | ✅ | `ws_frames_smoke_c` KATs |
+| Suite12 MATCH ports | ✅ | ALU/HFT/JSON/FSM/DNA/GEMM/MC checksum gates |
+| GPG release path | ✅ | `release.yml` + `gpg_sign_smoke` (skip without gpg) |
+| Release packaging + optional GPG | ✅ | `scripts/build_release.ps1` + `release.yml` |
+| DCE strips dead Suite5 noise | ✅ | `dce_matrix_noise` — matrix LLVM is `opaque*216` |
+| C11 backend | 🔄 deferred | ADR-0008 — beyond-Surpass closed without stub transpile |
+| UI / canvas | 🔄 deferred | ADR-0007 — beyond-Surpass closed without stub studio |
 
 ## CI
 

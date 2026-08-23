@@ -29,10 +29,14 @@ fn powmod_literal_folds_to_modpow() {
 }
 
 #[test]
-fn powmod_suite5_rem_uses_conditional_sub() {
+fn powmod_suite5_uses_binary_modpow() {
     let text = lower_text(include_str!("../../../benchmarks/suite5/powmod.ryx"));
     assert!(
-        !text.contains("urem") && text.contains("isub") && text.contains("icmp"),
-        "expected small-factor rem peephole in Suite5 loop, got:\n{text}"
+        text.contains("lshr") && text.contains("iand"),
+        "expected binary modpow for opaque Suite5 powmod, got:\n{text}"
+    );
+    assert!(
+        !text.contains("jump block1(%25") || text.contains("lshr"),
+        "should not keep a linear n-step rem peel as the only loop, got:\n{text}"
     );
 }

@@ -62,6 +62,10 @@ fn dump_stmts(
                 let _ = writeln!(out, "{pad}loop:");
                 dump_stmts(l.body, analysis, interner, out, indent + 1);
             }
+            Stmt::Region(r) => {
+                let _ = writeln!(out, "{pad}region:");
+                dump_stmts(r.body, analysis, interner, out, indent + 1);
+            }
             Stmt::For(f) => {
                 let _ = writeln!(out, "{pad}for {}:", interner.resolve(f.binder.name));
                 dump_stmts(f.body, analysis, interner, out, indent + 1);

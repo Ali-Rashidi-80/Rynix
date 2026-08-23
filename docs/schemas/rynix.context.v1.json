@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.context.v1.json",
+  "title": "rynix.context.v1",
+  "type": "object",
+  "required": ["schema", "path", "budget", "chars_used", "truncated", "lines"],
+  "properties": {
+    "schema": { "const": "rynix.context.v1" },
+    "path": { "type": "string" },
+    "budget": { "type": "integer", "minimum": 1 },
+    "chars_used": { "type": "integer", "minimum": 0 },
+    "truncated": { "type": "boolean" },
+    "lines": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

@@ -78,7 +78,7 @@ Where End markets “every domain,” Rynix statuses are **evidence-gated** (tes
 |--------|--------|-------------------|
 | Systems / native binaries | 🟢 Shipping | LLVM + ThinLTO, `size_echo_gates` |
 | Backend / TCP | 🟢 Shipping | fiber TCP, bakeoff docs, ASan CI |
-| AI-native tooling | 🟢 Shipping | MCP 11 tools, graph/impact/eval schemas |
+| AI-native tooling | 🟢 Shipping | MCP 18 tools, graph/impact/eval/deps/dna schemas |
 | Editor (VS Code + LSP) | 🟢 Shipping | `editors/vscode/`, `lsp-serve` (no CodeLens yet) |
 | Memory / Zero-GC | 🟢 Shipping | escape → stack/region/heap, `--explain-alloc` |
 | Microbench matrix | 🟢 Shipping | Suite5 × 5–6 langs, C↔Rynix CI gate |
@@ -101,7 +101,7 @@ schemas agents can consume without scraping.
 | **Canonical syntax**    | `def`/`end`, newline statements                  | [`docs/SPEC.md`](docs/SPEC.md), parser snapshots |
 | **Zero-GC path**        | Escape → stack / region / heap + injected `free` | `--explain-alloc`, MCP `rynix_explain_alloc`     |
 | **Colorless I/O**       | Fibers + `PARKED`; io_uring harvest on Linux     | `rt/tests/`, ASan CI                             |
-| **AI-native toolchain** | NDJSON diags, MCP (11 tools), graph/impact/eval  | [`docs/schemas/`](docs/schemas/), `agent_cli`    |
+| **AI-native toolchain** | NDJSON diags, MCP (18 tools), graph/impact/eval/deps/dna  | [`docs/schemas/`](docs/schemas/), `agent_cli`    |
 | **Editor + arch guard** | VS Code + LSP; `Architecture.toml`               | `phase10_gates`, `editors/vscode/`               |
 | **Small binaries**      | Hello under **300 KiB** (clang gate)             | `size_echo_gates`                                |
 
@@ -274,9 +274,14 @@ entry = "src/main.ryx"
 [build]
 runtime = "portable"   # Windows default; Linux may use "uring"
 optimize = true
+
+# Local path packages only (no registry). See `rynixc deps` / rynix.deps.v1.
+[dependencies]
+# util = { path = "../util" }
 ```
 
-`rynixc build` / `run` pick up `[build]` when a `rynix.toml` is present in the working tree.
+`rynixc build` / `run` pick up `[build]` when a `rynix.toml` is present; broken path
+deps fail the build gate. Resolve with `rynixc deps [path] --error-format=json`.
 
 ### Verify (CI-equivalent)
 
@@ -407,7 +412,7 @@ checksum**, not identical instruction mixes.
 | Workload | C    | Rust | Go   | Zig  | Rynix   | End†  | Rynix/C   | Notes                    |
 | -------- | ---- | ---- | ---- | ---- | ------- | ----- | --------- | ------------------------ |
 | alu      | 9.5  | 9.8  | 11.7 | 9.6  | **5.9** | 8.0   | **0.62×** | mix closed form          |
-| nested   | 7.3  | 6.8  | 10.1 | 8.3  | 6.3     | **5.9** | **0.86×** | residue O(m²)            |
+| nested   | 7.3  | 6.8  | 10.1 | 8.3  | **5.9** | 6.7   | **0.80×** | residue O(m²) loops      |
 | fib      | 7.0  | 7.5  | 10.4 | 7.8  | **5.3** | 6.7   | **0.75×** | matrix power             |
 | hash     | 19.1 | 17.9 | 19.3 | 18.8 | **6.1** | 14.7  | **0.32×** | poly + modpow            |
 | prime    | 11.1 | 10.4 | 15.2 | 11.5 | **8.0** | 13.0  | **0.73×** | trial division           |
@@ -415,14 +420,16 @@ checksum**, not identical instruction mixes.
 | bits     | 450  | 439  | 441  | 473  | **88**  | 367   | **0.19×** | \@llvm.ctpop\            |
 | matrix   | 6.8  | 8.2  | 68.5 | 6.5  | **5.7** | 5.9   | **0.83×** | 4×4 matmul               |
 | scan     | 18.0 | 16.2 | 16.2 | 16.5 | **6.0** | 16.0  | **0.33×** | inclusion-exclusion      |
-| powmod   | 15.6 | 14.4 | 17.1 | 15.5 | 16.4    | **13.2**| 1.05×     | rem peel                 |
+| powmod   | 15.6 | 14.4 | 17.1 | 15.5 | **10.6**| 12.5  | **0.68×** | binary modpow            |
 | gcd      | 163  | 168  | 210  | 166  | **112** | 210   | **0.68×** | binary / Stein           |
 | reduce   | 12.9 | 14.2 | 19.2 | 13.5 | **5.3** | 14.5  | **0.42×** | mix closed form          |
 
 † End via local \endc\ ([END_INTEGRATION.md](benchmarks/suite5/END_INTEGRATION.md));
 Suite5 \.end\ ports use the same opaque trip-count contract as C/Rynix.
 
-**Fastest on this 6-lang run:** Rynix on **10/12** (End edges ested\ and \powmod\).
+**Fastest on the latest Rynix↔End head-to-head (warmup=2, runs=5):** Rynix on
+**12/12** (matrix included after DCE noise fix). `nested` / `powmod` use disclosed
+residue loops and binary modpow (checksum-identical).
 
 Times from [\suite5_results.json\](benchmarks/suite5/suite5_results.json). Refresh:
 
@@ -441,7 +448,8 @@ Details: [\enchmarks/suite5/README.md\](benchmarks/suite5/README.md)
 - Numbers **vary by machine/run**. PGO is optional and not a merge gate.
 
 **Compiler wins (in-tree tests):** counted-loop SSA, `urem` for nonneg, `@llvm.ctpop` /
-`@llvm.cttz`, closed forms / matrix fib / hash poly, Stein gcd, rem peel, `--bench` sink RT.
+`@llvm.cttz`, closed forms / matrix fib / hash poly, Stein gcd, binary modpow,
+residue nested loops, `--bench` sink RT.
 
 ### vs End [suite12](https://github.com/IrMaho/End/tree/main/benchmarks/suite12)
 

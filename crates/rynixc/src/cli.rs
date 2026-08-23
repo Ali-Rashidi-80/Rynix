@@ -24,6 +24,14 @@ Commands:
   impact <file.ryx>   Blast-radius: callers/callees (rynix.impact.v1)
   eval <expr>         Micro-evaluator via RIR interpreter
   patch <file.ryx>    Apply best compiler-suggested fix
+  verify              Evidence-gate a contract TOML (ADR-0009)
+  precheck <file.ryx> Blast-radius + write gate (rynix.precheck.v1)
+  context <file.ryx>  Slice packed to a char budget (rynix.context.v1)
+  security <file.ryx> Pattern CWE-798-class scan (rynix.security.v1)
+  scope               Show agent permissions (rynix.scope.v1)
+  deps [path]         Resolve local path deps from rynix.toml (rynix.deps.v1)
+  dna [path]          Heuristic project conventions (rynix.dna.v1)
+  new <name>          Scaffold local package (rynix.toml + src/main.ryx)
   mcp-serve           JSON-RPC 2.0 MCP server on stdio
   lsp-serve           Language Server Protocol on stdio
   arch check          Validate Architecture.toml layer rules
@@ -31,6 +39,43 @@ Commands:
 Options for `arch`:
   --config <path>     Path to Architecture.toml (default: ./Architecture.toml)
   --root <path>       Project root to scan (default: .)
+
+Options for `verify`:
+  --contract <path>   Contract TOML (required)
+  --root <path>       Project root (default: .)
+  --run               Actually run cargo_test evidence (slow)
+  --error-format=FMT  human (default) or json (rynix.verify.v1)
+
+Options for `precheck`:
+  --fn NAME           Limit impact to one function
+  --allow-write       Set write_allowed=true in the report
+  --error-format=FMT  human or json
+
+Options for `context`:
+  --budget=N          Max characters in packed outline (default: 2000)
+  --error-format=FMT  human or json
+
+Options for `security`:
+  --error-format=FMT  human or json (rynix.security.v1)
+
+Options for `scope`:
+  --config <path>     Path to rynix.scope.toml (optional)
+  --error-format=FMT  human or json
+
+Options for `deps`:
+  --error-format=FMT  human or json (rynix.deps.v1)
+
+Options for `dna`:
+  --prompt            Emit a short agent-facing conventions blurb
+  --error-format=FMT  human or json (rynix.dna.v1)
+
+Options for `new`:
+  --path DIR          Parent directory (default: .)
+
+Options for `patch`:
+  --write             Write fix (requires scope patch_write or --force-write)
+  --force-write       Override deny-by-default scope for this invocation
+  --scope <path>      Scope config for write gate
 
 Options for `lex`:
   --dump-tokens       Print one line per token: span, kind, text
@@ -50,7 +95,7 @@ Options for `emit-ll` / `build` / `run`:
   -o <path>           Output path
   --opt               Run RIR optimization pipeline (emit-ll; build always opts)
   --keep-ll           (build) Keep the intermediate .ll next to the binary
-  --runtime=KIND      `portable` (default) or `uring` (Linux)
+  --runtime=KIND      `portable` (default), `uring` (Linux), or `iocp` (Windows)
   --bench             (build) Define RYNIX_BENCH — print_i64 becomes a sink (Suite5 timing)
   --pgo-gen           (build) Clang `-fprofile-instr-generate` (training build)
   --pgo-use=PATH      (build) Clang `-fprofile-use=PATH` (optimized build)
@@ -131,6 +176,7 @@ pub struct EmitLlOptions {
 pub enum RuntimeKind {
     Portable,
     Uring,
+    Iocp,
 }
 
 #[derive(Debug, Clone)]
@@ -197,12 +243,68 @@ pub struct EvalOptions {
 pub struct PatchOptions {
     pub path: PathBuf,
     pub write: bool,
+    pub force_write: bool,
+    pub scope: Option<PathBuf>,
+}
+
+#[derive(Debug)]
+pub struct SecurityOptions {
+    pub path: PathBuf,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct ScopeOptions {
+    pub config: Option<PathBuf>,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct DepsOptions {
+    pub path: Option<PathBuf>,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct DnaOptions {
+    pub path: Option<PathBuf>,
+    pub prompt: bool,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct NewOptions {
+    pub name: String,
+    pub path: Option<PathBuf>,
 }
 
 #[derive(Debug)]
 pub struct ArchCheckOptions {
     pub config: Option<PathBuf>,
     pub root: Option<PathBuf>,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct VerifyOptions {
+    pub contract: PathBuf,
+    pub root: Option<PathBuf>,
+    pub run_tests: bool,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct PrecheckOptions {
+    pub path: PathBuf,
+    pub function: Option<String>,
+    pub allow_write: bool,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct ContextOptions {
+    pub path: PathBuf,
+    pub budget: usize,
     pub error_format: ErrorFormat,
 }
 
@@ -224,6 +326,14 @@ pub enum Command {
     Impact(ImpactOptions),
     Eval(EvalOptions),
     Patch(PatchOptions),
+    Verify(VerifyOptions),
+    Precheck(PrecheckOptions),
+    Context(ContextOptions),
+    Security(SecurityOptions),
+    Scope(ScopeOptions),
+    Deps(DepsOptions),
+    Dna(DnaOptions),
+    New(NewOptions),
     McpServe,
     LspServe,
     ArchCheck(ArchCheckOptions),
@@ -251,6 +361,14 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         "impact" => parse_impact(&args[1..]),
         "eval" => parse_eval(&args[1..]),
         "patch" => parse_patch(&args[1..]),
+        "verify" => parse_verify(&args[1..]),
+        "precheck" => parse_precheck(&args[1..]),
+        "context" => parse_context(&args[1..]),
+        "security" => parse_security(&args[1..]),
+        "scope" => parse_scope(&args[1..]),
+        "deps" => parse_deps(&args[1..]),
+        "dna" => parse_dna(&args[1..]),
+        "new" => parse_new(&args[1..]),
         "mcp-serve" => Ok(Command::McpServe),
         "lsp-serve" => Ok(Command::LspServe),
         "arch" => parse_arch(&args[1..]),
@@ -460,12 +578,13 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
             "--pgo-gen" => pgo = PgoMode::Generate,
             "--runtime=portable" => runtime = RuntimeKind::Portable,
             "--runtime=uring" => runtime = RuntimeKind::Uring,
+            "--runtime=iocp" => runtime = RuntimeKind::Iocp,
             other if other.starts_with("--pgo-use=") => {
                 pgo = PgoMode::Use(PathBuf::from(&other[10..]));
             }
             other if other.starts_with("--runtime") => {
                 return Err(
-                    "invalid `--runtime`: expected --runtime=portable or --runtime=uring".into(),
+                    "invalid `--runtime`: expected --runtime=portable, --runtime=uring, or --runtime=iocp".into(),
                 );
             }
             "-o" => expect_o = true,
@@ -521,12 +640,13 @@ fn parse_run(args: &[String]) -> Result<Command, String> {
             "--pgo-gen" => pgo = PgoMode::Generate,
             "--runtime=portable" => runtime = RuntimeKind::Portable,
             "--runtime=uring" => runtime = RuntimeKind::Uring,
+            "--runtime=iocp" => runtime = RuntimeKind::Iocp,
             other if other.starts_with("--pgo-use=") => {
                 pgo = PgoMode::Use(PathBuf::from(&other[10..]));
             }
             other if other.starts_with("--runtime") => {
                 return Err(
-                    "invalid `--runtime`: expected --runtime=portable or --runtime=uring".into(),
+                    "invalid `--runtime`: expected --runtime=portable, --runtime=uring, or --runtime=iocp".into(),
                 );
             }
             "-o" => expect_o = true,
@@ -698,10 +818,49 @@ fn parse_eval(args: &[String]) -> Result<Command, String> {
 fn parse_patch(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut write = false;
+    let mut force_write = false;
+    let mut scope = None;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--write" => write = true,
+            "--force-write" => force_write = true,
+            "--scope" => {
+                i += 1;
+                let Some(val) = args.get(i) else {
+                    return Err("missing value for --scope".into());
+                };
+                scope = Some(PathBuf::from(val));
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+        i += 1;
+    }
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::Patch(PatchOptions {
+        path,
+        write,
+        force_write,
+        scope,
+    }))
+}
+
+fn parse_security(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut error_format = ErrorFormat::Human;
     for arg in args {
         match arg.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
-            "--write" => write = true,
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
             other if other.starts_with('-') => {
                 return Err(format!("unknown option `{other}`"));
             }
@@ -712,7 +871,244 @@ fn parse_patch(args: &[String]) -> Result<Command, String> {
         }
     }
     let path = path.ok_or_else(|| "missing input file".to_string())?;
-    Ok(Command::Patch(PatchOptions { path, write }))
+    Ok(Command::Security(SecurityOptions {
+        path,
+        error_format,
+    }))
+}
+
+fn parse_scope(args: &[String]) -> Result<Command, String> {
+    let mut config = None;
+    let mut error_format = ErrorFormat::Human;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            "--config" => {
+                i += 1;
+                let Some(val) = args.get(i) else {
+                    return Err("missing value for --config".into());
+                };
+                config = Some(PathBuf::from(val));
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other => return Err(format!("unexpected argument `{other}`")),
+        }
+        i += 1;
+    }
+    Ok(Command::Scope(ScopeOptions {
+        config,
+        error_format,
+    }))
+}
+
+fn parse_deps(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut error_format = ErrorFormat::Human;
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    Ok(Command::Deps(DepsOptions {
+        path,
+        error_format,
+    }))
+}
+
+fn parse_dna(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut prompt = false;
+    let mut error_format = ErrorFormat::Human;
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--prompt" => prompt = true,
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    Ok(Command::Dna(DnaOptions {
+        path,
+        prompt,
+        error_format,
+    }))
+}
+
+fn parse_new(args: &[String]) -> Result<Command, String> {
+    let mut name = None;
+    let mut path = None;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--path" => {
+                i += 1;
+                let Some(p) = args.get(i) else {
+                    return Err("--path requires a directory".into());
+                };
+                path = Some(PathBuf::from(p));
+            }
+            other if other.starts_with("--path=") => {
+                path = Some(PathBuf::from(other.trim_start_matches("--path=")));
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if name.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => name = Some(other.to_string()),
+        }
+        i += 1;
+    }
+    let Some(name) = name else {
+        return Err("`new` requires a package name".into());
+    };
+    Ok(Command::New(NewOptions { name, path }))
+}
+
+fn parse_verify(args: &[String]) -> Result<Command, String> {
+    let mut contract = None;
+    let mut root = None;
+    let mut run_tests = false;
+    let mut error_format = ErrorFormat::Human;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--run" => run_tests = true,
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            "--contract" => {
+                i += 1;
+                let Some(val) = args.get(i) else {
+                    return Err("missing value for --contract".into());
+                };
+                contract = Some(PathBuf::from(val));
+            }
+            other if other.starts_with("--contract=") => {
+                contract = Some(PathBuf::from(
+                    other.trim_start_matches("--contract="),
+                ));
+            }
+            "--root" => {
+                i += 1;
+                let Some(val) = args.get(i) else {
+                    return Err("missing value for --root".into());
+                };
+                root = Some(PathBuf::from(val));
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other => return Err(format!("unexpected argument `{other}`")),
+        }
+        i += 1;
+    }
+    let contract = contract.ok_or_else(|| "missing --contract <path>".to_string())?;
+    Ok(Command::Verify(VerifyOptions {
+        contract,
+        root,
+        run_tests,
+        error_format,
+    }))
+}
+
+fn parse_precheck(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut function = None;
+    let mut allow_write = false;
+    let mut error_format = ErrorFormat::Human;
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--allow-write" => allow_write = true,
+            other if other.starts_with("--fn=") => {
+                function = Some(other.trim_start_matches("--fn=").to_string());
+            }
+            "--fn" => {
+                return Err("use --fn=NAME (equals form)".into());
+            }
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::Precheck(PrecheckOptions {
+        path,
+        function,
+        allow_write,
+        error_format,
+    }))
+}
+
+fn parse_context(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut budget = 2000usize;
+    let mut error_format = ErrorFormat::Human;
+    for arg in args {
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            other if other.starts_with("--budget=") => {
+                let raw = other.trim_start_matches("--budget=");
+                budget = raw
+                    .parse()
+                    .map_err(|_| format!("invalid --budget={raw}"))?;
+                if budget == 0 {
+                    return Err("--budget must be >= 1".into());
+                }
+            }
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::Context(ContextOptions {
+        path,
+        budget,
+        error_format,
+    }))
 }
 
 fn parse_arch(args: &[String]) -> Result<Command, String> {

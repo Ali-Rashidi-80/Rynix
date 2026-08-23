@@ -14,155 +14,31 @@
     "gcd",
     "reduce"
   ],
-  "note": "Checksum verified with full stdout (Rynix: non-`--bench` binary); timed runs use SUITE5_BENCH=1 and Rynix `--bench` always-sink RT (warmup=3, runs=9, reported ms=trimmed median when runs>=5).",
+  "note": "Checksum verified with full stdout (Rynix: non-`--bench` binary); timed runs use SUITE5_BENCH=1 and Rynix `--bench` always-sink RT (warmup=2, runs=5, reported ms=trimmed median when runs>=5).",
   "rows": [
     {
       "challenge": "alu",
-      "lang": "c",
-      "checksum": "5000003999995",
-      "ms": 9.492,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 9.492,
-        "ms_median_raw": 9.492,
-        "ms_min": 8.263,
-        "ms_max": 10.076,
-        "ms_mean": 9.376,
-        "ms_stdev": 0.545,
-        "ms_samples": [
-          8.263,
-          8.81,
-          9.061,
-          9.368,
-          9.492,
-          9.612,
-          9.836,
-          9.866,
-          10.076
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "alu",
-      "lang": "rust",
-      "checksum": "5000003999995",
-      "ms": 9.814,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 9.814,
-        "ms_median_raw": 9.814,
-        "ms_min": 8.019,
-        "ms_max": 11.731,
-        "ms_mean": 9.611,
-        "ms_stdev": 1.125,
-        "ms_samples": [
-          8.019,
-          8.414,
-          8.58,
-          9.114,
-          9.814,
-          9.879,
-          10.433,
-          10.518,
-          11.731
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "alu",
-      "lang": "go",
-      "checksum": "5000003999995",
-      "ms": 11.659,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 11.659,
-        "ms_median_raw": 11.659,
-        "ms_min": 10.453,
-        "ms_max": 14.393,
-        "ms_mean": 11.923,
-        "ms_stdev": 1.076,
-        "ms_samples": [
-          10.453,
-          11.055,
-          11.174,
-          11.543,
-          11.659,
-          12.086,
-          12.471,
-          12.474,
-          14.393
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "alu",
-      "lang": "zig",
-      "checksum": "5000003999995",
-      "ms": 9.62,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 9.62,
-        "ms_median_raw": 9.62,
-        "ms_min": 8.745,
-        "ms_max": 11.002,
-        "ms_mean": 9.632,
-        "ms_stdev": 0.664,
-        "ms_samples": [
-          8.745,
-          8.861,
-          9.13,
-          9.466,
-          9.62,
-          9.812,
-          9.821,
-          10.23,
-          11.002
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "alu",
       "lang": "rynix",
       "checksum": "5000003999995",
-      "ms": 5.891,
+      "ms": 5.119,
       "ok": true,
       "exit": 0,
       "timing": {
-        "ms_median": 5.891,
-        "ms_median_raw": 5.891,
-        "ms_min": 5.277,
-        "ms_max": 6.762,
-        "ms_mean": 5.898,
-        "ms_stdev": 0.529,
+        "ms_median": 5.119,
+        "ms_median_raw": 5.119,
+        "ms_min": 5.059,
+        "ms_max": 6.001,
+        "ms_mean": 5.402,
+        "ms_stdev": 0.388,
         "ms_samples": [
-          5.277,
-          5.281,
-          5.372,
-          5.686,
-          5.891,
-          5.96,
-          6.185,
-          6.669,
-          6.762
+          5.059,
+          5.105,
+          5.119,
+          5.726,
+          6.001
         ],
-        "warmup": 3,
-        "runs": 9,
+        "warmup": 2,
+        "runs": 5,
         "trimmed": true
       }
     },
@@ -170,149 +46,25 @@
       "challenge": "alu",
       "lang": "end",
       "checksum": "5000003999995",
-      "ms": 8.048,
+      "ms": 7.679,
       "ok": true,
       "exit": 0,
       "timing": {
-        "ms_median": 8.048,
-        "ms_median_raw": 8.048,
-        "ms_min": 7.537,
-        "ms_max": 8.733,
-        "ms_mean": 8.048,
-        "ms_stdev": 0.366,
+        "ms_median": 7.679,
+        "ms_median_raw": 7.679,
+        "ms_min": 7.418,
+        "ms_max": 8.004,
+        "ms_mean": 7.704,
+        "ms_stdev": 0.205,
         "ms_samples": [
-          7.537,
-          7.667,
-          7.712,
-          7.893,
-          8.048,
-          8.172,
-          8.257,
-          8.413,
-          8.733
+          7.418,
+          7.572,
+          7.679,
+          7.845,
+          8.004
         ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "nested",
-      "lang": "c",
-      "checksum": "9623703",
-      "ms": 7.294,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 7.294,
-        "ms_median_raw": 7.294,
-        "ms_min": 6.277,
-        "ms_max": 7.681,
-        "ms_mean": 7.069,
-        "ms_stdev": 0.553,
-        "ms_samples": [
-          6.277,
-          6.461,
-          6.496,
-          6.645,
-          7.294,
-          7.521,
-          7.592,
-          7.657,
-          7.681
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "nested",
-      "lang": "rust",
-      "checksum": "9623703",
-      "ms": 6.775,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 6.775,
-        "ms_median_raw": 6.775,
-        "ms_min": 5.567,
-        "ms_max": 15.944,
-        "ms_mean": 7.819,
-        "ms_stdev": 3.105,
-        "ms_samples": [
-          5.567,
-          5.757,
-          5.892,
-          6.529,
-          6.775,
-          6.829,
-          7.323,
-          9.756,
-          15.944
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "nested",
-      "lang": "go",
-      "checksum": "9623703",
-      "ms": 10.141,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 10.141,
-        "ms_median_raw": 10.141,
-        "ms_min": 8.959,
-        "ms_max": 11.344,
-        "ms_mean": 10.115,
-        "ms_stdev": 0.623,
-        "ms_samples": [
-          8.959,
-          9.663,
-          9.818,
-          9.855,
-          10.141,
-          10.335,
-          10.431,
-          10.485,
-          11.344
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "nested",
-      "lang": "zig",
-      "checksum": "9623703",
-      "ms": 8.298,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 8.298,
-        "ms_median_raw": 8.298,
-        "ms_min": 6.976,
-        "ms_max": 10.055,
-        "ms_mean": 8.322,
-        "ms_stdev": 0.926,
-        "ms_samples": [
-          6.976,
-          7.186,
-          7.519,
-          8.242,
-          8.298,
-          8.707,
-          8.897,
-          9.015,
-          10.055
-        ],
-        "warmup": 3,
-        "runs": 9,
+        "warmup": 2,
+        "runs": 5,
         "trimmed": true
       }
     },
@@ -320,1859 +72,571 @@
       "challenge": "nested",
       "lang": "rynix",
       "checksum": "9623703",
-      "ms": 6.253,
+      "ms": 5.604,
       "ok": true,
       "exit": 0,
       "timing": {
-        "ms_median": 6.253,
-        "ms_median_raw": 6.253,
-        "ms_min": 5.136,
-        "ms_max": 8.956,
-        "ms_mean": 6.304,
-        "ms_stdev": 1.055,
+        "ms_median": 5.604,
+        "ms_median_raw": 5.604,
+        "ms_min": 5.16,
+        "ms_max": 6.335,
+        "ms_mean": 5.651,
+        "ms_stdev": 0.382,
         "ms_samples": [
-          5.136,
-          5.444,
-          5.59,
-          5.915,
-          6.253,
-          6.276,
-          6.406,
-          6.758,
-          8.956
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "nested",
-      "lang": "end",
-      "checksum": "9623703",
-      "ms": 5.904,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 5.904,
-        "ms_median_raw": 5.904,
-        "ms_min": 5.009,
-        "ms_max": 6.411,
-        "ms_mean": 5.748,
-        "ms_stdev": 0.551,
-        "ms_samples": [
-          5.009,
-          5.035,
-          5.253,
-          5.331,
-          5.904,
-          6.208,
-          6.244,
-          6.332,
-          6.411
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "fib",
-      "lang": "c",
-      "checksum": "-2038371929568609723",
-      "ms": 7.034,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 7.034,
-        "ms_median_raw": 7.034,
-        "ms_min": 6.841,
-        "ms_max": 8.175,
-        "ms_mean": 7.42,
-        "ms_stdev": 0.538,
-        "ms_samples": [
-          6.841,
-          6.866,
-          6.987,
-          7.022,
-          7.034,
-          7.854,
-          7.874,
-          8.128,
-          8.175
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "fib",
-      "lang": "rust",
-      "checksum": "-2038371929568609723",
-      "ms": 7.476,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 7.476,
-        "ms_median_raw": 7.476,
-        "ms_min": 6.242,
-        "ms_max": 9.834,
-        "ms_mean": 7.378,
-        "ms_stdev": 1.003,
-        "ms_samples": [
-          6.242,
-          6.503,
-          6.745,
-          6.763,
-          7.476,
-          7.557,
-          7.573,
-          7.713,
-          9.834
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "fib",
-      "lang": "go",
-      "checksum": "-2038371929568609723",
-      "ms": 10.407,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 10.407,
-        "ms_median_raw": 10.407,
-        "ms_min": 9.15,
-        "ms_max": 13.57,
-        "ms_mean": 10.795,
-        "ms_stdev": 1.188,
-        "ms_samples": [
-          9.15,
-          10.115,
-          10.19,
-          10.295,
-          10.407,
-          10.655,
-          10.973,
-          11.804,
-          13.57
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "fib",
-      "lang": "zig",
-      "checksum": "-2038371929568609723",
-      "ms": 7.838,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 7.838,
-        "ms_median_raw": 7.838,
-        "ms_min": 7.396,
-        "ms_max": 8.719,
-        "ms_mean": 7.901,
-        "ms_stdev": 0.424,
-        "ms_samples": [
-          7.396,
-          7.412,
-          7.622,
-          7.667,
-          7.838,
-          7.977,
-          8.03,
-          8.444,
-          8.719
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "fib",
-      "lang": "rynix",
-      "checksum": "-2038371929568609723",
-      "ms": 5.302,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 5.302,
-        "ms_median_raw": 5.302,
-        "ms_min": 5.081,
-        "ms_max": 6.385,
-        "ms_mean": 5.571,
-        "ms_stdev": 0.471,
-        "ms_samples": [
-          5.081,
-          5.124,
-          5.161,
-          5.19,
-          5.302,
-          5.815,
-          6.005,
-          6.079,
-          6.385
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "fib",
-      "lang": "end",
-      "checksum": "-2038371929568609723",
-      "ms": 6.695,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 6.695,
-        "ms_median_raw": 6.695,
-        "ms_min": 6.11,
-        "ms_max": 7.599,
-        "ms_mean": 6.744,
-        "ms_stdev": 0.474,
-        "ms_samples": [
-          6.11,
-          6.147,
-          6.4,
-          6.562,
-          6.695,
-          6.872,
-          7.052,
-          7.258,
-          7.599
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "hash",
-      "lang": "c",
-      "checksum": "372427640",
-      "ms": 19.06,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 19.06,
-        "ms_median_raw": 19.06,
-        "ms_min": 18.231,
-        "ms_max": 19.825,
-        "ms_mean": 18.939,
-        "ms_stdev": 0.474,
-        "ms_samples": [
-          18.231,
-          18.249,
-          18.666,
-          18.909,
-          19.06,
-          19.114,
-          19.162,
-          19.237,
-          19.825
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "hash",
-      "lang": "rust",
-      "checksum": "372427640",
-      "ms": 17.891,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 17.891,
-        "ms_median_raw": 17.891,
-        "ms_min": 17.062,
-        "ms_max": 18.939,
-        "ms_mean": 17.941,
-        "ms_stdev": 0.523,
-        "ms_samples": [
-          17.062,
-          17.446,
-          17.691,
-          17.709,
-          17.891,
-          18.061,
-          18.283,
-          18.383,
-          18.939
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "hash",
-      "lang": "go",
-      "checksum": "372427640",
-      "ms": 19.278,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 19.278,
-        "ms_median_raw": 19.278,
-        "ms_min": 18.278,
-        "ms_max": 19.913,
-        "ms_mean": 19.049,
-        "ms_stdev": 0.535,
-        "ms_samples": [
-          18.278,
-          18.377,
-          18.397,
-          19.117,
-          19.278,
-          19.318,
-          19.371,
-          19.396,
-          19.913
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "hash",
-      "lang": "zig",
-      "checksum": "372427640",
-      "ms": 18.848,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 18.848,
-        "ms_median_raw": 18.848,
-        "ms_min": 18.089,
-        "ms_max": 21.785,
-        "ms_mean": 19.257,
-        "ms_stdev": 1.232,
-        "ms_samples": [
-          18.089,
-          18.197,
-          18.271,
-          18.626,
-          18.848,
-          18.916,
-          19.58,
-          20.998,
-          21.785
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "hash",
-      "lang": "rynix",
-      "checksum": "372427640",
-      "ms": 6.104,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 6.104,
-        "ms_median_raw": 6.104,
-        "ms_min": 4.926,
-        "ms_max": 6.733,
-        "ms_mean": 6.095,
-        "ms_stdev": 0.548,
-        "ms_samples": [
-          4.926,
-          5.711,
-          5.737,
-          6.017,
-          6.104,
-          6.377,
-          6.598,
-          6.653,
-          6.733
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "hash",
-      "lang": "end",
-      "checksum": "372427640",
-      "ms": 14.663,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 14.663,
-        "ms_median_raw": 14.663,
-        "ms_min": 14.283,
-        "ms_max": 15.794,
-        "ms_mean": 14.839,
-        "ms_stdev": 0.558,
-        "ms_samples": [
-          14.283,
-          14.286,
-          14.345,
-          14.522,
-          14.663,
-          14.689,
-          15.339,
-          15.633,
-          15.794
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "prime",
-      "lang": "c",
-      "checksum": "9592",
-      "ms": 11.076,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 11.076,
-        "ms_median_raw": 11.076,
-        "ms_min": 10.605,
-        "ms_max": 11.843,
-        "ms_mean": 11.147,
-        "ms_stdev": 0.451,
-        "ms_samples": [
-          10.605,
-          10.663,
-          10.783,
-          10.784,
-          11.076,
-          11.283,
-          11.498,
-          11.788,
-          11.843
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "prime",
-      "lang": "rust",
-      "checksum": "9592",
-      "ms": 10.383,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 10.383,
-        "ms_median_raw": 10.383,
-        "ms_min": 9.616,
-        "ms_max": 11.23,
-        "ms_mean": 10.266,
-        "ms_stdev": 0.525,
-        "ms_samples": [
-          9.616,
-          9.659,
-          9.726,
-          10.036,
-          10.383,
-          10.406,
-          10.492,
-          10.843,
-          11.23
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "prime",
-      "lang": "go",
-      "checksum": "9592",
-      "ms": 15.176,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 15.176,
-        "ms_median_raw": 15.176,
-        "ms_min": 14.654,
-        "ms_max": 16.574,
-        "ms_mean": 15.422,
-        "ms_stdev": 0.62,
-        "ms_samples": [
-          14.654,
-          15.032,
-          15.078,
-          15.156,
-          15.176,
-          15.194,
-          15.47,
-          16.463,
-          16.574
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "prime",
-      "lang": "zig",
-      "checksum": "9592",
-      "ms": 11.473,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 11.473,
-        "ms_median_raw": 11.473,
-        "ms_min": 10.516,
-        "ms_max": 13.625,
-        "ms_mean": 11.789,
-        "ms_stdev": 0.899,
-        "ms_samples": [
-          10.516,
-          11.135,
-          11.223,
-          11.268,
-          11.473,
-          11.86,
-          12.221,
-          12.777,
-          13.625
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "prime",
-      "lang": "rynix",
-      "checksum": "9592",
-      "ms": 8.039,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 8.039,
-        "ms_median_raw": 8.039,
-        "ms_min": 7.73,
-        "ms_max": 8.54,
-        "ms_mean": 8.102,
-        "ms_stdev": 0.257,
-        "ms_samples": [
-          7.73,
-          7.858,
-          7.985,
-          7.989,
-          8.039,
-          8.119,
-          8.15,
-          8.513,
-          8.54
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "prime",
-      "lang": "end",
-      "checksum": "9592",
-      "ms": 13.028,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 13.028,
-        "ms_median_raw": 13.028,
-        "ms_min": 12.469,
-        "ms_max": 13.244,
-        "ms_mean": 12.924,
-        "ms_stdev": 0.259,
-        "ms_samples": [
-          12.469,
-          12.471,
-          12.912,
-          12.945,
-          13.028,
-          13.05,
-          13.054,
-          13.142,
-          13.244
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "sum",
-      "lang": "c",
-      "checksum": "1124998875000250000",
-      "ms": 6.168,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 6.168,
-        "ms_median_raw": 6.168,
-        "ms_min": 5.61,
-        "ms_max": 6.97,
-        "ms_mean": 6.186,
-        "ms_stdev": 0.467,
-        "ms_samples": [
-          5.61,
-          5.658,
-          5.709,
-          5.909,
-          6.168,
-          6.391,
-          6.608,
-          6.647,
-          6.97
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "sum",
-      "lang": "rust",
-      "checksum": "1124998875000250000",
-      "ms": 5.543,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 5.543,
-        "ms_median_raw": 5.543,
-        "ms_min": 5.158,
-        "ms_max": 6.445,
-        "ms_mean": 5.584,
-        "ms_stdev": 0.401,
-        "ms_samples": [
-          5.158,
           5.16,
-          5.228,
-          5.396,
-          5.543,
-          5.59,
-          5.776,
-          5.959,
-          6.445
+          5.511,
+          5.604,
+          5.647,
+          6.335
         ],
-        "warmup": 3,
-        "runs": 9,
+        "warmup": 2,
+        "runs": 5,
         "trimmed": true
       }
     },
     {
-      "challenge": "sum",
-      "lang": "go",
-      "checksum": "1124998875000250000",
-      "ms": 8.803,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 8.803,
-        "ms_median_raw": 8.803,
-        "ms_min": 7.969,
-        "ms_max": 10.135,
-        "ms_mean": 8.913,
-        "ms_stdev": 0.716,
-        "ms_samples": [
-          7.969,
-          8.034,
-          8.541,
-          8.656,
-          8.803,
-          8.882,
-          9.216,
-          9.984,
-          10.135
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "sum",
-      "lang": "zig",
-      "checksum": "1124998875000250000",
-      "ms": 6.184,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 6.184,
-        "ms_median_raw": 6.184,
-        "ms_min": 5.651,
-        "ms_max": 7.086,
-        "ms_mean": 6.178,
-        "ms_stdev": 0.396,
-        "ms_samples": [
-          5.651,
-          5.874,
-          5.913,
-          5.927,
-          6.184,
-          6.22,
-          6.322,
-          6.419,
-          7.086
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "sum",
-      "lang": "rynix",
-      "checksum": "1124998875000250000",
-      "ms": 5.328,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 5.328,
-        "ms_median_raw": 5.328,
-        "ms_min": 4.87,
-        "ms_max": 6.825,
-        "ms_mean": 5.711,
-        "ms_stdev": 0.733,
-        "ms_samples": [
-          4.87,
-          4.96,
-          4.975,
-          5.291,
-          5.328,
-          6.158,
-          6.378,
-          6.615,
-          6.825
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "sum",
+      "challenge": "nested",
       "lang": "end",
-      "checksum": "1124998875000250000",
-      "ms": 5.924,
+      "checksum": "9623703",
+      "ms": 6.396,
       "ok": true,
       "exit": 0,
       "timing": {
-        "ms_median": 5.924,
-        "ms_median_raw": 5.924,
-        "ms_min": 5.34,
-        "ms_max": 6.546,
-        "ms_mean": 5.863,
-        "ms_stdev": 0.377,
+        "ms_median": 6.396,
+        "ms_median_raw": 6.396,
+        "ms_min": 5.202,
+        "ms_max": 6.448,
+        "ms_mean": 5.972,
+        "ms_stdev": 0.549,
         "ms_samples": [
-          5.34,
-          5.488,
-          5.571,
-          5.623,
-          5.924,
-          5.948,
-          5.977,
-          6.345,
-          6.546
+          5.202,
+          5.409,
+          6.396,
+          6.406,
+          6.448
         ],
-        "warmup": 3,
-        "runs": 9,
+        "warmup": 2,
+        "runs": 5,
         "trimmed": true
       }
     },
     {
-      "challenge": "bits",
-      "lang": "c",
-      "checksum": "371161905",
-      "ms": 449.517,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 449.517,
-        "ms_median_raw": 449.517,
-        "ms_min": 441.11,
-        "ms_max": 469.073,
-        "ms_mean": 452.113,
-        "ms_stdev": 8.628,
-        "ms_samples": [
-          441.11,
-          442.698,
-          446.081,
-          449.192,
-          449.517,
-          452.537,
-          456.704,
-          462.104,
-          469.073
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "bits",
-      "lang": "rust",
-      "checksum": "371161905",
-      "ms": 439.345,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 439.345,
-        "ms_median_raw": 439.345,
-        "ms_min": 434.125,
-        "ms_max": 462.569,
-        "ms_mean": 441.017,
-        "ms_stdev": 8.282,
-        "ms_samples": [
-          434.125,
-          434.27,
-          435.197,
-          437.129,
-          439.345,
-          440.844,
-          442.007,
-          443.669,
-          462.569
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "bits",
-      "lang": "go",
-      "checksum": "371161905",
-      "ms": 440.563,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 440.563,
-        "ms_median_raw": 440.563,
-        "ms_min": 434.588,
-        "ms_max": 530.698,
-        "ms_mean": 452.572,
-        "ms_stdev": 29.539,
-        "ms_samples": [
-          434.588,
-          435.483,
-          436.83,
-          437.084,
-          440.563,
-          440.625,
-          446.685,
-          470.596,
-          530.698
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "bits",
-      "lang": "zig",
-      "checksum": "371161905",
-      "ms": 473.355,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 473.355,
-        "ms_median_raw": 473.355,
-        "ms_min": 466.443,
-        "ms_max": 506.037,
-        "ms_mean": 477.635,
-        "ms_stdev": 12.351,
-        "ms_samples": [
-          466.443,
-          467.185,
-          467.601,
-          468.378,
-          473.355,
-          478.966,
-          483.723,
-          487.03,
-          506.037
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "bits",
+      "challenge": "fib",
       "lang": "rynix",
-      "checksum": "371161905",
-      "ms": 87.489,
+      "checksum": "-2038371929568609723",
+      "ms": 5.983,
       "ok": true,
       "exit": 0,
       "timing": {
-        "ms_median": 87.489,
-        "ms_median_raw": 87.489,
-        "ms_min": 85.643,
-        "ms_max": 91.88,
-        "ms_mean": 88.112,
-        "ms_stdev": 2.041,
+        "ms_median": 5.983,
+        "ms_median_raw": 5.983,
+        "ms_min": 5.443,
+        "ms_max": 6.619,
+        "ms_mean": 6.044,
+        "ms_stdev": 0.484,
         "ms_samples": [
-          85.643,
-          85.986,
-          86.694,
-          87.479,
-          87.489,
-          87.685,
-          89.076,
-          91.073,
-          91.88
+          5.443,
+          5.602,
+          5.983,
+          6.575,
+          6.619
         ],
-        "warmup": 3,
-        "runs": 9,
+        "warmup": 2,
+        "runs": 5,
         "trimmed": true
       }
     },
     {
-      "challenge": "bits",
+      "challenge": "fib",
       "lang": "end",
-      "checksum": "371161905",
-      "ms": 367.266,
+      "checksum": "-2038371929568609723",
+      "ms": 7.004,
       "ok": true,
       "exit": 0,
       "timing": {
-        "ms_median": 367.266,
-        "ms_median_raw": 367.266,
-        "ms_min": 361.691,
-        "ms_max": 395.66,
-        "ms_mean": 371.388,
-        "ms_stdev": 9.829,
+        "ms_median": 7.004,
+        "ms_median_raw": 7.004,
+        "ms_min": 6.469,
+        "ms_max": 7.439,
+        "ms_mean": 6.935,
+        "ms_stdev": 0.398,
         "ms_samples": [
-          361.691,
-          364.276,
-          364.346,
-          365.484,
-          367.266,
-          373.035,
-          375.226,
-          375.505,
-          395.66
+          6.469,
+          6.486,
+          7.004,
+          7.276,
+          7.439
         ],
-        "warmup": 3,
-        "runs": 9,
+        "warmup": 2,
+        "runs": 5,
         "trimmed": true
       }
     },
     {
-      "challenge": "matrix",
-      "lang": "c",
-      "checksum": "48600000",
-      "ms": 6.831,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 6.831,
-        "ms_median_raw": 6.831,
-        "ms_min": 6.154,
-        "ms_max": 6.918,
-        "ms_mean": 6.612,
-        "ms_stdev": 0.314,
-        "ms_samples": [
-          6.154,
-          6.155,
-          6.295,
-          6.518,
-          6.831,
-          6.843,
-          6.895,
-          6.9,
-          6.918
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "matrix",
-      "lang": "rust",
-      "checksum": "48600000",
-      "ms": 8.167,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 8.167,
-        "ms_median_raw": 8.167,
-        "ms_min": 6.877,
-        "ms_max": 8.65,
-        "ms_mean": 7.943,
-        "ms_stdev": 0.575,
-        "ms_samples": [
-          6.877,
-          7.053,
-          7.724,
-          8.098,
-          8.167,
-          8.197,
-          8.331,
-          8.396,
-          8.65
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "matrix",
-      "lang": "go",
-      "checksum": "48600000",
-      "ms": 68.468,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 68.468,
-        "ms_median_raw": 68.468,
-        "ms_min": 65.075,
-        "ms_max": 94.983,
-        "ms_mean": 72.497,
-        "ms_stdev": 9.588,
-        "ms_samples": [
-          65.075,
-          65.258,
-          66.527,
-          68.223,
-          68.468,
-          69.193,
-          70.826,
-          83.918,
-          94.983
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "matrix",
-      "lang": "zig",
-      "checksum": "48600000",
-      "ms": 6.501,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 6.501,
-        "ms_median_raw": 6.501,
-        "ms_min": 6.281,
-        "ms_max": 7.583,
-        "ms_mean": 6.749,
-        "ms_stdev": 0.46,
-        "ms_samples": [
-          6.281,
-          6.325,
-          6.37,
-          6.372,
-          6.501,
-          6.967,
-          6.996,
-          7.342,
-          7.583
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "matrix",
+      "challenge": "hash",
       "lang": "rynix",
-      "checksum": "48600000",
-      "ms": 5.668,
+      "checksum": "372427640",
+      "ms": 5.657,
       "ok": true,
       "exit": 0,
       "timing": {
-        "ms_median": 5.668,
-        "ms_median_raw": 5.668,
-        "ms_min": 5.002,
-        "ms_max": 6.415,
-        "ms_mean": 5.673,
-        "ms_stdev": 0.493,
+        "ms_median": 5.657,
+        "ms_median_raw": 5.657,
+        "ms_min": 5.381,
+        "ms_max": 6.914,
+        "ms_mean": 5.923,
+        "ms_stdev": 0.536,
         "ms_samples": [
-          5.002,
-          5.166,
-          5.234,
-          5.314,
-          5.668,
-          5.842,
-          6.173,
-          6.247,
-          6.415
+          5.381,
+          5.636,
+          5.657,
+          6.025,
+          6.914
         ],
-        "warmup": 3,
-        "runs": 9,
+        "warmup": 2,
+        "runs": 5,
         "trimmed": true
       }
     },
     {
-      "challenge": "matrix",
+      "challenge": "hash",
       "lang": "end",
-      "checksum": "48600000",
-      "ms": 5.862,
+      "checksum": "372427640",
+      "ms": 14.965,
       "ok": true,
       "exit": 0,
       "timing": {
-        "ms_median": 5.862,
-        "ms_median_raw": 5.862,
-        "ms_min": 5.169,
-        "ms_max": 6.609,
-        "ms_mean": 5.91,
-        "ms_stdev": 0.508,
+        "ms_median": 14.965,
+        "ms_median_raw": 14.965,
+        "ms_min": 14.49,
+        "ms_max": 15.933,
+        "ms_mean": 15.093,
+        "ms_stdev": 0.47,
         "ms_samples": [
-          5.169,
-          5.334,
-          5.397,
-          5.81,
-          5.862,
-          6.065,
-          6.376,
-          6.571,
-          6.609
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "scan",
-      "lang": "c",
-      "checksum": "3428572",
-      "ms": 18.004,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 18.004,
-        "ms_median_raw": 18.004,
-        "ms_min": 16.212,
-        "ms_max": 19.467,
-        "ms_mean": 17.93,
-        "ms_stdev": 0.961,
-        "ms_samples": [
-          16.212,
-          16.689,
-          17.514,
-          17.844,
-          18.004,
-          18.382,
-          18.417,
-          18.836,
-          19.467
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "scan",
-      "lang": "rust",
-      "checksum": "3428572",
-      "ms": 16.159,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 16.159,
-        "ms_median_raw": 16.159,
-        "ms_min": 14.872,
-        "ms_max": 20.042,
-        "ms_mean": 16.638,
-        "ms_stdev": 1.566,
-        "ms_samples": [
-          14.872,
-          15.186,
-          15.334,
-          16.02,
-          16.159,
-          16.461,
-          17.667,
-          18.002,
-          20.042
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "scan",
-      "lang": "go",
-      "checksum": "3428572",
-      "ms": 16.196,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 16.196,
-        "ms_median_raw": 16.196,
-        "ms_min": 14.702,
-        "ms_max": 19.575,
-        "ms_mean": 16.527,
-        "ms_stdev": 1.44,
-        "ms_samples": [
-          14.702,
-          15.562,
-          15.602,
-          15.897,
-          16.196,
-          16.375,
-          16.382,
-          18.45,
-          19.575
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "scan",
-      "lang": "zig",
-      "checksum": "3428572",
-      "ms": 16.476,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 16.476,
-        "ms_median_raw": 16.476,
-        "ms_min": 15.995,
-        "ms_max": 16.865,
-        "ms_mean": 16.543,
-        "ms_stdev": 0.269,
-        "ms_samples": [
-          15.995,
-          16.372,
-          16.385,
-          16.462,
-          16.476,
-          16.668,
-          16.809,
-          16.854,
-          16.865
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "scan",
-      "lang": "rynix",
-      "checksum": "3428572",
-      "ms": 6.009,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 6.009,
-        "ms_median_raw": 6.009,
-        "ms_min": 4.965,
-        "ms_max": 7.028,
-        "ms_mean": 6.024,
-        "ms_stdev": 0.706,
-        "ms_samples": [
-          4.965,
-          5.136,
-          5.474,
-          5.818,
-          6.009,
-          6.334,
-          6.453,
-          6.996,
-          7.028
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "scan",
-      "lang": "end",
-      "checksum": "3428572",
-      "ms": 16.047,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 16.047,
-        "ms_median_raw": 16.047,
-        "ms_min": 14.452,
-        "ms_max": 20.047,
-        "ms_mean": 16.791,
-        "ms_stdev": 1.879,
-        "ms_samples": [
-          14.452,
-          15.262,
-          15.671,
-          15.703,
-          16.047,
-          16.434,
-          17.62,
-          19.881,
-          20.047
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "powmod",
-      "lang": "c",
-      "checksum": "112980862",
-      "ms": 15.621,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 15.621,
-        "ms_median_raw": 15.621,
-        "ms_min": 14.81,
-        "ms_max": 16.69,
-        "ms_mean": 15.641,
-        "ms_stdev": 0.715,
-        "ms_samples": [
-          14.81,
-          14.908,
-          14.942,
-          14.97,
-          15.621,
-          15.992,
-          16.402,
-          16.432,
-          16.69
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "powmod",
-      "lang": "rust",
-      "checksum": "112980862",
-      "ms": 14.41,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 14.41,
-        "ms_median_raw": 14.41,
-        "ms_min": 13.787,
-        "ms_max": 16.044,
-        "ms_mean": 14.394,
-        "ms_stdev": 0.684,
-        "ms_samples": [
-          13.787,
-          13.791,
-          13.851,
-          13.9,
-          14.41,
-          14.442,
-          14.462,
-          14.855,
-          16.044
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "powmod",
-      "lang": "go",
-      "checksum": "112980862",
-      "ms": 17.113,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 17.113,
-        "ms_median_raw": 17.113,
-        "ms_min": 15.674,
-        "ms_max": 19.615,
-        "ms_mean": 17.204,
-        "ms_stdev": 1.24,
-        "ms_samples": [
-          15.674,
-          15.906,
-          15.972,
-          16.594,
-          17.113,
-          17.758,
-          17.796,
-          18.409,
-          19.615
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "powmod",
-      "lang": "zig",
-      "checksum": "112980862",
-      "ms": 15.539,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 15.539,
-        "ms_median_raw": 15.539,
-        "ms_min": 14.819,
-        "ms_max": 17.836,
-        "ms_mean": 16.119,
-        "ms_stdev": 1.151,
-        "ms_samples": [
-          14.819,
-          15.028,
-          15.028,
-          15.17,
-          15.539,
-          17.042,
-          17.228,
-          17.378,
-          17.836
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "powmod",
-      "lang": "rynix",
-      "checksum": "112980862",
-      "ms": 16.441,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 16.441,
-        "ms_median_raw": 16.441,
-        "ms_min": 14.573,
-        "ms_max": 17.425,
-        "ms_mean": 15.994,
-        "ms_stdev": 1.119,
-        "ms_samples": [
-          14.573,
-          14.712,
-          14.92,
-          14.933,
-          16.441,
-          16.702,
-          16.942,
-          17.292,
-          17.425
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "powmod",
-      "lang": "end",
-      "checksum": "112980862",
-      "ms": 13.249,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 13.249,
-        "ms_median_raw": 13.249,
-        "ms_min": 12.776,
-        "ms_max": 13.981,
-        "ms_mean": 13.291,
-        "ms_stdev": 0.413,
-        "ms_samples": [
-          12.776,
-          12.799,
-          12.871,
-          13.188,
-          13.249,
-          13.421,
-          13.489,
-          13.845,
-          13.981
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "gcd",
-      "lang": "c",
-      "checksum": "23254412",
-      "ms": 163.381,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 163.381,
-        "ms_median_raw": 163.381,
-        "ms_min": 161.044,
-        "ms_max": 187.22,
-        "ms_mean": 167.741,
-        "ms_stdev": 8.963,
-        "ms_samples": [
-          161.044,
-          161.365,
-          161.582,
-          162.501,
-          163.381,
-          163.397,
-          169.061,
-          180.113,
-          187.22
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "gcd",
-      "lang": "rust",
-      "checksum": "23254412",
-      "ms": 168.331,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 168.331,
-        "ms_median_raw": 168.331,
-        "ms_min": 167.289,
-        "ms_max": 243.04,
-        "ms_mean": 177.833,
-        "ms_stdev": 23.322,
-        "ms_samples": [
-          167.289,
-          167.465,
-          167.499,
-          167.604,
-          168.331,
-          168.343,
-          172.184,
-          178.739,
-          243.04
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "gcd",
-      "lang": "go",
-      "checksum": "23254412",
-      "ms": 209.598,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 209.598,
-        "ms_median_raw": 209.598,
-        "ms_min": 206.713,
-        "ms_max": 244.14,
-        "ms_mean": 214.758,
-        "ms_stdev": 11.592,
-        "ms_samples": [
-          206.713,
-          207.398,
-          208.275,
-          209.523,
-          209.598,
-          210.764,
-          211.443,
-          224.966,
-          244.14
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "gcd",
-      "lang": "zig",
-      "checksum": "23254412",
-      "ms": 166.452,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 166.452,
-        "ms_median_raw": 166.452,
-        "ms_min": 162.601,
-        "ms_max": 173.427,
-        "ms_mean": 166.818,
-        "ms_stdev": 3.528,
-        "ms_samples": [
-          162.601,
-          162.755,
-          164.23,
-          165.677,
-          166.452,
-          167.023,
-          167.315,
-          171.879,
-          173.427
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "gcd",
-      "lang": "rynix",
-      "checksum": "23254412",
-      "ms": 111.632,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 111.632,
-        "ms_median_raw": 111.632,
-        "ms_min": 110.318,
-        "ms_max": 121.493,
-        "ms_mean": 113.527,
-        "ms_stdev": 3.763,
-        "ms_samples": [
-          110.318,
-          110.621,
-          110.707,
-          111.215,
-          111.632,
-          113.084,
-          113.852,
-          118.821,
-          121.493
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "gcd",
-      "lang": "end",
-      "checksum": "23254412",
-      "ms": 210.077,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 210.077,
-        "ms_median_raw": 210.077,
-        "ms_min": 206.338,
-        "ms_max": 224.361,
-        "ms_mean": 213.211,
-        "ms_stdev": 6.055,
-        "ms_samples": [
-          206.338,
-          208.983,
-          209.04,
-          210.039,
-          210.077,
-          211.752,
-          215.253,
-          223.055,
-          224.361
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "reduce",
-      "lang": "c",
-      "checksum": "1543749909999985",
-      "ms": 12.858,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 12.858,
-        "ms_median_raw": 12.858,
-        "ms_min": 12.034,
-        "ms_max": 13.122,
-        "ms_mean": 12.729,
-        "ms_stdev": 0.33,
-        "ms_samples": [
-          12.034,
-          12.415,
-          12.522,
-          12.69,
-          12.858,
-          12.924,
-          12.984,
-          13.015,
-          13.122
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "reduce",
-      "lang": "rust",
-      "checksum": "1543749909999985",
-      "ms": 14.168,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 14.168,
-        "ms_median_raw": 14.168,
-        "ms_min": 13.326,
-        "ms_max": 14.378,
-        "ms_mean": 14.049,
-        "ms_stdev": 0.362,
-        "ms_samples": [
-          13.326,
-          13.499,
-          13.978,
-          14.149,
-          14.168,
-          14.232,
-          14.351,
-          14.359,
-          14.378
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "reduce",
-      "lang": "go",
-      "checksum": "1543749909999985",
-      "ms": 19.23,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 19.23,
-        "ms_median_raw": 19.23,
-        "ms_min": 18.278,
-        "ms_max": 20.298,
-        "ms_mean": 19.298,
-        "ms_stdev": 0.624,
-        "ms_samples": [
-          18.278,
-          18.654,
-          18.823,
-          19.093,
-          19.23,
-          19.583,
-          19.689,
-          20.036,
-          20.298
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "reduce",
-      "lang": "zig",
-      "checksum": "1543749909999985",
-      "ms": 13.478,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 13.478,
-        "ms_median_raw": 13.478,
-        "ms_min": 12.987,
-        "ms_max": 13.971,
-        "ms_mean": 13.481,
-        "ms_stdev": 0.301,
-        "ms_samples": [
-          12.987,
-          13.009,
-          13.432,
-          13.452,
-          13.478,
-          13.618,
-          13.682,
-          13.701,
-          13.971
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "reduce",
-      "lang": "rynix",
-      "checksum": "1543749909999985",
-      "ms": 5.346,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 5.346,
-        "ms_median_raw": 5.346,
-        "ms_min": 4.736,
-        "ms_max": 6.555,
-        "ms_mean": 5.457,
-        "ms_stdev": 0.555,
-        "ms_samples": [
-          4.736,
-          4.875,
-          4.97,
-          5.206,
-          5.346,
-          5.684,
-          5.822,
-          5.921,
-          6.555
-        ],
-        "warmup": 3,
-        "runs": 9,
-        "trimmed": true
-      }
-    },
-    {
-      "challenge": "reduce",
-      "lang": "end",
-      "checksum": "1543749909999985",
-      "ms": 14.503,
-      "ok": true,
-      "exit": 0,
-      "timing": {
-        "ms_median": 14.503,
-        "ms_median_raw": 14.503,
-        "ms_min": 13.828,
-        "ms_max": 14.855,
-        "ms_mean": 14.483,
-        "ms_stdev": 0.331,
-        "ms_samples": [
-          13.828,
-          14.006,
           14.49,
-          14.493,
-          14.503,
-          14.619,
-          14.743,
-          14.807,
-          14.855
+          14.956,
+          14.965,
+          15.122,
+          15.933
         ],
-        "warmup": 3,
-        "runs": 9,
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "prime",
+      "lang": "rynix",
+      "checksum": "9592",
+      "ms": 8.402,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 8.402,
+        "ms_median_raw": 8.402,
+        "ms_min": 8.015,
+        "ms_max": 11.008,
+        "ms_mean": 8.978,
+        "ms_stdev": 1.11,
+        "ms_samples": [
+          8.015,
+          8.159,
+          8.402,
+          9.308,
+          11.008
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "prime",
+      "lang": "end",
+      "checksum": "9592",
+      "ms": 12.776,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 12.776,
+        "ms_median_raw": 12.776,
+        "ms_min": 12.618,
+        "ms_max": 13.215,
+        "ms_mean": 12.817,
+        "ms_stdev": 0.216,
+        "ms_samples": [
+          12.618,
+          12.636,
+          12.776,
+          12.838,
+          13.215
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "sum",
+      "lang": "rynix",
+      "checksum": "1124998875000250000",
+      "ms": 5.773,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 5.773,
+        "ms_median_raw": 5.773,
+        "ms_min": 4.989,
+        "ms_max": 6.326,
+        "ms_mean": 5.711,
+        "ms_stdev": 0.507,
+        "ms_samples": [
+          4.989,
+          5.296,
+          5.773,
+          6.17,
+          6.326
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "sum",
+      "lang": "end",
+      "checksum": "1124998875000250000",
+      "ms": 5.845,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 5.845,
+        "ms_median_raw": 5.845,
+        "ms_min": 5.622,
+        "ms_max": 6.503,
+        "ms_mean": 5.919,
+        "ms_stdev": 0.316,
+        "ms_samples": [
+          5.622,
+          5.67,
+          5.845,
+          5.953,
+          6.503
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "bits",
+      "lang": "rynix",
+      "checksum": "371161905",
+      "ms": 86.674,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 86.674,
+        "ms_median_raw": 86.674,
+        "ms_min": 85.852,
+        "ms_max": 89.385,
+        "ms_mean": 86.986,
+        "ms_stdev": 1.29,
+        "ms_samples": [
+          85.852,
+          85.908,
+          86.674,
+          87.113,
+          89.385
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "bits",
+      "lang": "end",
+      "checksum": "371161905",
+      "ms": 379.308,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 379.308,
+        "ms_median_raw": 379.308,
+        "ms_min": 353.561,
+        "ms_max": 389.333,
+        "ms_mean": 372.839,
+        "ms_stdev": 15.485,
+        "ms_samples": [
+          353.561,
+          355.08,
+          379.308,
+          386.913,
+          389.333
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "matrix",
+      "lang": "rynix",
+      "checksum": "48600000",
+      "ms": 5.497,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 5.497,
+        "ms_median_raw": 5.497,
+        "ms_min": 5.06,
+        "ms_max": 5.756,
+        "ms_mean": 5.45,
+        "ms_stdev": 0.237,
+        "ms_samples": [
+          5.06,
+          5.342,
+          5.497,
+          5.597,
+          5.756
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "matrix",
+      "lang": "end",
+      "checksum": "48600000",
+      "ms": 6.227,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 6.227,
+        "ms_median_raw": 6.227,
+        "ms_min": 5.708,
+        "ms_max": 6.747,
+        "ms_mean": 6.242,
+        "ms_stdev": 0.346,
+        "ms_samples": [
+          5.708,
+          6.097,
+          6.227,
+          6.432,
+          6.747
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "scan",
+      "lang": "rynix",
+      "checksum": "3428572",
+      "ms": 5.53,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 5.53,
+        "ms_median_raw": 5.53,
+        "ms_min": 5.383,
+        "ms_max": 6.086,
+        "ms_mean": 5.609,
+        "ms_stdev": 0.249,
+        "ms_samples": [
+          5.383,
+          5.448,
+          5.53,
+          5.599,
+          6.086
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "scan",
+      "lang": "end",
+      "checksum": "3428572",
+      "ms": 11.768,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 11.768,
+        "ms_median_raw": 11.768,
+        "ms_min": 10.944,
+        "ms_max": 12.95,
+        "ms_mean": 11.947,
+        "ms_stdev": 0.843,
+        "ms_samples": [
+          10.944,
+          11.171,
+          11.768,
+          12.9,
+          12.95
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "powmod",
+      "lang": "rynix",
+      "checksum": "112980862",
+      "ms": 5.388,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 5.388,
+        "ms_median_raw": 5.388,
+        "ms_min": 5.138,
+        "ms_max": 6.268,
+        "ms_mean": 5.572,
+        "ms_stdev": 0.405,
+        "ms_samples": [
+          5.138,
+          5.298,
+          5.388,
+          5.765,
+          6.268
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "powmod",
+      "lang": "end",
+      "checksum": "112980862",
+      "ms": 12.759,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 12.759,
+        "ms_median_raw": 12.759,
+        "ms_min": 12.066,
+        "ms_max": 12.826,
+        "ms_mean": 12.639,
+        "ms_stdev": 0.288,
+        "ms_samples": [
+          12.066,
+          12.754,
+          12.759,
+          12.79,
+          12.826
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "gcd",
+      "lang": "rynix",
+      "checksum": "23254412",
+      "ms": 122.025,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 122.025,
+        "ms_median_raw": 122.025,
+        "ms_min": 113.596,
+        "ms_max": 181.352,
+        "ms_mean": 141.787,
+        "ms_stdev": 31.138,
+        "ms_samples": [
+          113.596,
+          113.871,
+          122.025,
+          178.09,
+          181.352
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "gcd",
+      "lang": "end",
+      "checksum": "23254412",
+      "ms": 209.596,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 209.596,
+        "ms_median_raw": 209.596,
+        "ms_min": 207.38,
+        "ms_max": 217.966,
+        "ms_mean": 210.931,
+        "ms_stdev": 3.761,
+        "ms_samples": [
+          207.38,
+          208.354,
+          209.596,
+          211.358,
+          217.966
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "reduce",
+      "lang": "rynix",
+      "checksum": "1543749909999985",
+      "ms": 6.171,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 6.171,
+        "ms_median_raw": 6.171,
+        "ms_min": 6.046,
+        "ms_max": 7.45,
+        "ms_mean": 6.483,
+        "ms_stdev": 0.52,
+        "ms_samples": [
+          6.046,
+          6.146,
+          6.171,
+          6.604,
+          7.45
+        ],
+        "warmup": 2,
+        "runs": 5,
+        "trimmed": true
+      }
+    },
+    {
+      "challenge": "reduce",
+      "lang": "end",
+      "checksum": "1543749909999985",
+      "ms": 14.96,
+      "ok": true,
+      "exit": 0,
+      "timing": {
+        "ms_median": 14.96,
+        "ms_median_raw": 14.96,
+        "ms_min": 14.636,
+        "ms_max": 16.217,
+        "ms_mean": 15.223,
+        "ms_stdev": 0.614,
+        "ms_samples": [
+          14.636,
+          14.666,
+          14.96,
+          15.639,
+          16.217
+        ],
+        "warmup": 2,
+        "runs": 5,
         "trimmed": true
       }
     }

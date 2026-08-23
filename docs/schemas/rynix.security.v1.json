@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.security.v1.json",
+  "title": "rynix.security.v1",
+  "type": "object",
+  "required": ["schema", "path", "finding_count", "blocking", "findings", "disclaimer"],
+  "properties": {
+    "schema": { "const": "rynix.security.v1" },
+    "path": { "type": "string" },
+    "finding_count": { "type": "integer", "minimum": 0 },
+    "blocking": { "type": "boolean" },
+    "disclaimer": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["cwe", "title", "severity", "line", "snippet"],
+        "properties": {
+          "cwe": { "type": "string" },
+          "title": { "type": "string" },
+          "severity": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "snippet": { "type": "string" }
+        }
+      }
+    }
+  }
+}

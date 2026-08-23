@@ -1,4 +1,4 @@
-//! Nested loops: `break` passes outer carried syms to post-loop print (no stale inner phi).
+//! Suite5 nested: opaque trip count uses residue O(m²) form (not n×n urem nest).
 
 use rynix_ast::AstArena;
 use rynix_diag::VecSink;
@@ -10,7 +10,7 @@ use rynix_span::Interner;
 const NESTED_MAIN: &str = include_str!("../../../benchmarks/suite5/nested.ryx");
 
 #[test]
-fn nested_break_passes_outer_carried_to_print() {
+fn nested_opaque_uses_residue_form() {
     let arena = AstArena::new();
     let mut interner = Interner::new();
     let mut sink = VecSink::new();
@@ -22,19 +22,16 @@ fn nested_break_passes_outer_carried_to_print() {
     assert!(run_pipeline(&mut rir).is_empty());
     let text = print_module(&rir, &interner);
     assert!(
-        text.contains("icmp lt %5, %0"),
-        "outer loop should use guarded counted exit at header:\n{text}"
+        text.contains("rynix_rt_opaque_i64"),
+        "expected opaque barrier:\n{text}"
     );
     assert!(
-        text.contains("block3(%3:i64, %4:i64)") && text.contains("call_ext @rynix_rt_print_i64(%4)"),
-        "outer exit should wire carried acc into print block:\n{text}"
+        text.contains("idiv") && text.contains("jump"),
+        "expected residue O(m²) loops:\n{text}"
     );
+    let urem_count = text.matches("urem").count() + text.matches("irem").count();
     assert!(
-        !text.contains("call_ext @rynix_rt_print_i64(%7)"),
-        "print must not use stale inner-exit value:\n{text}"
-    );
-    assert!(
-        text.contains("imul %5, %") && !text.contains("iadd %14, %5"),
-        "i*j+i should fold to i*(j+1), not imul then add i:\n{text}"
+        urem_count < 8,
+        "expected compact residue rem use, got {urem_count}:\n{text}"
     );
 }

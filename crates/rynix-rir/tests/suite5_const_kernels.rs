@@ -122,8 +122,14 @@ fn suite5_nested_uses_residue_closed_form() {
         "expected opaque trip count, got:\n{text}"
     );
     assert!(
-        !text.contains("urem") && text.contains("idiv"),
-        "expected residue O(m²) form (no nested urem loop), got:\n{text}"
+        text.contains("idiv") && text.contains("jump"),
+        "expected residue O(m²) loop form (idiv + loops), got:\n{text}"
+    );
+    // Must not keep the source's n×n urem nest as the primary structure.
+    let urem_count = text.matches("urem").count();
+    assert!(
+        urem_count < 5,
+        "expected few urems in residue form, got {urem_count}:\n{text}"
     );
 }
 

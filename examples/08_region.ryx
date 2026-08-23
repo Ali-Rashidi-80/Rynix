@@ -1,0 +1,10 @@
+## Explicit region scope (A1)
+
+def main() -> i64
+  region
+    let store = kv_new(0)
+    kv_put(store, "n", 3)
+    print_i64(kv_get(store, "n"))
+  end
+  return 0
+end

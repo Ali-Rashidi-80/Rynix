@@ -27,15 +27,45 @@ pub struct Analysis {
     pub path_resolution: FxHashMap<rynix_ast::NodeId, DefId>,
     /// Struct field byte/slot index (i64 slots) for lowering.
     pub field_offsets: FxHashMap<(DefId, Symbol), u32>,
+    /// Inferred effect sets per function (`DefId`), when source was provided.
+    pub fn_effects: FxHashMap<DefId, crate::effects::EffectSet>,
 }
 
 /// Run name resolution + type checking. Diagnostics are appended to `sink`.
 pub fn analyze(module: &Module<'_>, interner: &mut Interner, sink: &mut dyn DiagSink) -> Analysis {
+    analyze_with_source(module, interner, sink, None, 0)
+}
+
+/// Like [`analyze`], and when `source` is set run `#^ effect: pure` checks.
+pub fn analyze_with_source(
+    module: &Module<'_>,
+    interner: &mut Interner,
+    sink: &mut dyn DiagSink,
+    source: Option<&str>,
+    source_base: u32,
+) -> Analysis {
     let mut cx = Checker::new(interner, sink);
     cx.collect_builtins();
     cx.collect_items(module);
     cx.check_module(module);
+    if let Some(src) = source {
+        cx.fn_effects = crate::effects::check_module_effects(
+            module,
+            src,
+            source_base,
+            cx.interner,
+            &cx.defs,
+            &cx.path_resolution,
+            &cx.fn_sigs,
+            cx.sink,
+        );
+    }
     cx.finish()
+}
+
+struct MovedInfo {
+    to: Symbol,
+    at: Span,
 }
 
 struct Checker<'a> {
@@ -57,6 +87,10 @@ struct Checker<'a> {
     fn_sigs: FxHashMap<DefId, TypeId>,
     /// Type alias `DefId` → aliased type.
     aliases: FxHashMap<DefId, TypeId>,
+    /// Locals/params of linear types that have been moved.
+    ownership: FxHashMap<DefId, MovedInfo>,
+    /// Filled by [`analyze_with_source`] effect pass.
+    fn_effects: FxHashMap<DefId, crate::effects::EffectSet>,
 }
 
 impl<'a> Checker<'a> {
@@ -78,6 +112,8 @@ impl<'a> Checker<'a> {
             enum_variants: FxHashMap::default(),
             fn_sigs: FxHashMap::default(),
             aliases: FxHashMap::default(),
+            ownership: FxHashMap::default(),
+            fn_effects: FxHashMap::default(),
         }
     }
 
@@ -91,6 +127,7 @@ impl<'a> Checker<'a> {
             def_types: self.def_types,
             path_resolution: self.path_resolution,
             field_offsets: self.field_offsets,
+            fn_effects: self.fn_effects,
         }
     }
 
@@ -182,7 +219,30 @@ impl<'a> Checker<'a> {
         // JSON / HTTP soft std (v0.1).
         let s = self.types.ty_str;
         self.soft_fn("json_get_i64", vec![s, s], i);
+        self.soft_fn("json_has_i64", vec![s, s], i);
         self.soft_fn("http_get_json_i64", vec![s, i, s, s], i);
+        self.soft_fn("http_post_json_i64", vec![s, i, s, s, s], i);
+        self.soft_fn("http_serve_once_json_i64", vec![i, s, i], i);
+        self.soft_fn("http_serve_once_echo_json_i64", vec![i, s, s], i);
+        self.soft_fn("frame_serve_once_echo", vec![i], i);
+        self.soft_fn("frame_client_echo", vec![s, i, s], i);
+        self.soft_fn("tls_serve_once_echo", vec![i], i);
+        self.soft_fn("tls_client_echo", vec![s, i, s], i);
+
+        // Crypto + string-key KV (EndCrypto / EndKV class; evidence via KAT smoke).
+        let p = self.types.ty_ptr;
+        self.soft_fn("sha256_first_i64", vec![s], i);
+        self.soft_fn("hmac_sha256_first_i64", vec![s, s], i);
+        self.soft_fn("aes128_gcm_nist_empty_tag_first_i64", vec![], i);
+        self.soft_fn("ws_accept_key_eq", vec![s, s], i);
+        self.soft_fn("ws_accept_sha1_first_i64", vec![s], i);
+        self.soft_fn("ws_frame_roundtrip_ok", vec![], i);
+        self.soft_fn("ws_serve_once_echo", vec![i], i);
+        self.soft_fn("ws_client_echo", vec![s, i, s], i);
+        self.soft_fn("kv_new", vec![i], p);
+        self.soft_fn("kv_put", vec![p, s, i], unit);
+        self.soft_fn("kv_get", vec![p, s], i);
+        self.soft_fn("kv_len", vec![p], i);
     }
 
     fn soft_fn(&mut self, name: &str, params: Vec<TypeId>, ret: TypeId) {
@@ -526,10 +586,16 @@ impl<'a> Checker<'a> {
                 }
                 self.def_types.insert(def, binding_ty);
                 self.node_types.insert(l.id, binding_ty);
+                let to = self.interner.resolve(l.name.name).to_string();
+                self.note_move_from(l.init, &to, l.name.span);
             }
             Stmt::Assign(a) => {
-                let target_ty = self.check_expr(a.target, scope, None);
                 self.check_assign_target(a.target, scope);
+                let target_ty = if a.op == AssignOp::Eq {
+                    self.place_ty_reinit(a.target, scope)
+                } else {
+                    self.check_expr(a.target, scope, None)
+                };
                 let value_ty = self.check_expr(a.value, scope, Some(target_ty));
                 if a.op == AssignOp::Eq {
                     if !self.types.compatible(target_ty, value_ty) {
@@ -539,6 +605,7 @@ impl<'a> Checker<'a> {
                             &self.display_ty(value_ty),
                         ));
                     }
+                    self.note_move_from(a.value, "<assign>", a.value.span());
                 } else {
                     // Compound assign: both sides numeric-ish for v0.1.
                     let _ = (target_ty, value_ty);
@@ -582,6 +649,12 @@ impl<'a> Checker<'a> {
                 let loop_scope = self.scopes.alloc(Some(scope), ScopeKind::Loop);
                 for s in l.body {
                     self.check_stmt(s, loop_scope, expected_ret, saw_return);
+                }
+            }
+            Stmt::Region(r) => {
+                let region_scope = self.scopes.alloc(Some(scope), ScopeKind::Block);
+                for s in r.body {
+                    self.check_stmt(s, region_scope, expected_ret, saw_return);
                 }
             }
             Stmt::For(f) => {
@@ -751,6 +824,11 @@ impl<'a> Checker<'a> {
                 self.node_types.insert(u.id, ty);
                 ty
             }
+            Expr::Binary(b) if b.op == BinaryOp::Pipe => {
+                let ty = self.check_pipe(b, scope);
+                self.node_types.insert(b.id, ty);
+                ty
+            }
             Expr::Binary(b) => {
                 let lhs = self.check_expr(b.lhs, scope, None);
                 let rhs = self.check_expr(b.rhs, scope, None);
@@ -782,6 +860,7 @@ impl<'a> Checker<'a> {
                 let recv = self.check_expr(m.receiver, scope, None);
                 for a in m.args {
                     let _ = self.check_expr(a, scope, None);
+                    self.note_move_from(a, "<arg>", a.span());
                 }
                 let method = self.interner.resolve(m.method.name).to_string();
                 let ty = match (self.types.kind(recv), method.as_str()) {
@@ -940,6 +1019,17 @@ impl<'a> Checker<'a> {
             return self.types.ty_error;
         }
         if path.segments.len() == 1 {
+            if matches!(
+                kind,
+                DefKind::Local { .. } | DefKind::Param { .. }
+            ) && let Some(moved) = self.ownership.get(&def)
+            {
+                let name = self.interner.resolve(first.name).to_string();
+                let to = self.interner.resolve(moved.to).to_string();
+                let at = moved.at;
+                self.sink
+                    .emit(errors::use_after_move(first.span, &name, &to, at));
+            }
             let ty = self
                 .def_types
                 .get(&def)
@@ -1027,6 +1117,36 @@ impl<'a> Checker<'a> {
                     self.types.ty_error
                 }
             }
+            BinaryOp::Pipe => {
+                // Handled in check_expr via check_pipe; fallback.
+                self.types.ty_error
+            }
+        }
+    }
+
+    fn check_pipe(&mut self, b: &rynix_ast::BinaryExpr<'_>, scope: ScopeId) -> TypeId {
+        let _lhs_ty = self.check_expr(b.lhs, scope, None);
+        match b.rhs {
+            Expr::Path(_) => {
+                let callee = self.check_expr(b.rhs, scope, None);
+                self.check_call(callee, std::slice::from_ref(&b.lhs), b.span, scope)
+            }
+            Expr::Call(c) => {
+                let callee = self.check_expr(c.callee, scope, None);
+                let mut args: Vec<&Expr<'_>> = Vec::with_capacity(1 + c.args.len());
+                args.push(b.lhs);
+                args.extend(c.args.iter().copied());
+                self.check_call(callee, &args, b.span, scope)
+            }
+            _ => {
+                let _ = self.check_expr(b.rhs, scope, None);
+                self.sink.emit(errors::type_mismatch(
+                    b.span,
+                    "path or call on the right of |>",
+                    "other expression",
+                ));
+                self.types.ty_error
+            }
         }
     }
 
@@ -1055,12 +1175,14 @@ impl<'a> Checker<'a> {
                             &self.display_ty(aty),
                         ));
                     }
+                    self.note_move_from(arg, "<arg>", arg.span());
                 }
                 ret
             }
             TypeKind::Module | TypeKind::Error => {
                 for arg in args {
                     let _ = self.check_expr(arg, scope, None);
+                    self.note_move_from(arg, "<arg>", arg.span());
                 }
                 self.types.ty_error
             }
@@ -1069,6 +1191,7 @@ impl<'a> Checker<'a> {
                     .emit(errors::not_callable(span, &self.display_ty(callee)));
                 for arg in args {
                     let _ = self.check_expr(arg, scope, None);
+                    self.note_move_from(arg, "<arg>", arg.span());
                 }
                 self.types.ty_error
             }
@@ -1103,6 +1226,91 @@ impl<'a> Checker<'a> {
                 &format!("array of length {}", a.elems.len()),
             ));
         }
+    }
+
+    fn is_linear(&self, ty: TypeId) -> bool {
+        matches!(
+            self.types.kind(ty),
+            TypeKind::Vec
+                | TypeKind::Map
+                | TypeKind::Ptr
+                | TypeKind::Slice(_)
+                | TypeKind::Struct(_)
+                | TypeKind::Enum(_)
+        )
+    }
+
+    /// Assignment place: resolve type and clear prior move (reinitialize).
+    fn place_ty_reinit(&mut self, expr: &Expr<'_>, scope: ScopeId) -> TypeId {
+        match expr {
+            Expr::Path(p) => {
+                let ty = self.check_path_no_move(p, scope);
+                if let Some(&def) = self.path_resolution.get(&p.id) {
+                    self.ownership.remove(&def);
+                }
+                ty
+            }
+            _ => self.check_expr(expr, scope, None),
+        }
+    }
+
+    fn check_path_no_move(&mut self, path: &Path<'_>, scope: ScopeId) -> TypeId {
+        if path.segments.is_empty() {
+            return self.types.ty_error;
+        }
+        let first = &path.segments[0];
+        let Some(def) = self.scopes.lookup(scope, first.name) else {
+            self.sink.emit(errors::unresolved_name(
+                first.span,
+                self.interner.resolve(first.name),
+            ));
+            return self.types.ty_error;
+        };
+        self.path_resolution.insert(path.id, def);
+        let kind = &self.defs[def.index() as usize];
+        if kind.is_type() && !matches!(kind, DefKind::Variant { .. }) {
+            self.sink.emit(errors::unresolved_name(
+                first.span,
+                &format!("{} (type used as value)", self.interner.resolve(first.name)),
+            ));
+            return self.types.ty_error;
+        }
+        if path.segments.len() == 1 {
+            let ty = self
+                .def_types
+                .get(&def)
+                .copied()
+                .unwrap_or(self.types.ty_error);
+            self.node_types.insert(path.id, ty);
+            return ty;
+        }
+        self.check_path(path, scope)
+    }
+
+    fn note_move_from(&mut self, expr: &Expr<'_>, to: &str, at: Span) {
+        let Expr::Path(p) = expr else {
+            return;
+        };
+        if p.segments.len() != 1 {
+            return;
+        }
+        let Some(&def) = self.path_resolution.get(&p.id) else {
+            return;
+        };
+        if !matches!(
+            self.defs[def.index() as usize],
+            DefKind::Local { .. } | DefKind::Param { .. }
+        ) {
+            return;
+        }
+        let Some(ty) = self.def_types.get(&def).copied() else {
+            return;
+        };
+        if !self.is_linear(ty) {
+            return;
+        }
+        let to_sym = self.interner.intern(to);
+        self.ownership.insert(def, MovedInfo { to: to_sym, at });
     }
 }
 

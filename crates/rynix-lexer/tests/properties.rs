@@ -13,7 +13,7 @@ use rynix_lexer::{Token, TokenKind, lex_all};
 fn source_soup() -> impl Strategy<Value = String> {
     let fragment = prop::sample::select(vec![
         "def", "end", "let", "mut", "if", "elif", "else", "loop", "for", "in", "return", "struct",
-        "enum", "type", "import", "pub", "spawn", "true", "false", "nil", "and", "or", "not", "as",
+        "enum", "type", "import", "pub", "spawn", "region", "true", "false", "nil", "and", "or", "not", "as",
         "match", "agent", "signal", "tensor", "ident", "_x9", "0", "42", "1_000", "0xFF", "0X1",
         "0o7", "0b1", "1.5", "1e9", "1E9", "1.", "1e", "123abc", "1__0", "\"str\"", "\"a\\nb\"",
         "\"\\q\"", "\"\\u{1F600}\"", "\"\\u{D800}\"", "\"open", "(", ")", "[", "]", "{", "}", ",",

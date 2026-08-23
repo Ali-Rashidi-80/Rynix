@@ -5,8 +5,13 @@ use std::process::{Command, ExitCode};
 
 use crate::cli::{BuildOptions, PgoMode, RuntimeKind};
 use crate::codegen_pipe;
+use crate::manifest::resolve_for_source;
 
 pub fn run(options: &BuildOptions) -> ExitCode {
+    if let Err(e) = gate_path_deps(&options.path) {
+        eprintln!("error: {e}");
+        return ExitCode::from(1);
+    }
     let Some(clang) = find_clang() else {
         eprintln!(
             "error: `clang` not found on PATH\n\
@@ -40,6 +45,12 @@ pub fn run(options: &BuildOptions) -> ExitCode {
         eprintln!(
             "warning: --runtime=uring is only fully supported on Linux; \
              building portable fiber runtime with RYNIX_RT_URING stubs"
+        );
+    }
+    if options.runtime == RuntimeKind::Iocp && !cfg!(windows) {
+        eprintln!(
+            "warning: --runtime=iocp is only fully supported on Windows; \
+             building with RYNIX_RT_IOCP stubs"
         );
     }
 
@@ -278,10 +289,19 @@ fn link_clang(
     if options.runtime == RuntimeKind::Uring {
         cmd.arg("-DRYNIX_RT_URING");
     }
+    if options.runtime == RuntimeKind::Iocp {
+        if !cfg!(windows) {
+            eprintln!(
+                "warning: --runtime=iocp is Windows-only; \
+                 building with RYNIX_RT_IOCP stubs on this host"
+            );
+        }
+        cmd.arg("-DRYNIX_RT_IOCP");
+    }
 
-    // Winsock only when the full portable/net runtime is linked.
+    // Winsock + SChannel when the full portable/net runtime is linked.
     if cfg!(windows) && !options.bench {
-        cmd.arg("-lws2_32");
+        cmd.arg("-lws2_32").arg("-lsecur32").arg("-lcrypt32").arg("-lbcrypt");
     }
 
     // Linux SysV fiber swap object (optional; unused by Win32 fiber path / bench RT).
@@ -379,5 +399,25 @@ fn find_msvcrt_gcc() -> Option<PathBuf> {
     #[cfg(not(windows))]
     {
         None
+    }
+}
+
+fn gate_path_deps(source: &Path) -> Result<(), String> {
+    match resolve_for_source(source) {
+        Ok(None) => Ok(()),
+        Ok(Some(report)) if report.all_ok() => Ok(()),
+        Ok(Some(report)) => {
+            let fails: Vec<_> = report
+                .deps
+                .iter()
+                .filter(|d| !d.ok)
+                .map(|d| format!("{}: {}", d.name, d.detail))
+                .collect();
+            Err(format!(
+                "path dependency resolve failed:\n  {}",
+                fails.join("\n  ")
+            ))
+        }
+        Err(e) => Err(e),
     }
 }

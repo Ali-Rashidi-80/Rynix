@@ -106,3 +106,22 @@ pub(crate) fn not_callable(span: Span, ty: &str) -> Diagnostic {
         span,
     )
 }
+
+pub(crate) fn use_after_move(span: Span, name: &str, to: &str, moved_at: Span) -> Diagnostic {
+    Diagnostic::error(
+        codes::USE_AFTER_MOVE,
+        Stage::Sema,
+        format!("use of moved value `{name}` (moved to `{to}`)"),
+        span,
+    )
+    .with_label(moved_at, "value moved here")
+}
+
+pub(crate) fn purity_violation(span: Span, name: &str, effects: &str) -> Diagnostic {
+    Diagnostic::error(
+        codes::PURITY_VIOLATION,
+        Stage::Sema,
+        format!("function `{name}` is marked `#^ effect: pure` but has impure effects: {effects}"),
+        span,
+    )
+}

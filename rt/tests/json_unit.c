@@ -21,6 +21,10 @@ int main(void) {
   fail |= expect_i64("null_json", rynix_rt_json_get_i64(NULL, "x"), -1);
   fail |= expect_i64("nested_key",
                      rynix_rt_json_get_i64("{\"value\":42,\"other\":7}", "other"), 7);
+  fail |= expect_i64("has_yes", rynix_rt_json_has_i64("{\"n\":42}", "n"), 1);
+  fail |= expect_i64("has_no", rynix_rt_json_has_i64("{\"n\":42}", "x"), 0);
+  fail |= expect_i64("has_neg", rynix_rt_json_has_i64("{\"n\":-1}", "n"), 1);
+  fail |= expect_i64("get_neg", rynix_rt_json_get_i64("{\"n\":-1}", "n"), -1);
   if (fail) {
     return 1;
   }

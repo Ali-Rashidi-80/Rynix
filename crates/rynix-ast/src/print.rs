@@ -174,6 +174,13 @@ impl Dumper<'_> {
                 }
                 self.close();
             }
+            Stmt::Region(r) => {
+                self.open("region");
+                for s in r.body {
+                    self.stmt(s);
+                }
+                self.close();
+            }
             Stmt::For(f) => {
                 self.open(&format!("for {}", self.name(f.binder)));
                 self.expr(f.iter);

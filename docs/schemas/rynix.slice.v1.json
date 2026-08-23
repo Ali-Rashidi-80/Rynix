@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.slice.v1.json",
+  "title": "rynix.slice.v1",
+  "type": "object",
+  "required": ["schema", "path", "lines"],
+  "properties": {
+    "schema": { "const": "rynix.slice.v1" },
+    "path": { "type": "string" },
+    "lines": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

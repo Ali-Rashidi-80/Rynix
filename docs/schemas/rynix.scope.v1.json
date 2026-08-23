@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.scope.v1.json",
+  "title": "rynix.scope.v1",
+  "type": "object",
+  "required": ["schema", "permissions", "source"],
+  "properties": {
+    "schema": { "const": "rynix.scope.v1" },
+    "permissions": {
+      "type": "object",
+      "required": ["patch_write"],
+      "properties": {
+        "patch_write": { "type": "boolean" }
+      }
+    },
+    "source": { "type": "string" },
+    "note": { "type": "string" }
+  }
+}

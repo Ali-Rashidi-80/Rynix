@@ -968,15 +968,6 @@ fn try_parse_nested_ij_mod(
     Some((s, m, inner_bound))
 }
 
-/// `Σ_{k=0}^{m-1} (a*k % m)` — period sum for nested `(i*j+i)%m` strength reduction.
-fn host_nested_period_sum(a: i64, m: i64) -> i64 {
-    let mut s = 0i64;
-    for k in 0..m {
-        s = s.wrapping_add((a * k) % m);
-    }
-    s
-}
-
 /// `acc += i * i` (or `acc = acc + i * i`) with `i` the loop counter.
 fn try_parse_sum_of_squares(body: &[Stmt<'_>], counter: Symbol) -> Option<Symbol> {
     let core = strip_counter_step_one(body, counter)?;
@@ -2596,7 +2587,8 @@ impl LowerCtx<'_, '_> {
         true
     }
 
-    /// Suite5 nested `(i*j+i)%m` with opaque equal bounds → residue O(m²) form.
+    /// Suite5 nested `(i*j+i)%m` with opaque equal bounds → residue O(m²) loops
+    /// (same math as the prior unrolled form; loops keep I-cache small).
     fn lower_nested_ij_mod_dyn(
         &mut self,
         counter: Symbol,
@@ -2622,39 +2614,135 @@ impl LowerCtx<'_, '_> {
         let n = self.load_sym(bound);
         let m_c = self.b.iconst(m);
         let zero = self.b.iconst(0);
-        let mut s = zero;
-        for a in 0..m {
-            let a_c = self.b.iconst(a);
-            let a_lt_n = self.b.push_value(Inst::ICmp(CmpOp::Lt, a_c, n));
-            let mask = self.b.push_value(Inst::ZExtI64(a_lt_n));
-            let ap1 = self.b.iconst(a + 1);
-            let diff = self.b.push_value(Inst::ISub(n, ap1));
-            let diff_s = self.b.push_value(Inst::IMul(diff, mask));
-            let q = self.lower_int_div(diff_s, m_c);
-            let cnt = self.b.push_value(Inst::IAdd(q, mask));
+        let one = self.b.iconst(1);
 
-            let inner = if a == 0 {
-                zero
-            } else {
-                let full = self.lower_int_div(n, m_c);
-                let rem = self.lower_int_rem(n, m_c);
-                let per = self.b.iconst(host_nested_period_sum(a, m));
-                let mut extra = zero;
-                for k in 1..m {
-                    let add = self.b.iconst((a * k) % m);
-                    let k_c = self.b.iconst(k);
-                    let le = self.b.push_value(Inst::ICmp(CmpOp::Le, k_c, rem));
-                    let km = self.b.push_value(Inst::ZExtI64(le));
-                    let term = self.b.push_value(Inst::IMul(add, km));
-                    extra = self.b.push_value(Inst::IAdd(extra, term));
-                }
-                let t = self.b.push_value(Inst::IMul(full, per));
-                self.b.push_value(Inst::IAdd(t, extra))
-            };
-            let prod = self.b.push_value(Inst::IMul(cnt, inner));
-            s = self.b.push_value(Inst::IAdd(s, prod));
+        // Outer: a ∈ [0, m)
+        let a_hdr = self.b.create_block();
+        let a_body = self.b.create_block();
+        let a_exit = self.b.create_block();
+        let p_a = self.b.append_block_param(a_hdr, IrTy::I64);
+        let p_s = self.b.append_block_param(a_hdr, IrTy::I64);
+        self.b.jump(a_hdr, vec![zero, zero]);
+        self.b.switch_to(a_hdr);
+        self.b.seal_block(a_hdr);
+        let a_cont = self.b.push_value(Inst::ICmp(CmpOp::Lt, p_a, m_c));
+        self.b.br(a_cont, a_body, vec![], a_exit, vec![p_s]);
+
+        self.b.switch_to(a_body);
+        self.b.seal_block(a_body);
+        let a_lt_n = self.b.push_value(Inst::ICmp(CmpOp::Lt, p_a, n));
+        let mask = self.b.push_value(Inst::ZExtI64(a_lt_n));
+        let ap1 = self.b.push_value(Inst::IAdd(p_a, one));
+        let diff = self.b.push_value(Inst::ISub(n, ap1));
+        let diff_s = self.b.push_value(Inst::IMul(diff, mask));
+        let q = self.lower_int_div(diff_s, m_c);
+        let cnt = self.b.push_value(Inst::IAdd(q, mask));
+
+        // Inner residue sum for a > 0: full*(Σ_{k=0}^{m-1} a*k%m) + Σ_{k=1..rem} a*k%m
+        // (k=0 term is 0). Emit k-loop for both period and extra.
+        let a_is_zero = self.b.push_value(Inst::ICmp(CmpOp::Eq, p_a, zero));
+        let inner_zero_b = self.b.create_block();
+        let inner_nz_b = self.b.create_block();
+        let after_inner = self.b.create_block();
+        self.b.br(a_is_zero, inner_zero_b, vec![], inner_nz_b, vec![]);
+
+        self.b.switch_to(inner_zero_b);
+        self.b.seal_block(inner_zero_b);
+        self.b.jump(after_inner, vec![zero]);
+
+        self.b.switch_to(inner_nz_b);
+        self.b.seal_block(inner_nz_b);
+        let full = self.lower_int_div(n, m_c);
+        let rem = self.lower_int_rem(n, m_c);
+
+        let k_hdr = self.b.create_block();
+        let k_body = self.b.create_block();
+        let k_exit = self.b.create_block();
+        let p_k = self.b.append_block_param(k_hdr, IrTy::I64);
+        let p_per = self.b.append_block_param(k_hdr, IrTy::I64);
+        let p_extra = self.b.append_block_param(k_hdr, IrTy::I64);
+        self.b.jump(k_hdr, vec![one, zero, zero]);
+        self.b.switch_to(k_hdr);
+        self.b.seal_block(k_hdr);
+        let k_cont = self.b.push_value(Inst::ICmp(CmpOp::Lt, p_k, m_c));
+        self.b.br(k_cont, k_body, vec![], k_exit, vec![p_per, p_extra]);
+
+        self.b.switch_to(k_body);
+        self.b.seal_block(k_body);
+        let prod = self.b.push_value(Inst::IMul(p_a, p_k));
+        let term = self.lower_int_rem(prod, m_c);
+        let per2 = self.b.push_value(Inst::IAdd(p_per, term));
+        let k_le_rem = self.b.push_value(Inst::ICmp(CmpOp::Le, p_k, rem));
+        let km = self.b.push_value(Inst::ZExtI64(k_le_rem));
+        let add_x = self.b.push_value(Inst::IMul(term, km));
+        let extra2 = self.b.push_value(Inst::IAdd(p_extra, add_x));
+        let k_next = self.b.push_value(Inst::IAdd(p_k, one));
+        self.b.jump(k_hdr, vec![k_next, per2, extra2]);
+
+        let out_per = self.b.append_block_param(k_exit, IrTy::I64);
+        let out_extra = self.b.append_block_param(k_exit, IrTy::I64);
+        self.b.switch_to(k_exit);
+        self.b.seal_block(k_exit);
+        let t = self.b.push_value(Inst::IMul(full, out_per));
+        let inner_nz = self.b.push_value(Inst::IAdd(t, out_extra));
+        self.b.jump(after_inner, vec![inner_nz]);
+
+        let inner_v = self.b.append_block_param(after_inner, IrTy::I64);
+        self.b.switch_to(after_inner);
+        self.b.seal_block(after_inner);
+        let prod_cs = self.b.push_value(Inst::IMul(cnt, inner_v));
+        let s_next = self.b.push_value(Inst::IAdd(p_s, prod_cs));
+        let a_next = self.b.push_value(Inst::IAdd(p_a, one));
+        self.b.jump(a_hdr, vec![a_next, s_next]);
+
+        let s_out = self.b.append_block_param(a_exit, IrTy::I64);
+        self.b.switch_to(a_exit);
+        self.b.seal_block(a_exit);
+        self.store_sym(s_sym, s_out);
+        self.locals.insert(counter, Local::MutSsa(n));
+        true
+    }
+
+    /// Suite5 powmod with opaque `n`: binary `acc0 * base^n % m` (not a linear loop).
+    fn lower_powmod_bin_dyn(
+        &mut self,
+        counter: Symbol,
+        bound: Symbol,
+        body: &[Stmt<'_>],
+    ) -> bool {
+        if !self.sym_starts_at_zero(counter) {
+            return false;
         }
-        self.store_sym(s_sym, s);
+        let Some((acc_sym, base_spec, m)) = try_parse_powmod_step(body, counter) else {
+            return false;
+        };
+        let Some(acc0) = self.sym_iconst(acc_sym) else {
+            return false;
+        };
+        if acc0 < 0 || m <= 1 {
+            return false;
+        }
+        let base_v = match base_spec {
+            Ok(b) if b > 0 => self.b.iconst(b),
+            Err(sym) => {
+                let Some(b) = self.sym_iconst(sym).filter(|&b| b > 0) else {
+                    return false;
+                };
+                self.b.iconst(b)
+            }
+            _ => return false,
+        };
+        let n = self.load_sym(bound);
+        let m_v = self.b.iconst(m);
+        let pow = self.emit_modpow(base_v, n, m_v);
+        let acc = if acc0 == 1 {
+            pow
+        } else {
+            let acc0_v = self.b.iconst(acc0);
+            let prod = self.b.push_value(Inst::IMul(acc0_v, pow));
+            self.lower_int_rem(prod, m_v)
+        };
+        self.store_sym(acc_sym, acc);
         self.locals.insert(counter, Local::MutSsa(n));
         true
     }
@@ -3677,6 +3765,7 @@ impl LowerCtx<'_, '_> {
                                 || self.lower_linear_mix_closed_dyn(counter, bound, rest)
                                 || self.lower_hash_poly_closed_dyn(counter, bound, rest)
                                 || self.lower_nested_ij_mod_dyn(counter, bound, rest)
+                                || self.lower_powmod_bin_dyn(counter, bound, rest)
                                 || self.lower_fib_matrix_dyn(counter, bound, rest)
                             {
                                 return;
@@ -3737,6 +3826,18 @@ impl LowerCtx<'_, '_> {
                 self.b.seal_block(exit);
                 for (sym, param) in exit_carried {
                     self.locals.insert(sym, Local::MutSsa(param));
+                }
+            }
+            Stmt::Region(r) => {
+                let _ = self.b.push(Inst::RegionCreate { region: 0 });
+                for s in r.body {
+                    self.stmt(s);
+                    if self.is_terminated() {
+                        break;
+                    }
+                }
+                if !self.is_terminated() {
+                    let _ = self.b.push(Inst::RegionReset { region: 0 });
                 }
             }
             Stmt::For(f) => {
@@ -4012,6 +4113,9 @@ impl LowerCtx<'_, '_> {
                 }
             }
             Expr::Binary(bin) => {
+                if bin.op == BinaryOp::Pipe {
+                    return self.lower_pipe(bin);
+                }
                 if bin.op == BinaryOp::Plus {
                     if let Some(v) = self.try_lower_i_mul_plus_i(bin.lhs, bin.rhs) {
                         return v;
@@ -4163,7 +4267,55 @@ impl LowerCtx<'_, '_> {
             BinaryOp::And => self.b.push_value(Inst::BAnd(l, r)),
             BinaryOp::Or => self.b.push_value(Inst::BOr(l, r)),
             BinaryOp::DotDot | BinaryOp::DotDotEq => l,
+            BinaryOp::Pipe => l,
         }
+    }
+
+    fn lower_pipe(&mut self, bin: &rynix_ast::BinaryExpr<'_>) -> ValueId {
+        let mut args = vec![self.expr(bin.lhs)];
+        let (name, call_id) = match bin.rhs {
+            Expr::Path(p) if p.segments.len() == 1 => (p.segments[0].name, bin.id),
+            Expr::Call(c) => {
+                for a in c.args {
+                    args.push(self.expr(a));
+                }
+                if let Expr::Path(p) = c.callee
+                    && p.segments.len() == 1
+                {
+                    (p.segments[0].name, c.id)
+                } else {
+                    let _ = self.expr(c.callee);
+                    return self.b.iconst(0);
+                }
+            }
+            _ => {
+                let _ = self.expr(bin.rhs);
+                return self.b.iconst(0);
+            }
+        };
+        if self.interner.resolve(name) == "popcount" && args.len() == 1 {
+            return self.b.push_value(Inst::CtPop(args[0]));
+        }
+        if let Some(&fid) = self.fn_map.get(&name) {
+            let ret = self
+                .analysis
+                .scopes
+                .lookup(self.analysis.module_scope, name)
+                .and_then(|d| self.analysis.def_types.get(&d).copied())
+                .map(|ty| match self.analysis.types.kind(ty) {
+                    TypeKind::Fn { ret, .. } => map_ty(self.analysis, *ret),
+                    _ => IrTy::Unit,
+                })
+                .unwrap_or(IrTy::Unit);
+            if let Some(fdef) = self.fn_bodies.get(&name)
+                && is_inlineable(fdef, self.fn_map)
+            {
+                return self.inline_call(fdef, &args, ret);
+            }
+            return self.b.call(fid, args, ret);
+        }
+        let n = self.interner.resolve(name).to_string();
+        self.lower_soft_call(&n, name, args, call_id)
     }
 
     fn cmp(&mut self, op: CmpOp, l: ValueId, r: ValueId, floaty: bool) -> ValueId {
@@ -4414,7 +4566,47 @@ impl LowerCtx<'_, '_> {
             "tcp_send" => (self.interner.intern("rynix_rt_tcp_send"), IrTy::I64),
             "tcp_close" => (self.interner.intern("rynix_rt_tcp_close"), IrTy::Unit),
             "json_get_i64" => (self.interner.intern("rynix_rt_json_get_i64"), IrTy::I64),
+            "json_has_i64" => (self.interner.intern("rynix_rt_json_has_i64"), IrTy::I64),
             "http_get_json_i64" => (self.interner.intern("rynix_rt_http_get_json_i64"), IrTy::I64),
+            "http_post_json_i64" => (self.interner.intern("rynix_rt_http_post_json_i64"), IrTy::I64),
+            "http_serve_once_json_i64" => {
+                (self.interner.intern("rynix_rt_http_serve_once_json_i64"), IrTy::I64)
+            }
+            "http_serve_once_echo_json_i64" => {
+                (self.interner.intern("rynix_rt_http_serve_once_echo_json_i64"), IrTy::I64)
+            }
+            "frame_serve_once_echo" => {
+                (self.interner.intern("rynix_rt_frame_serve_once_echo"), IrTy::I64)
+            }
+            "frame_client_echo" => (self.interner.intern("rynix_rt_frame_client_echo"), IrTy::I64),
+            "tls_serve_once_echo" => {
+                (self.interner.intern("rynix_rt_tls_serve_once_echo"), IrTy::I64)
+            }
+            "tls_client_echo" => (self.interner.intern("rynix_rt_tls_client_echo"), IrTy::I64),
+            "sha256_first_i64" => (self.interner.intern("rynix_rt_sha256_first_i64"), IrTy::I64),
+            "hmac_sha256_first_i64" => {
+                (self.interner.intern("rynix_rt_hmac_sha256_first_i64"), IrTy::I64)
+            }
+            "aes128_gcm_nist_empty_tag_first_i64" => (
+                self.interner
+                    .intern("rynix_rt_aes128_gcm_nist_empty_tag_first_i64"),
+                IrTy::I64,
+            ),
+            "ws_accept_key_eq" => (self.interner.intern("rynix_rt_ws_accept_key_eq"), IrTy::I64),
+            "ws_accept_sha1_first_i64" => {
+                (self.interner.intern("rynix_rt_ws_accept_sha1_first_i64"), IrTy::I64)
+            }
+            "ws_frame_roundtrip_ok" => {
+                (self.interner.intern("rynix_rt_ws_frame_roundtrip_ok"), IrTy::I64)
+            }
+            "ws_serve_once_echo" => {
+                (self.interner.intern("rynix_rt_ws_serve_once_echo"), IrTy::I64)
+            }
+            "ws_client_echo" => (self.interner.intern("rynix_rt_ws_client_echo"), IrTy::I64),
+            "kv_new" => (self.interner.intern("rynix_rt_kv_new"), IrTy::Ptr),
+            "kv_put" => (self.interner.intern("rynix_rt_kv_put"), IrTy::Unit),
+            "kv_get" => (self.interner.intern("rynix_rt_kv_get"), IrTy::I64),
+            "kv_len" => (self.interner.intern("rynix_rt_kv_len"), IrTy::I64),
             "signal" | "agent" => (name, IrTy::Unit),
             _ => {
                 let ret = self

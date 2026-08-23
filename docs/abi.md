@@ -37,9 +37,23 @@ parked). `tcp_accept` / `tcp_connect` use uring when the ring is ready.
 | `rynix_rt_read` / `write` | `i64(...)` | Colorless I/O (uring when ready) |
 | `rynix_rt_tcp_*` | (see header) | Fiber-safe TCP; uring accept/connect when ready |
 | `rynix_rt_json_get_i64` | `i64(json, key)` | Parse minimal JSON object int field |
+| `rynix_rt_json_has_i64` | `i64(json, key)` | 1 if int field present, else 0 |
 | `rynix_rt_http_get_json_i64` | `i64(host, port, path, field)` | HTTP GET + JSON field (soft std) |
+| `rynix_rt_http_post_json_i64` | `i64(host, port, path, body, field)` | HTTP POST JSON + response field |
+| `rynix_rt_http_serve_once_json_i64` | `i64(port, path, value)` | One-shot HTTP JSON server (soft std) |
+| `rynix_rt_http_serve_once_echo_json_i64` | `i64(port, path, field)` | One-shot echo request JSON field |
+| `rynix_rt_frame_serve_once_echo` / `_client_echo` | framed TCP echo | Length-prefixed binary framing |
+| `rynix_rt_ws_accept_key_eq` / `_accept_sha1_first_i64` | WS accept | RFC 6455 Sec-WebSocket-Accept |
+| `rynix_rt_ws_frame_encode` / `_decode` / `_roundtrip_ok` | WS frames | Payload ≤125; mask XOR |
+| `rynix_rt_ws_serve_once_echo` / `_client_echo` | WS upgrade echo | HTTP 101 + one text frame |
+| `rynix_rt_tls_serve_once_echo` / `_client_echo` | TLS echo | SChannel (Win); OpenSSL if `-DRYNIX_RT_OPENSSL`; else `-2` |
+| `rynix_rt_sha256_first_i64` | `i64(data)` | SHA-256 first 8 bytes BE (soft std) |
+| `rynix_rt_hmac_sha256_first_i64` | `i64(key, data)` | HMAC-SHA256 first 8 bytes BE (RFC 4231) |
+| `rynix_rt_aes128_gcm_nist_empty_tag_first_i64` | `i64()` | AES-GCM NIST empty tag (BCrypt/OpenSSL) |
+| `rynix_rt_kv_new` / `_put` / `_get` / `_len` | region string→i64 map | Arena KV (soft std) |
 | `rynix_rt_vec_i64_*` / `map_i64_*` | (see header) | Region Vec/Map |
 | `rynix_rt_uring_*` | Linux + `RYNIX_RT_URING` | Fiber-aware SQE read/write/accept/connect + poll/wait |
+| `rynix_rt_iocp_*` | Windows + `RYNIX_RT_IOCP` | associate/recv/send/**accept**/**connect** + poll/wait |
 
 ## Backends
 
@@ -47,6 +61,7 @@ parked). `tcp_accept` / `tcp_connect` use uring when the ring is ready.
 |-------------|----------|-------|
 | `portable` (default) | All | Fibers + non-blocking TCP; blocking fd read/write |
 | `uring` | Linux | Fiber-aware io_uring for read/write/accept/connect |
+| `iocp` | Windows | Fiber-aware IOCP: AcceptEx/ConnectEx + WSARecv/WSASend |
 
 ## Placement mapping (Phase 6 → runtime)
 

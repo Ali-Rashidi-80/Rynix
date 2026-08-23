@@ -13,7 +13,9 @@ if (-not $rynixc) {
 Write-Host "Installed: $rynixc"
 & rynixc --version
 Write-Host ""
-Write-Host "Try:  rynixc run examples/01_hello.ryx"
+Write-Host "Try:  rynixc new myapp"
+Write-Host "      rynixc run examples/01_hello.ryx"
+Write-Host "      rynixc dna --error-format=json"
 Write-Host "      rynixc arch check"
 Write-Host "      .\editors\vscode\install_extension.ps1"
 Write-Host "Docs: INSTALL.md  README.md"

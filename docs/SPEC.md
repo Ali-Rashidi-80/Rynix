@@ -54,6 +54,8 @@ Keywords (27, each lexed as its own token kind):
 
 ```
 def end let mut if elif else loop for in break continue return
+struct enum type import pub true false nil and or not as spawn region
+match   # live; agent/signal/tensor remain reserved
 struct enum type import pub true false nil and or not as spawn match
 ```
 
@@ -183,6 +185,12 @@ path        = Ident { "::" Ident }
 Reference types (`&T`) are not part of the shipping type grammar; ownership
 is inferred via escape analysis, not surface `&` syntax.
 
+Linear values (`Vec`, `Map`, user `struct`/`enum`, slices, opaque `ptr`)
+move on `let` binding from a path, assignment from a path, or call/pipe
+argument. Using a moved binding is `RYX2011`. Scalars (`i64`, `f64`, `bool`,
+`str`) copy. Exclusive borrow conflicts (`&` + mutate) are deferred until
+reference types are specified.
+
 Expression precedence (weakest to strongest, comparisons non-associative):
 
 ```
@@ -198,9 +206,33 @@ Expression precedence (weakest to strongest, comparisons non-associative):
 10 call () | index [] | field . | method .name()
 ```
 
-Assignment (`=`, `+=`, `-=`, `*=`, `/=`, `%=`) is a statement, not an
-expression — canonical, and eliminates a whole class of bugs and model
-confusion.
+## 3.2 Pipeline `|>`
+
+```
+let y = 21 |> double
+let z = 1 |> add(2)   # desugars to add(1, 2)
+```
+
+`lhs |> name` becomes `name(lhs)`.  
+`lhs |> name(args…)` becomes `name(lhs, args…)`.  
+Right-hand side must be a path or call (not an arbitrary expression).
+
+## 3.3 Effect annotations (`#^ effect:`)
+
+Functions may declare purity with a same-line directive:
+
+```
+def add(a: i64, b: i64) -> i64  #^ effect: pure
+  return a + b
+end
+```
+
+`#^ effect: pure` (alias `#^ effects: pure`) means the function must not
+transitively perform `io` or `network`. Soft builtins such as `print`,
+`http_*`, `tcp_*`, and `kv_*` are impure; `json_*` / arithmetic stay pure.
+Violations emit `RYX2012`. OS sandboxing is out of scope; this is a static
+toolchain check (also exercised by `rynixc check` and verify contracts).
+
 
 ## 4. Design pillars (context)
 
@@ -226,7 +258,14 @@ lower to `rynix_rt_*` symbols documented in [abi.md](abi.md):
 | `map_new`, `map_insert`, `map_get`, `map_len` | mono `Map[i64,i64]` |
 | `tcp_listen`, `tcp_accept`, `tcp_connect`, `tcp_recv`, `tcp_send`, `tcp_close` | TCP |
 | `json_get_i64(body, key)` | minimal JSON int field |
+| `json_has_i64(body, key)` | 1 if int field present |
 | `http_get_json_i64(host, port, path, field)` | HTTP GET + JSON field |
+| `http_post_json_i64(host, port, path, body, field)` | HTTP POST JSON + response field |
+| `http_serve_once_json_i64(port, path, value)` | one-shot HTTP JSON server |
+| `http_serve_once_echo_json_i64(port, path, field)` | one-shot echo request JSON field |
+| `frame_serve_once_echo` / `frame_client_echo` | length-prefixed binary frame echo |
+| `sha256_first_i64(data)` | SHA-256 → first 8 bytes as i64 |
+| `kv_new` / `kv_put` / `kv_get` / `kv_len` | arena string→i64 map |
 | `tensor`, `signal`, `agent` | smart primitives (stubs / hooks) |
 
 Notes in `std/*.ryx` are documentation only until a module loader ships.

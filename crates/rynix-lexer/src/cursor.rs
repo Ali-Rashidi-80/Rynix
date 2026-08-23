@@ -59,7 +59,7 @@ const fn build_class_table() -> [Class; 256] {
                 b'"' => Class::Quote,
                 b'#' => Class::Hash,
                 b'(' | b')' | b'[' | b']' | b'{' | b'}' | b',' | b'.' | b':' | b'=' | b'<'
-                | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'!' | b'&' => Class::Punct,
+                | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'!' | b'&' | b'|' => Class::Punct,
                 _ => Class::Unknown,
             }
         };
@@ -281,8 +281,8 @@ impl<'src> Lexer<'src> {
     fn punct(&mut self, sink: &mut dyn DiagSink) -> Token {
         use TokenKind::{
             Amp, Arrow, BangEq, Colon, ColonColon, Comma, Dot, DotDot, DotDotEq, Eq, EqEq, Gt, GtEq,
-            LBrace, LBracket, LParen, Lt, LtEq, Minus, MinusEq, Percent, PercentEq, Plus, PlusEq,
-            RBrace, RBracket, RParen, Shr, Slash, SlashEq, Star, StarEq,
+            LBrace, LBracket, LParen, Lt, LtEq, Minus, MinusEq, Percent, PercentEq, Pipe, Plus,
+            PlusEq, RBrace, RBracket, RParen, Shr, Slash, SlashEq, Star, StarEq,
         };
         let start = self.pos;
         let b = self.src[start as usize];
@@ -370,6 +370,15 @@ impl<'src> Lexer<'src> {
                 }
             }
             b'&' => Amp,
+            b'|' => {
+                if self.eat(b'>') {
+                    Pipe
+                } else {
+                    let span = self.span_from(start);
+                    sink.emit(errors::unknown_char(span, self.slice(start, self.pos)));
+                    return Token::new(TokenKind::Unknown, span);
+                }
+            }
             // `!` only exists as part of `!=`; a lone `!` is `not` in Rynix.
             b'!' => {
                 if self.eat(b'=') {
@@ -505,6 +514,9 @@ mod tests {
             ("*=", TokenKind::StarEq),
             ("/=", TokenKind::SlashEq),
             ("%=", TokenKind::PercentEq),
+            ("|>", TokenKind::Pipe),
+            ("&", TokenKind::Amp),
+            (">>", TokenKind::Shr),
         ];
         for (src, expected) in cases {
             let (tokens, sink) = lex(src);

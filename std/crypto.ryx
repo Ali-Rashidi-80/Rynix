@@ -1,0 +1,21 @@
+## Crypto — soft builtins
+
+`sha256_first_i64(data) -> i64`
+
+First 8 bytes of SHA-256(data) as big-endian i64 (NIST empty/`abc` KATs).
+
+`hmac_sha256_first_i64(key, data) -> i64`
+
+First 8 bytes of HMAC-SHA256(key, data) (RFC 4231 Test Case 1 in
+`rt/tests/crypto_kv_smoke.c`).
+
+`aes128_gcm_nist_empty_tag_first_i64() -> i64`
+
+NIST AES-128-GCM empty PT/AAD tag (first 8 bytes BE). Windows BCrypt /
+`-DRYNIX_RT_OPENSSL`; else `-2`. **Real AEAD** — End’s AES rows are stubs.
+
+```
+let h = sha256_first_i64("abc")
+let m = hmac_sha256_first_i64("key", "msg")
+let t = aes128_gcm_nist_empty_tag_first_i64()
+```

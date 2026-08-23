@@ -292,6 +292,7 @@ static void finish_fiber(Fiber *f) {
 
 void rynix_rt_run(void) {
   rynix_rt_uring_init();
+  rynix_rt_iocp_init();
 #ifdef _WIN32
   if (!g_worker_converted) {
     g_main_fiber = ConvertThreadToFiber(NULL);
@@ -307,16 +308,20 @@ void rynix_rt_run(void) {
 #endif
   for (;;) {
     rynix_rt_uring_poll();
+    rynix_rt_iocp_poll();
     Fiber *f = dequeue();
     if (!f) {
       if (g_parked_count > 0) {
-        /* Only block on CQ when uring can complete waits. Otherwise this
-         * would spin forever (e.g. park without a waiter on portable). */
+        /* Only block on CQ/IOCP when a backend can complete waits. */
         if (rynix_rt_uring_ready()) {
           rynix_rt_uring_wait();
           continue;
         }
-        rynix_rt_panic("fibers parked with no io_uring to complete waits");
+        if (rynix_rt_iocp_ready()) {
+          rynix_rt_iocp_wait();
+          continue;
+        }
+        rynix_rt_panic("fibers parked with no completion backend to resume waits");
       }
       break;
     }

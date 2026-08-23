@@ -186,6 +186,8 @@ pub enum Stmt<'a> {
     For(ForStmt<'a>),
     If(IfStmt<'a>),
     Match(MatchStmt<'a>),
+    /// Explicit bump-region scope: `region … end` (maps to RegionCreate/Reset).
+    Region(RegionStmt<'a>),
     Expr(ExprStmt<'a>),
     Error(ErrorNode),
 }
@@ -202,6 +204,7 @@ impl Stmt<'_> {
             Stmt::For(n) => n.span,
             Stmt::If(n) => n.span,
             Stmt::Match(n) => n.span,
+            Stmt::Region(n) => n.span,
             Stmt::Expr(n) => n.span,
             Stmt::Error(n) => n.span,
         }
@@ -218,6 +221,7 @@ impl Stmt<'_> {
             Stmt::For(n) => n.id,
             Stmt::If(n) => n.id,
             Stmt::Match(n) => n.id,
+            Stmt::Region(n) => n.id,
             Stmt::Expr(n) => n.id,
             Stmt::Error(n) => n.id,
         }
@@ -288,6 +292,14 @@ pub struct ContinueStmt {
 
 #[derive(Debug)]
 pub struct LoopStmt<'a> {
+    pub id: NodeId,
+    pub body: &'a [Stmt<'a>],
+    pub span: Span,
+}
+
+/// Explicit region scope — body allocations prefer this bump arena.
+#[derive(Debug)]
+pub struct RegionStmt<'a> {
     pub id: NodeId,
     pub body: &'a [Stmt<'a>],
     pub span: Span,
@@ -471,6 +483,8 @@ pub enum BinaryOp {
     Percent,
     Amp,
     Shr,
+    /// `lhs |> f` / `lhs |> f(a)` — pipeline into a call (SPEC §3.2).
+    Pipe,
 }
 
 impl BinaryOp {
@@ -493,6 +507,7 @@ impl BinaryOp {
             BinaryOp::Percent => "%",
             BinaryOp::Amp => "&",
             BinaryOp::Shr => ">>",
+            BinaryOp::Pipe => "|>",
         }
     }
 

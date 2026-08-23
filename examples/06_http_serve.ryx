@@ -1,0 +1,14 @@
+## Soft HTTP server builtin (one-shot)
+##
+## http_serve_once_json_i64 is wired through sema / RIR / LLVM.
+## End-to-end fiber pairing is gated by rt/tests/http_serve_once_smoke.c
+## (size_echo_gates::http_serve_once_smoke_c).
+##
+## This example only proves the call lowers with correct ABI types.
+## Port 0 is invalid so the runtime returns -1 without listening.
+
+def main() -> i64
+  let rc = http_serve_once_json_i64(0, "/api", 42)
+  print_i64(rc)
+  return 0
+end

@@ -1,0 +1,11 @@
+## SHA-256 + KV soft builtins (check / build smoke)
+
+def main() -> i64
+  let h = sha256_first_i64("abc")
+  print_i64(h)
+  let store = kv_new(0)
+  kv_put(store, "x", 7)
+  print_i64(kv_get(store, "x"))
+  print_i64(kv_len(store))
+  return 0
+end

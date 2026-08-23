@@ -85,6 +85,11 @@ int64_t rynix_rt_tcp_accept(int64_t listen_fd) {
     return -1;
   }
 #endif
+#if defined(RYNIX_RT_IOCP) && defined(_WIN32)
+  if (rynix_rt_iocp_ready() && rynix_rt_iocp_ext_ready() == 0) {
+    return rynix_rt_iocp_accept(listen_fd);
+  }
+#endif
   rynix_sock_t s = (rynix_sock_t)(intptr_t)listen_fd;
   for (;;) {
     rynix_rt_yield();
@@ -112,6 +117,27 @@ int64_t rynix_rt_tcp_connect(const char *host, int64_t port) {
     rynix_sock_close(s);
     return -1;
   }
+#if defined(RYNIX_RT_IOCP)
+  if (rynix_rt_iocp_ready() && rynix_rt_iocp_ext_ready() == 0 && rynix_rt_fiber_current()) {
+    /* ConnectEx requires a bound socket. */
+    struct sockaddr_in local;
+    memset(&local, 0, sizeof(local));
+    local.sin_family = AF_INET;
+    local.sin_addr.s_addr = htonl(INADDR_ANY);
+    local.sin_port = 0;
+    if (bind(s, (struct sockaddr *)&local, sizeof(local)) != 0) {
+      rynix_sock_close(s);
+      return -1;
+    }
+    rynix_set_nonblock(s);
+    (void)rynix_rt_iocp_associate((int64_t)(intptr_t)s);
+    if (rynix_rt_iocp_connect((int64_t)(intptr_t)s, &addr, (int64_t)sizeof(addr)) == 0) {
+      return (int64_t)(intptr_t)s;
+    }
+    rynix_sock_close(s);
+    return -1;
+  }
+#endif
 #else
   if (inet_pton(AF_INET, host, &addr.sin_addr) != 1) {
     rynix_sock_close(s);
@@ -170,6 +196,11 @@ void rynix_rt_tcp_close(int64_t fd) {
 
 int64_t rynix_rt_tcp_recv(int64_t fd, void *buf, int64_t n) {
   if (!buf || n <= 0) return 0;
+#if defined(RYNIX_RT_IOCP) && defined(_WIN32)
+  if (rynix_rt_iocp_ready()) {
+    return rynix_rt_iocp_recv(fd, buf, n);
+  }
+#endif
   rynix_sock_t s = (rynix_sock_t)(intptr_t)fd;
   for (;;) {
     rynix_rt_yield();
@@ -187,6 +218,11 @@ int64_t rynix_rt_tcp_recv(int64_t fd, void *buf, int64_t n) {
 
 int64_t rynix_rt_tcp_send(int64_t fd, const void *buf, int64_t n) {
   if (!buf || n <= 0) return 0;
+#if defined(RYNIX_RT_IOCP) && defined(_WIN32)
+  if (rynix_rt_iocp_ready()) {
+    return rynix_rt_iocp_send(fd, buf, n);
+  }
+#endif
   rynix_sock_t s = (rynix_sock_t)(intptr_t)fd;
   for (;;) {
     rynix_rt_yield();

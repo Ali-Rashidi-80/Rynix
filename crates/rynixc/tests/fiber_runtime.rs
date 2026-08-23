@@ -45,7 +45,7 @@ fn fiber_smoke_round_robin() {
         .arg("-o")
         .arg(&out);
     if cfg!(windows) {
-        cmd.arg("-fuse-ld=lld").arg("-lws2_32");
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32").arg("-lsecur32").arg("-lcrypt32").arg("-lbcrypt");
     }
     let status = cmd.status().expect("spawn clang");
     assert!(status.success(), "clang failed: {status}");

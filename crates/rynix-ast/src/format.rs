@@ -200,6 +200,15 @@ impl Formatter<'_> {
                 self.indent -= 1;
                 self.line("end");
             }
+            Stmt::Region(r) => {
+                self.line("region");
+                self.indent += 1;
+                for s in r.body {
+                    self.stmt(s);
+                }
+                self.indent -= 1;
+                self.line("end");
+            }
             Stmt::For(f) => {
                 self.line(&format!(
                     "for {} in {}",

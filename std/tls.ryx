@@ -1,0 +1,22 @@
+## TLS — soft builtins (real crypto)
+
+Windows uses **SChannel** (always). Linux uses **OpenSSL** when compiled with
+`-DRYNIX_RT_OPENSSL` and linked `-lssl -lcrypto`. Otherwise the builtins
+return `-2` (unsupported).
+
+`tls_serve_once_echo(port) -> i64`
+
+One-shot TLS server: listen → accept → handshake → decrypt one payload →
+encrypt the same bytes back. Returns `0` on success, `-1` on error, `-2` if
+no TLS backend.
+
+`tls_client_echo(host, port, msg) -> i64`
+
+TLS client: connect → handshake → encrypt `msg` → expect identical decrypt.
+Returns `0` on match.
+
+Self-signed certificates are generated at runtime (smoke skips peer
+validation). This is **not** production PKI — it proves real TLS framing
+unlike simulated “TLS” stubs.
+
+Evidence: `rt/tests/tls_echo_smoke.c` / `size_echo_gates::tls_echo_smoke_c`.

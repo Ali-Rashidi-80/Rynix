@@ -1,0 +1,17 @@
+## Pipeline |> (A2)
+
+def double(x: i64) -> i64
+  return x * 2
+end
+
+def add(a: i64, b: i64) -> i64
+  return a + b
+end
+
+def main() -> i64
+  let y = 21 |> double
+  print_i64(y)
+  let z = 10 |> add(32)
+  print_i64(z)
+  return 0
+end

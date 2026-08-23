@@ -2,7 +2,8 @@
 //!
 //! ```text
 //! rynixc lex | parse | check | dump-rir | emit-ll | build | run | test | fmt
-//!         | graph | slice | impact | eval | patch | mcp-serve | lsp-serve | arch
+//!         | graph | slice | impact | eval | patch | verify | precheck | context
+//!         | security | scope | deps | dna | new | mcp-serve | lsp-serve | arch
 //! ```
 
 mod agent_cmd;
@@ -13,6 +14,10 @@ mod build_cmd;
 mod check_cmd;
 mod cli;
 mod codegen_pipe;
+mod contract;
+mod deps_cmd;
+mod dna;
+mod dna_cmd;
 mod driver;
 mod dump_rir_cmd;
 mod emit_ll_cmd;
@@ -21,11 +26,18 @@ mod fix;
 mod fmt_cmd;
 mod lex_cmd;
 mod lsp_cmd;
+mod manifest;
 mod mcp_cmd;
+mod new_cmd;
 mod parse_cmd;
 mod patch_cmd;
 mod run_cmd;
+mod scope;
+mod scope_cmd;
+mod security;
+mod security_cmd;
 mod test_cmd;
+mod verify_cmd;
 
 use std::process::ExitCode;
 
@@ -54,6 +66,14 @@ fn main() -> ExitCode {
         Ok(cli::Command::Impact(options)) => agent_cmd::run_impact(&options),
         Ok(cli::Command::Eval(options)) => eval_cmd::run(&options),
         Ok(cli::Command::Patch(options)) => patch_cmd::run(&options),
+        Ok(cli::Command::Verify(options)) => verify_cmd::run(&options),
+        Ok(cli::Command::Precheck(options)) => agent_cmd::run_precheck(&options),
+        Ok(cli::Command::Context(options)) => agent_cmd::run_context(&options),
+        Ok(cli::Command::Security(options)) => security_cmd::run(&options),
+        Ok(cli::Command::Scope(options)) => scope_cmd::run(&options),
+        Ok(cli::Command::Deps(options)) => deps_cmd::run(&options),
+        Ok(cli::Command::Dna(options)) => dna_cmd::run(&options),
+        Ok(cli::Command::New(options)) => new_cmd::run(&options),
         Ok(cli::Command::McpServe) => mcp_cmd::run(),
         Ok(cli::Command::LspServe) => lsp_cmd::run(),
         Ok(cli::Command::ArchCheck(options)) => arch_cmd::run(&options),

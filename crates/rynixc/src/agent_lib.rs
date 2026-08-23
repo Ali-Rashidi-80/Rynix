@@ -1,6 +1,6 @@
 //! Shared helpers for graph / impact / eval / MCP agent tools.
 
-use rynix_ast::{AstArena, Item};
+use rynix_ast::{AstArena, Item, Stmt};
 use rynix_diag::VecSink;
 use rynix_rir::{interpret_module, lower_module, module_call_graph, run_pipeline, InterpValue, Module};
 use rynix_sema::analyze;
@@ -128,6 +128,52 @@ fn call_edges(parsed: &mut Parsed<'_>) -> Vec<Value> {
         }
     }
     edges
+}
+
+/// Compact interface outline used by `slice` and `context`.
+pub fn slice_lines(parsed: &Parsed<'_>) -> Vec<String> {
+    let mut lines = Vec::new();
+    for item in parsed.module.items {
+        match item {
+            Item::Fn(f) => {
+                let name = parsed.interner.resolve(f.name.name);
+                let params: Vec<_> = f
+                    .params
+                    .iter()
+                    .map(|p| parsed.interner.resolve(p.name.name).to_string())
+                    .collect();
+                let body_hint = f.body.first().map_or("empty", |s| match s {
+                    Stmt::Return(_) => "return",
+                    Stmt::Let(_) => "let",
+                    Stmt::If(_) => "if",
+                    Stmt::Match(_) => "match",
+                    Stmt::Loop(_) | Stmt::For(_) => "loop",
+                    Stmt::Region(_) => "region",
+                    _ => "stmt",
+                });
+                lines.push(format!(
+                    "def {name}({})  # body:{body_hint}",
+                    params.join(", ")
+                ));
+            }
+            Item::Struct(s) => {
+                lines.push(format!(
+                    "struct {}  # fields:{}",
+                    parsed.interner.resolve(s.name.name),
+                    s.fields.len()
+                ));
+            }
+            Item::Enum(e) => {
+                lines.push(format!(
+                    "enum {}  # variants:{}",
+                    parsed.interner.resolve(e.name.name),
+                    e.variants.len()
+                ));
+            }
+            _ => {}
+        }
+    }
+    lines
 }
 
 pub fn graph_json(path: &std::path::Path, parsed: &mut Parsed<'_>) -> Value {

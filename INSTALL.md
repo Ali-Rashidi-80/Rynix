@@ -78,7 +78,26 @@ On tagged releases (`v*`), CI publishes prebuilt binaries:
 
 1. Download from GitHub Releases (tag `v*`) when published for your fork/org.
 2. Verify SHA256 against `SHA256SUMS.txt` in the release assets.
-3. Place the binary on `PATH` as `rynixc`.
+3. If `SHA256SUMS.txt.asc` is present (optional GPG secret configured on the
+   publisher), verify the signature:
+
+```sh
+gpg --verify SHA256SUMS.txt.asc SHA256SUMS.txt
+```
+
+4. Place the binary on `PATH` as `rynixc`.
+
+Local packaging (SHA256SUMS + optional detach-sign):
+
+```powershell
+# Windows
+.\scripts\build_release.ps1   # set RYNIX_GPG_KEY_ID to also sign
+```
+
+```sh
+# Ephemeral sign/verify smoke (no production key required):
+bash scripts/gpg_sign_smoke.sh
+```
 
 > Release binaries still need **clang** on `PATH` for `rynixc build` / `run`.
 

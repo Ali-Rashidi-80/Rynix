@@ -1,9 +1,14 @@
-## JSON — soft builtin `json_get_i64(body, key) -> i64`
+## JSON — soft builtins
 
-Parses a minimal JSON object and returns an integer field:
+`json_get_i64(body, key) -> i64` — integer object field, or `-1` if missing.
+
+`json_has_i64(body, key) -> i64` — `1` if `key` maps to an integer, else `0`
+(distinguishes missing from a real `-1` value).
 
 ```
-let v = json_get_i64("{\"n\": 42}", "n")
+let body = "{\"n\": 42}"
+let v = json_get_i64(body, "n")
+let ok = json_has_i64(body, "n")
 ```
 
-See `examples/05_http_json.ryx`.
+See `examples/05_http_json.ryx` and `examples/10_json_http_post.ryx`.

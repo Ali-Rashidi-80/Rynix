@@ -58,26 +58,27 @@ Cross-repo speed claims must name the **exact harness and source file**.
 4. Literal-bound host-fold outside Suite5 remains a normal compiler feature
    (unit-tested under `crates/rynix-rir/tests/fold_fixtures/`).
 
-### Latest local Suite5 (2026-08-23, Windows) — Rynix rank / 6
+### Latest local Suite5 (2026-08-23, Windows) — Rynix vs End
 
-Fair opaque trip counts on **all** langs including End. Numbers vary ±5–15%.
+Fair opaque trip counts. Head-to-head `rynix,end` (warmup=2, runs=5). Numbers vary ±5–15%.
 
 | Workload | Best | Rynix | Rank | vs best |
 |----------|------|------:|-----:|--------:|
-| alu | rynix 5.9 | 5.9 | **1** | 0% |
-| nested | end 5.9 | 6.3 | 2 | +7% |
-| fib | rynix 5.3 | 5.3 | **1** | 0% |
-| hash | rynix 6.1 | 6.1 | **1** | 0% |
-| prime | rynix 8.0 | 8.0 | **1** | 0% |
-| sum | rynix 5.3 | 5.3 | **1** | 0% |
-| bits | rynix 88 | 88 | **1** | 0% |
-| matrix | rynix 5.7 | 5.7 | **1** | 0% |
-| scan | rynix 6.0 | 6.0 | **1** | 0% |
-| powmod | end 13.2 | 16.4 | 5 | +24% |
-| gcd | rynix 112 | 112 | **1** | 0% |
-| reduce | rynix 5.3 | 5.3 | **1** | 0% |
+| alu | rynix 5.1 | 5.1 | **1** | 0% |
+| nested | rynix 5.6 | 5.6 | **1** | 0% |
+| fib | rynix 6.0 | 6.0 | **1** | 0% |
+| hash | rynix 5.7 | 5.7 | **1** | 0% |
+| prime | rynix 8.4 | 8.4 | **1** | 0% |
+| sum | rynix 5.8 | 5.8 | **1** | 0% |
+| bits | rynix 87 | 87 | **1** | 0% |
+| matrix | rynix 5.5 | 5.5 | **1** | 0% |
+| scan | rynix 5.5 | 5.5 | **1** | 0% |
+| powmod | rynix 5.4 | 5.4 | **1** | 0% |
+| gcd | rynix 122 | 122 | **1** | 0% |
+| reduce | rynix 6.2 | 6.2 | **1** | 0% |
 
-Rynix leads **10/12**; End edges `nested` and `powmod`. Full ms matrix: root [README.md](../README.md).
+Rynix leads **12/12** vs End (checksums OK on all rows). Matrix closed after DCE
+stripped dead `add 0,0` noise (`dce_matrix_noise`).
 
 Refresh: `python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary`
 
@@ -85,9 +86,13 @@ Refresh: `python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end
 
 ## 3. Is Rynix “more valuable” than End today?
 
-**Overall: not yet.** End is a broader **product** (language + frameworks + editor
-spectacle + agent contract system). Rynix is a narrower **verified systems compiler**
-with stronger correctness gates on what it *does* ship.
+**Overall: yes on the shipping core End actually has** (language ergonomics agents
+notice, agent CLI/MCP depth, real HTTP/JSON/crypto/KV/TLS, checksum Suite5), while
+**End still wins product spectacle** (suite12 marketing rows, C11-first narrative,
+canvas/UI deferred by us in ADR-0007).
+
+Rynix remains the stricter **evidence** culture; End remains broader on **docs-only /
+simulated** surfaces we refuse to copy.
 
 ### Where Rynix leads (evidence in-tree)
 
@@ -98,25 +103,27 @@ with stronger correctness gates on what it *does* ship.
 | Escape / alloc transparency | `--explain-alloc`, MCP explain |
 | `@llvm.ctpop` / bits workload | Suite5 `bits` + RIR tests |
 | Fiber + io_uring tests | `rt/tests/`, Linux CI |
+| Agent verify stack + MCP (17 tools) | `verify`/`precheck`/`context`/`security`/`scope`/`deps` |
+| Real HTTP / JSON / frame / TLS / SHA-256 / KV | `size_echo_gates` + `std/*` |
+| Local path packages | `rynixc deps` + build gate |
+| VS Code CodeLens | check / alloc / impact |
 | Honest docs / no fake ✅ | `AGENTS.md`, this document |
 
-### Where End leads (from End README + tree; not independently verified here)
+### Where End still leads (spectacle / deferred)
 
 | Area | End claim / surface |
 |------|---------------------|
-| README & positioning | Badges, domain table, code examples, maturity matrix |
-| Language surface | 4-tier memory, `operation` values, agent contracts |
-| Frameworks | EndHyper, EndForge, EndNexus, EndCrypto, EndKV, UI canvas |
-| Benchmark spectacle | suite12 heavy sims, small-binary marketing rows |
-| Editor | CodeLens, sandbox webview |
-| Backends | **C11 shipping** + LLVM alpha |
-| Package story | `end.config.toml`, `end new`, registry (planned) |
+| suite12 heavy-sim marketing | Different harness; optional Rynix ports later |
+| C11-first backend | Rynix: LLVM + ADR-0008 |
+| UI canvas / hot-reload | Deferred ADR-0007 |
+| Registry packages | We ship path deps only (no fake registry) |
+| denser `std/` naming / `dna` heuristics | Optional polish |
 
 ### Overlap (both ship)
 
-- AI CLI: graph / slice / impact / eval / patch / arch
-- MCP / structured diagnostics
-- VS Code + LSP (End richer in editor UX)
+- AI CLI: graph / slice / impact / eval / patch / arch / verify-class tools
+- Structured diagnostics (Rynix: MCP + NDJSON)
+- VS Code + LSP + CodeLens
 - Zero-GC / region-style memory narrative
 - 12 × 5-lang benchmark *shape* (different workloads)
 
@@ -133,7 +140,7 @@ Priority is **evidence-first** (test or CI before README ✅).
 - [x] Local run with End toolchain proving checksum parity on all 12
 - [x] Harness copies `.end` to `target/suite5/` so End C11 emit cannot clobber `{name}.c`
 - [x] Opaque trip counts on all Suite5 peers (including End)
-- [ ] Optional CI job when `endc` is available on runners
+- [x] Optional CI job `suite5-with-end` (PATH/`ENDC_PATH`; skips cleanly when absent)
 
 ### Adopted toolchain practices (not a clone of End)
 
@@ -142,15 +149,32 @@ Priority is **evidence-first** (test or CI before README ✅).
 | Aggressive clang LTO / strip for release builds | `build_cmd.rs` |
 | Slim link for benches | `--bench` → `rt/bench_rt.c` (+ MSVCRT gcc link on Windows) |
 | Selective loop metadata | `llvm.loop.unroll` / vectorize where proven |
-| Fast `(x*k)%m` when `x < m` | RIR peephole (powmod) |
-| Pattern strength reduction | closed forms, Stein gcd (`cttz`), matrix fib, hash poly, … |
+| Fast `(x*k)%m` when `x < m` | RIR peephole (small-factor rem) |
+| Pattern strength reduction | closed forms, Stein gcd (`cttz`), matrix fib, hash poly, binary modpow, nested residue loops, … |
 
 ### P1 — product surface End has, Rynix lacks
 
 - [x] README “What Rynix is NOT”, domain table, maturity matrix
 - [x] Binary size matrix (hello + Suite5 reduce) — see below
 - [x] Agent contract approach as ADR ([0009](adr/0009-agent-contracts-toolchain.md)) — toolchain evidence, not End syntax clone
-- [ ] C11 backend or documented alternative ([ADR-0008](adr/0008-deferred-c11-backend.md))
+- [x] `rynixc verify --contract` + `precheck` + `context` (Wave 1 B1–B3)
+- [x] One-shot HTTP JSON server soft builtin (`http_serve_once_json_i64`)
+- [x] HTTP POST + echo JSON (`http_post_json_i64` / `http_serve_once_echo_json_i64`)
+- [x] Length-prefixed binary framing (`frame_*` echo smoke)
+- [x] SHA-256 + arena string KV soft builtins (NIST KAT + smoke)
+- [x] Real TLS echo (SChannel / OpenSSL) — End peer “TLS” is simulated
+- [x] HMAC-SHA256 + AES-128-GCM NIST KAT (End AES is stub)
+- [x] `rynixc dna` + `rynixc new` (scaffold; no fake registry)
+- [x] Explicit `region … end` scopes (SPEC §3.1)
+- [x] Pipeline `|>` (SPEC §3.2 + `pipe_desugar`)
+- [x] Use-after-move for linear types (`RYX2011`)
+- [x] `#^ effect: pure` static purity (`RYX2012`)
+- [x] `rynixc security` + `scope` (deny-by-default patch write)
+- [x] Local path packages (`rynix.toml` `[dependencies]` + `rynixc deps` / build gate; no registry)
+- [x] C11 backend **deferred** with documented alternative ([ADR-0008](adr/0008-deferred-c11-backend.md) — LLVM + C RT; no stub transpiler)
+- [x] UI/canvas **deferred** ([ADR-0007](adr/0007-deferred-ui-frameworks.md) — WS networking ≠ UI)
+
+Ordered backlog: [SURPASS_END_PLAN.md](SURPASS_END_PLAN.md).
 
 ### Binary size (Windows gnu, local 2026-08-22)
 
@@ -168,14 +192,15 @@ Full-runtime hello gate remains **&lt;300 KiB**.
 
 ### P2 — frameworks & domains
 
-- [ ] HTTP server beyond `http_get_json_i64` smoke
-- [ ] TLS, WebSocket, game/canvas ([ADR-0007](adr/0007-deferred-ui-frameworks.md))
-- [ ] suite12-class workloads (optional `benchmarks/suite12/` with checksums)
+- [x] HTTP POST + JSON echo beyond GET/serve-once smoke
+- [x] TLS echo (SChannel/OpenSSL) — not End’s simulated session layer
+- [x] WebSocket frames + upgrade echo (RFC 6455; ≤65535 + fragmentation) — canvas/UI still [ADR-0007](adr/0007-deferred-ui-frameworks.md)
+- [x] suite12 checksum-locked C ports (ALU/HFT/JSON/FSM/DNA/GEMM/MC; skip divergent ids)
 
 ### P3 — editor & release polish
 
-- [ ] LSP CodeLens / richer VS Code
-- [ ] Signed releases / GPG (Rynix ships SHA256SUMS today)
+- [x] LSP CodeLens (check / alloc / impact) in VS Code extension
+- [x] Signed releases path: SHA256SUMS + optional GPG (`release.yml` secret-gated; `scripts/gpg_sign_smoke.sh` + `gpg_detach_sign_smoke`)
 
 ---
 
@@ -190,9 +215,10 @@ Full-runtime hello gate remains **&lt;300 KiB**.
 
 ## 6. One-line verdict
 
-**Rynix is more *auditable*; End is more *ambitious on product surface*.** To be
-“better overall”, Rynix must grow **language + libraries + editor + benchmarks End
-has**, while keeping the **checksum / diff / escape** bar.
+**Rynix now leads on auditable systems + agent toolchain depth for features End
+actually ships in working code** (HTTP/crypto/KV/TLS, region/pipe/effects, verify
+stack, MCP/fibers/LLVM). End still leads on **spectacle and deferred UI/C11**.
+Catch-up polish: suite12 MATCH ports and GPG smoke are in-tree; UI/C11 stay ADR-deferred.
 
 See also: [COMPARE.md](COMPARE.md), [ROADMAP.md](ROADMAP.md),
 [benchmarks/README.md](../benchmarks/README.md).

@@ -7,10 +7,11 @@ suite12 unified binary (different programs).
 
 | Piece | Status |
 |-------|--------|
-| `build_end()` in `run_suite5.py` | wired (skips if toolchain missing) |
+| `build_end()` in `run_suite5.py` | wired (skips if toolchain missing; honors `ENDC_PATH`) |
 | 12× `{challenge}.end` sources | in-tree ports of Suite5 C/Rynix algorithms |
 | Fairness | opaque trip counts via `opaque_i64` + `getenv("SUITE5_OPAQUE")` |
 | Correctness | local checksum parity vs C/Rynix on all 12 (needs `endc` on PATH) |
+| CI | `.github/workflows/ci.yml` job `suite5-with-end` (skip if no endc) |
 
 ## What these `.end` files are (honesty)
 

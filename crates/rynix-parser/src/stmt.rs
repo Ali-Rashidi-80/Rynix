@@ -1,6 +1,6 @@
 use rynix_ast::{
     AssignOp, AssignStmt, BreakStmt, ContinueStmt, ExprStmt, ForStmt, IfArm, IfStmt, LetStmt,
-    LoopStmt, MatchArm, MatchPat, MatchStmt, ReturnStmt, Stmt,
+    LoopStmt, MatchArm, MatchPat, MatchStmt, RegionStmt, ReturnStmt, Stmt,
 };
 use rynix_lexer::TokenKind;
 use rynix_span::Span;
@@ -64,7 +64,20 @@ impl<'arena> Parser<'arena, '_, '_> {
             TokenKind::For => Stmt::For(self.parse_for()),
             TokenKind::If => Stmt::If(self.parse_if()),
             TokenKind::Match => Stmt::Match(self.parse_match()),
+            TokenKind::Region => Stmt::Region(self.parse_region()),
             _ => self.parse_expr_or_assign(),
+        }
+    }
+
+    fn parse_region(&mut self) -> RegionStmt<'arena> {
+        let start = self.bump().span; // `region`
+        self.expect_newline_or_end_header();
+        let body = self.parse_block_until_end(start);
+        let end = self.expect_end(start);
+        RegionStmt {
+            id: self.arena.next_id(),
+            body,
+            span: start.to(end),
         }
     }
 
