@@ -397,39 +397,40 @@ Schema: `rynix.suite5.v2` in [`suite5_results.json`](benchmarks/suite5/suite5_re
 
 Sample run (Windows, 2026-08-23; **re-run on your machine** — numbers vary ±5–15%):
 
-**All 12 C ↔ Rynix ↔ End checksums pass.** Trip counts use an **opaque** barrier so Suite5
-cannot collapse to a host-evaluated constant from a literal `n`. Compilers may still
-**strength-reduce** recognized patterns (closed forms, `ctpop`, matrix fib, …) while
-peers keep the source loop shape — documented in Notes. Suite5 measures **binary time
-for the same checksum**, not identical instruction mixes.
+**All 12 C ↔ Rynix ↔ End checksums pass.** Trip counts use an **opaque** barrier in
+**every** language (including End .end ports) so Suite5 cannot collapse to a
+host-evaluated constant from a literal \. Compilers may still **strength-reduce**
+recognized patterns (closed forms, \ctpop\, matrix fib, …) while peers keep the
+source loop shape — documented in Notes. Suite5 measures **binary time for the same
+checksum**, not identical instruction mixes.
 
 | Workload | C    | Rust | Go   | Zig  | Rynix   | End†  | Rynix/C   | Notes                    |
 | -------- | ---- | ---- | ---- | ---- | ------- | ----- | --------- | ------------------------ |
-| alu      | 8.6  | 7.9  | 11.7 | 9.6  | **5.7** | 9.7   | **0.67×** | mix closed form          |
-| nested   | 7.8  | 6.2  | 9.1  | 8.4  | 5.9     | **5.4** | **0.76×** | residue O(m²)            |
-| fib      | 7.6  | 6.9  | 10.1 | 7.9  | **5.6** | 6.8   | **0.73×** | matrix power             |
-| hash     | 19.7 | 18.1 | 19.1 | 19.1 | **5.1** | 15.3  | **0.26×** | poly + modpow            |
-| prime    | 14.2 | 14.6 | 17.3 | 12.4 | **8.3** | 13.0  | **0.59×** | trial division           |
-| sum      | 6.2  | 10.7 | 9.5  | 7.0  | **5.8** | 6.6   | **0.94×** | sum-of-squares closed    |
-| bits     | 448  | 435  | 443  | 478  | **89**  | 395   | **0.20×** | `@llvm.ctpop`            |
-| matrix   | 7.3  | 10.6 | 66.7 | 7.2  | **5.3** | 5.7   | **0.73×** | 4×4 matmul               |
-| scan     | 16.4 | 15.3 | 15.3 | 18.2 | **5.5** | 10.9  | **0.33×** | inclusion-exclusion      |
-| powmod   | 15.1 | 14.4 | 17.5 | 15.5 | **11.8**| 13.1  | **0.78×** | rem peel                 |
-| gcd      | 163  | 169  | 222  | 168  | **115** | 213   | **0.71×** | binary / Stein           |
-| reduce   | 13.8 | 15.0 | 20.8 | 14.6 | **7.9** | 16.1  | **0.57×** | mix closed form          |
+| alu      | 9.5  | 9.8  | 11.7 | 9.6  | **5.9** | 8.0   | **0.62×** | mix closed form          |
+| nested   | 7.3  | 6.8  | 10.1 | 8.3  | 6.3     | **5.9** | **0.86×** | residue O(m²)            |
+| fib      | 7.0  | 7.5  | 10.4 | 7.8  | **5.3** | 6.7   | **0.75×** | matrix power             |
+| hash     | 19.1 | 17.9 | 19.3 | 18.8 | **6.1** | 14.7  | **0.32×** | poly + modpow            |
+| prime    | 11.1 | 10.4 | 15.2 | 11.5 | **8.0** | 13.0  | **0.73×** | trial division           |
+| sum      | 6.2  | 5.5  | 8.8  | 6.2  | **5.3** | 5.9   | **0.86×** | sum-of-squares closed    |
+| bits     | 450  | 439  | 441  | 473  | **88**  | 367   | **0.19×** | \@llvm.ctpop\            |
+| matrix   | 6.8  | 8.2  | 68.5 | 6.5  | **5.7** | 5.9   | **0.83×** | 4×4 matmul               |
+| scan     | 18.0 | 16.2 | 16.2 | 16.5 | **6.0** | 16.0  | **0.33×** | inclusion-exclusion      |
+| powmod   | 15.6 | 14.4 | 17.1 | 15.5 | 16.4    | **13.2**| 1.05×     | rem peel                 |
+| gcd      | 163  | 168  | 210  | 166  | **112** | 210   | **0.68×** | binary / Stein           |
+| reduce   | 12.9 | 14.2 | 19.2 | 13.5 | **5.3** | 14.5  | **0.42×** | mix closed form          |
 
-† End via local `endc` ([END_INTEGRATION.md](benchmarks/suite5/END_INTEGRATION.md)).
+† End via local \endc\ ([END_INTEGRATION.md](benchmarks/suite5/END_INTEGRATION.md));
+Suite5 \.end\ ports use the same opaque trip-count contract as C/Rynix.
 
-**Fastest on this 6-lang run:** Rynix on **11/12** workloads (End edges `nested` by ~10%).
+**Fastest on this 6-lang run:** Rynix on **10/12** (End edges ested\ and \powmod\).
 
-Times from [`suite5_results.json`](benchmarks/suite5/suite5_results.json). Refresh:
+Times from [\suite5_results.json\](benchmarks/suite5/suite5_results.json). Refresh:
 
-```sh
+\\sh
 python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary
 python benchmarks/suite5/analyze_results.py
-```
-
-Details: [`benchmarks/suite5/README.md`](benchmarks/suite5/README.md)
+\
+Details: [\enchmarks/suite5/README.md\](benchmarks/suite5/README.md)
 
 #### Performance honesty
 
