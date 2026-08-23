@@ -37,3 +37,4 @@ Until then, stubs that print C without semantics are **forbidden** (AGENTS.md).
 - SURPASS D5 is closed by this ADR reaffirmation, not by shipping C11 emit
 - Competitive “beyond Surpass” wave (2026-08-23): **no C11 transpile** — LLVM + C
   runtime remains the honest alternative; revisit criteria above are unchanged
+- Follow-on wave: local package **index** (ADR-0010) is not a C11 backend

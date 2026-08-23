@@ -1,6 +1,10 @@
-//! `rynix.toml` manifest + path dependency resolution (Phase D3).
+//! `rynix.toml` manifest + dependency resolution (Phase D3 + local index).
 //!
-//! No registry: only `{ path = "..." }` deps. Missing paths fail resolve/build.
+//! Dependencies may be:
+//! - `{ path = "..." }` — filesystem path (existing)
+//! - `"x.y.z"` version string — resolved under `[registry] path = "..."` only
+//!
+//! There is **no** network registry. Missing local vendor dirs fail resolve/build.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,19 +19,30 @@ pub struct Manifest {
     pub entry: Option<PathBuf>,
     pub runtime: Option<String>,
     pub optimize: Option<bool>,
-    pub deps: Vec<PathDep>,
+    /// Local package index root (`[registry] path = "vendor"`).
+    pub registry_path: Option<PathBuf>,
+    pub deps: Vec<DepSpec>,
 }
 
 #[derive(Debug, Clone)]
-pub struct PathDep {
+pub struct DepSpec {
     pub name: String,
-    pub path: PathBuf,
+    pub kind: DepKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum DepKind {
+    Path(PathBuf),
+    /// Exact version string resolved under the local registry index.
+    Version(String),
 }
 
 #[derive(Debug, Clone)]
 pub struct ResolvedDep {
     pub name: String,
+    pub kind: String,
     pub path: PathBuf,
+    pub version: Option<String>,
     pub entry: Option<PathBuf>,
     pub ok: bool,
     pub detail: String,
@@ -37,6 +52,7 @@ pub struct ResolvedDep {
 pub struct DepsReport {
     pub root_manifest: PathBuf,
     pub package: String,
+    pub registry: Option<PathBuf>,
     pub deps: Vec<ResolvedDep>,
 }
 
@@ -50,16 +66,18 @@ impl DepsReport {
             "schema": "rynix.deps.v1",
             "manifest": self.root_manifest.display().to_string(),
             "package": self.package,
+            "registry": self.registry.as_ref().map(|p| p.display().to_string()),
             "status": if self.all_ok() { "ok" } else { "error" },
             "dependencies": self.deps.iter().map(|d| json!({
                 "name": d.name,
-                "kind": "path",
+                "kind": d.kind,
                 "path": d.path.display().to_string(),
+                "version": d.version,
                 "entry": d.entry.as_ref().map(|p| p.display().to_string()),
                 "ok": d.ok,
                 "detail": d.detail,
             })).collect::<Vec<_>>(),
-            "note": "Local path deps only — no package registry (SURPASS D3).",
+            "note": "Local path deps and optional filesystem package index — no network registry.",
         })
     }
 }
@@ -101,70 +119,136 @@ pub fn load_manifest(path: &Path) -> Result<Manifest, String> {
     Ok(m)
 }
 
+fn resolve_one_dir(name: &str, kind: &str, abs: PathBuf, version: Option<String>) -> ResolvedDep {
+    let dep_toml = abs.join("rynix.toml");
+    if !abs.is_dir() {
+        return ResolvedDep {
+            name: name.into(),
+            kind: kind.into(),
+            path: abs,
+            version,
+            entry: None,
+            ok: false,
+            detail: "path is not a directory".into(),
+        };
+    }
+    if !dep_toml.is_file() {
+        return ResolvedDep {
+            name: name.into(),
+            kind: kind.into(),
+            path: abs,
+            version,
+            entry: None,
+            ok: false,
+            detail: "missing rynix.toml in dependency path".into(),
+        };
+    }
+    match load_manifest(&dep_toml) {
+        Ok(dm) => {
+            let entry = dm.entry.as_ref().map(|e| {
+                let p = dm.dir.join(e);
+                fs::canonicalize(&p).unwrap_or(p)
+            });
+            let (ok, detail) = match &entry {
+                Some(p) if p.is_file() => (true, format!("entry {}", p.display())),
+                Some(p) => (false, format!("entry missing: {}", p.display())),
+                None => (true, "manifest ok (no entry — check-only dep)".into()),
+            };
+            ResolvedDep {
+                name: name.into(),
+                kind: kind.into(),
+                path: abs,
+                version,
+                entry,
+                ok,
+                detail,
+            }
+        }
+        Err(e) => ResolvedDep {
+            name: name.into(),
+            kind: kind.into(),
+            path: abs,
+            version,
+            entry: None,
+            ok: false,
+            detail: e,
+        },
+    }
+}
+
+fn resolve_registry_version(manifest: &Manifest, name: &str, ver: &str) -> ResolvedDep {
+    let Some(reg_rel) = &manifest.registry_path else {
+        return ResolvedDep {
+            name: name.into(),
+            kind: "registry".into(),
+            path: manifest.dir.clone(),
+            version: Some(ver.into()),
+            entry: None,
+            ok: false,
+            detail: "version dep requires [registry] path = \"…\" (local index only)".into(),
+        };
+    };
+    let reg = if reg_rel.is_absolute() {
+        reg_rel.clone()
+    } else {
+        manifest.dir.join(reg_rel)
+    };
+    let reg = fs::canonicalize(&reg).unwrap_or(reg);
+    // Layouts: vendor/<name>/<version>/  then  vendor/<name>-<version>/
+    let candidates = [
+        reg.join(name).join(ver),
+        reg.join(format!("{name}-{ver}")),
+    ];
+    for cand in &candidates {
+        if cand.is_dir() && cand.join("rynix.toml").is_file() {
+            let abs = fs::canonicalize(cand).unwrap_or_else(|_| cand.clone());
+            return resolve_one_dir(name, "registry", abs, Some(ver.into()));
+        }
+    }
+    ResolvedDep {
+        name: name.into(),
+        kind: "registry".into(),
+        path: reg.clone(),
+        version: Some(ver.into()),
+        entry: None,
+        ok: false,
+        detail: format!(
+            "package `{name}` version `{ver}` not found under local registry (tried {}/{{name}}/{{ver}} and {{name}}-{{ver}})",
+            reg.display()
+        ),
+    }
+}
+
 pub fn resolve_deps(manifest: &Manifest) -> DepsReport {
     let mut out = Vec::new();
     for dep in &manifest.deps {
-        let abs = if dep.path.is_absolute() {
-            dep.path.clone()
-        } else {
-            manifest.dir.join(&dep.path)
-        };
-        let abs = fs::canonicalize(&abs).unwrap_or(abs);
-        let dep_toml = abs.join("rynix.toml");
-        if !abs.is_dir() {
-            out.push(ResolvedDep {
-                name: dep.name.clone(),
-                path: abs,
-                entry: None,
-                ok: false,
-                detail: "path is not a directory".into(),
-            });
-            continue;
-        }
-        if !dep_toml.is_file() {
-            out.push(ResolvedDep {
-                name: dep.name.clone(),
-                path: abs,
-                entry: None,
-                ok: false,
-                detail: "missing rynix.toml in dependency path".into(),
-            });
-            continue;
-        }
-        match load_manifest(&dep_toml) {
-            Ok(dm) => {
-                let entry = dm.entry.as_ref().map(|e| {
-                    let p = dm.dir.join(e);
-                    fs::canonicalize(&p).unwrap_or(p)
-                });
-                let (ok, detail) = match &entry {
-                    Some(p) if p.is_file() => (true, format!("entry {}", p.display())),
-                    Some(p) => (false, format!("entry missing: {}", p.display())),
-                    None => (
-                        true,
-                        "manifest ok (no entry — check-only dep)".into(),
-                    ),
+        match &dep.kind {
+            DepKind::Path(p) => {
+                let abs = if p.is_absolute() {
+                    p.clone()
+                } else {
+                    manifest.dir.join(p)
                 };
-                out.push(ResolvedDep {
-                    name: dep.name.clone(),
-                    path: abs,
-                    entry,
-                    ok,
-                    detail,
-                });
+                let abs = fs::canonicalize(&abs).unwrap_or(abs);
+                out.push(resolve_one_dir(&dep.name, "path", abs, None));
             }
-            Err(e) => out.push(ResolvedDep {
-                name: dep.name.clone(),
-                path: abs,
-                entry: None,
-                ok: false,
-                detail: e,
-            }),
+            DepKind::Version(ver) => {
+                out.push(resolve_registry_version(manifest, &dep.name, ver));
+            }
         }
     }
+    let registry = manifest.registry_path.as_ref().map(|p| {
+        let abs = if p.is_absolute() {
+            p.clone()
+        } else {
+            manifest.dir.join(p)
+        };
+        fs::canonicalize(&abs).unwrap_or(abs)
+    });
     DepsReport {
         root_manifest: manifest.dir.join("rynix.toml"),
         package: manifest.name.clone(),
+        registry,
         deps: out,
     }
 }
@@ -194,23 +278,27 @@ fn parse_manifest_toml(content: &str) -> Manifest {
             continue;
         }
         if section == "[dependencies]" {
-            // foo = { path = "..." }
             if let Some(eq) = line.find('=') {
                 let name = line[..eq].trim().to_string();
                 let rhs = line[eq + 1..].trim();
                 if let Some(path) = extract_path_from_inline_table(rhs) {
-                    m.deps.push(PathDep {
+                    m.deps.push(DepSpec {
                         name,
-                        path: PathBuf::from(path),
+                        kind: DepKind::Path(PathBuf::from(path)),
+                    });
+                } else if let Some(ver) = parse_bare_string(rhs) {
+                    m.deps.push(DepSpec {
+                        name,
+                        kind: DepKind::Version(ver),
                     });
                 } else if rhs == "{" || rhs.starts_with('{') {
                     pending_dep = Some(name);
                 }
             } else if let Some(name) = pending_dep.clone() {
                 if let Some(path) = parse_string_assign(line, "path") {
-                    m.deps.push(PathDep {
+                    m.deps.push(DepSpec {
                         name,
-                        path: PathBuf::from(path),
+                        kind: DepKind::Path(PathBuf::from(path)),
                     });
                     pending_dep = None;
                 }
@@ -228,6 +316,11 @@ fn parse_manifest_toml(content: &str) -> Manifest {
                     m.entry = Some(PathBuf::from(v));
                 }
             }
+            "[registry]" => {
+                if let Some(v) = parse_string_assign(line, "path") {
+                    m.registry_path = Some(PathBuf::from(v));
+                }
+            }
             "[build]" => {
                 if let Some(v) = parse_string_assign(line, "runtime") {
                     m.runtime = Some(v);
@@ -241,12 +334,24 @@ fn parse_manifest_toml(content: &str) -> Manifest {
     m
 }
 
+fn parse_bare_string(rhs: &str) -> Option<String> {
+    let rhs = rhs.trim();
+    if rhs.starts_with('{') {
+        return None;
+    }
+    let v = rhs.trim_matches(|c| c == '"' || c == '\'');
+    if v.is_empty() || v.contains('=') {
+        None
+    } else {
+        Some(v.to_string())
+    }
+}
+
 fn extract_path_from_inline_table(rhs: &str) -> Option<String> {
     let rhs = rhs.trim();
     if !rhs.starts_with('{') {
         return None;
     }
-    // { path = "foo" } or { path = 'foo' }
     for part in rhs.trim_matches(|c| c == '{' || c == '}').split(',') {
         let part = part.trim();
         if let Some(v) = parse_string_assign(part, "path") {
@@ -312,6 +417,43 @@ util = { path = "../util" }
         assert_eq!(m.name, "app");
         assert_eq!(m.deps.len(), 1);
         assert_eq!(m.deps[0].name, "util");
-        assert_eq!(m.deps[0].path, PathBuf::from("../util"));
+        match &m.deps[0].kind {
+            DepKind::Path(p) => assert_eq!(p, &PathBuf::from("../util")),
+            _ => panic!("expected path dep"),
+        }
+    }
+
+    #[test]
+    fn parses_registry_version_dep() {
+        let m = parse_manifest_toml(
+            r#"
+[package]
+name = "app"
+
+[registry]
+path = "vendor"
+
+[dependencies]
+util = "0.1.0"
+"#,
+        );
+        assert_eq!(m.registry_path, Some(PathBuf::from("vendor")));
+        assert_eq!(m.deps.len(), 1);
+        match &m.deps[0].kind {
+            DepKind::Version(v) => assert_eq!(v, "0.1.0"),
+            _ => panic!("expected version dep"),
+        }
+    }
+
+    #[test]
+    fn resolves_local_registry_layout() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pkg_reg_app");
+        let root = root.canonicalize().expect("testdata");
+        let m = load_manifest(&root.join("rynix.toml")).expect("manifest");
+        let report = resolve_deps(&m);
+        assert!(report.all_ok(), "{:?}", report.deps);
+        assert_eq!(report.deps.len(), 1);
+        assert_eq!(report.deps[0].kind, "registry");
+        assert_eq!(report.deps[0].version.as_deref(), Some("0.1.0"));
     }
 }

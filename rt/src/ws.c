@@ -184,15 +184,20 @@ static void ws_mask_xor(uint8_t *data, int64_t n, const uint8_t mask[4]) {
   }
 }
 
+/* Max single-frame payload (DoS bound). RFC 6455 64-bit length MSB must be 0. */
+#define RYNIX_WS_MAX_PAYLOAD (1 << 20)
+
 /* Encode one WS data frame. mask4 non-NULL → set MASK bit (client→server).
  * fin: 1 = final fragment. opcode: 1=text, 0=continuation, …
- * Payload length 0..65535 (7-bit or 16-bit extended). Returns wire length, or -1. */
+ * Lengths: ≤125 (7-bit), ≤65535 (16-bit/126), else 64-bit/127 up to MAX. */
 int64_t rynix_rt_ws_frame_encode_ex(int64_t fin, int64_t opcode, const char *payload, int64_t n,
                                     const uint8_t *mask4, uint8_t *out, int64_t out_cap) {
   int64_t need;
   int64_t hdr;
   int masked;
-  if (!out || n < 0 || n > 65535 || opcode < 0 || opcode > 15 || (fin != 0 && fin != 1)) {
+  int i;
+  if (!out || n < 0 || n > RYNIX_WS_MAX_PAYLOAD || opcode < 0 || opcode > 15 ||
+      (fin != 0 && fin != 1)) {
     return -1;
   }
   if (n > 0 && !payload) {
@@ -201,8 +206,10 @@ int64_t rynix_rt_ws_frame_encode_ex(int64_t fin, int64_t opcode, const char *pay
   masked = mask4 != NULL;
   if (n <= 125) {
     hdr = 2;
+  } else if (n <= 65535) {
+    hdr = 4;
   } else {
-    hdr = 4; /* 126 + 2-byte length */
+    hdr = 10; /* 127 + 8-byte BE length */
   }
   need = hdr + (masked ? 4 : 0) + n;
   if (out_cap < need) {
@@ -211,10 +218,15 @@ int64_t rynix_rt_ws_frame_encode_ex(int64_t fin, int64_t opcode, const char *pay
   out[0] = (uint8_t)(((fin ? 0x80 : 0) | (opcode & 0x0f)));
   if (n <= 125) {
     out[1] = (uint8_t)((masked ? 0x80 : 0) | (uint8_t)n);
-  } else {
+  } else if (n <= 65535) {
     out[1] = (uint8_t)((masked ? 0x80 : 0) | 126);
     out[2] = (uint8_t)((n >> 8) & 0xff);
     out[3] = (uint8_t)(n & 0xff);
+  } else {
+    out[1] = (uint8_t)((masked ? 0x80 : 0) | 127);
+    for (i = 0; i < 8; i++) {
+      out[2 + i] = (uint8_t)((n >> (56 - 8 * i)) & 0xff);
+    }
   }
   {
     uint8_t *body = out + hdr;
@@ -237,7 +249,20 @@ int64_t rynix_rt_ws_frame_encode(int64_t opcode, const char *payload, int64_t n,
   return rynix_rt_ws_frame_encode_ex(1, opcode, payload, n, mask4, out, out_cap);
 }
 
-/* Decode one WS frame. Supports 7-bit and 16-bit lengths (not 64-bit/127).
+static int64_t ws_len_hdr_bytes(int64_t len_code) {
+  if (len_code <= 125) {
+    return 2;
+  }
+  if (len_code == 126) {
+    return 4;
+  }
+  if (len_code == 127) {
+    return 10;
+  }
+  return -1;
+}
+
+/* Decode one WS frame. Supports 7/16/64-bit lengths (127 capped at MAX).
  * Sets *out_fin (0/1) and *out_opcode when non-NULL. Returns payload length. */
 int64_t rynix_rt_ws_frame_decode_ex(const uint8_t *in, int64_t in_len, char *payload,
                                     int64_t payload_cap, int64_t *out_fin, int64_t *out_opcode) {
@@ -245,8 +270,10 @@ int64_t rynix_rt_ws_frame_decode_ex(const uint8_t *in, int64_t in_len, char *pay
   int64_t len_code;
   int masked;
   int64_t hdr;
+  int64_t len_hdr;
   const uint8_t *body;
   uint8_t mask[4];
+  int i;
   if (!in || in_len < 2) {
     return -1;
   }
@@ -258,26 +285,35 @@ int64_t rynix_rt_ws_frame_decode_ex(const uint8_t *in, int64_t in_len, char *pay
   }
   masked = (in[1] & 0x80) != 0;
   len_code = in[1] & 0x7f;
+  len_hdr = ws_len_hdr_bytes(len_code);
+  if (len_hdr < 0 || in_len < len_hdr) {
+    return -1;
+  }
   if (len_code <= 125) {
     plen = len_code;
-    hdr = 2;
   } else if (len_code == 126) {
-    if (in_len < 4) {
+    plen = ((int64_t)in[2] << 8) | (int64_t)in[3];
+  } else {
+    /* 127: 64-bit BE; MSB must be 0 per RFC. */
+    if (in[2] & 0x80) {
       return -1;
     }
-    plen = ((int64_t)in[2] << 8) | (int64_t)in[3];
-    hdr = 4;
-  } else {
-    return -1; /* 127 / 64-bit not in this surface */
+    plen = 0;
+    for (i = 0; i < 8; i++) {
+      plen = (plen << 8) | (int64_t)in[2 + i];
+    }
+    if (plen > RYNIX_WS_MAX_PAYLOAD) {
+      return -1;
+    }
   }
-  hdr += masked ? 4 : 0;
+  hdr = len_hdr + (masked ? 4 : 0);
   if (in_len < hdr + plen) {
     return -1;
   }
   if (plen > payload_cap || (plen > 0 && !payload)) {
     return -1;
   }
-  body = in + (len_code <= 125 ? 2 : 4);
+  body = in + len_hdr;
   if (masked) {
     memcpy(mask, body, 4);
     body += 4;
@@ -330,7 +366,10 @@ int64_t rynix_rt_ws_message_decode(const uint8_t *in, int64_t in_len, char *payl
     total += n;
     len_code = in[off + 1] & 0x7f;
     masked = (in[off + 1] & 0x80) != 0;
-    hdr = (len_code <= 125) ? 2 : 4;
+    hdr = ws_len_hdr_bytes(len_code);
+    if (hdr < 0) {
+      return -1;
+    }
     frame_wire = hdr + (masked ? 4 : 0) + n;
     off += frame_wire;
     if (fin) {
@@ -574,7 +613,7 @@ int64_t rynix_rt_ws_client_echo(const char *host, int64_t port, const char *msg)
   return 0;
 }
 
-/* Offline KATs: short, extended-length, and fragmented message. Returns 0 on OK. */
+/* Offline KATs: short, 16-bit, 64-bit, and fragmented message. Returns 0 on OK. */
 int64_t rynix_rt_ws_frame_roundtrip_ok(void) {
   static const uint8_t mask[4] = {0xaa, 0xbb, 0xcc, 0xdd};
   const char *msg = "rynix-ws";
@@ -585,6 +624,10 @@ int64_t rynix_rt_ws_frame_roundtrip_ok(void) {
   int64_t n;
   char big[200];
   int i;
+  const int64_t huge_n = 70000;
+  uint8_t *huge_wire = NULL;
+  char *huge_pay = NULL;
+  char *huge_back = NULL;
 
   w = rynix_rt_ws_frame_encode(1, msg, (int64_t)strlen(msg), mask, wire, (int64_t)sizeof(wire));
   if (w < 0) {
@@ -607,6 +650,37 @@ int64_t rynix_rt_ws_frame_roundtrip_ok(void) {
   if (n != 200 || opcode != 1 || memcmp(back, big, 200) != 0) {
     return -1;
   }
+
+  /* 64-bit length (127) for payload >65535. */
+  huge_pay = (char *)malloc((size_t)huge_n);
+  huge_back = (char *)malloc((size_t)huge_n);
+  huge_wire = (uint8_t *)malloc((size_t)huge_n + 64);
+  if (!huge_pay || !huge_back || !huge_wire) {
+    free(huge_pay);
+    free(huge_back);
+    free(huge_wire);
+    return -1;
+  }
+  for (i = 0; i < (int)huge_n; i++) {
+    huge_pay[i] = (char)(i & 0xff);
+  }
+  w = rynix_rt_ws_frame_encode(1, huge_pay, huge_n, mask, huge_wire, huge_n + 64);
+  if (w < 0 || (huge_wire[1] & 0x7f) != 127) {
+    free(huge_pay);
+    free(huge_back);
+    free(huge_wire);
+    return -1;
+  }
+  n = rynix_rt_ws_frame_decode(huge_wire, w, huge_back, huge_n, &opcode);
+  if (n != huge_n || opcode != 1 || memcmp(huge_back, huge_pay, (size_t)huge_n) != 0) {
+    free(huge_pay);
+    free(huge_back);
+    free(huge_wire);
+    return -1;
+  }
+  free(huge_pay);
+  free(huge_back);
+  free(huge_wire);
 
   /* Fragmented: FIN=0 text + FIN=1 continuation. */
   {

@@ -171,8 +171,9 @@ Priority is **evidence-first** (test or CI before README ✅).
 - [x] `#^ effect: pure` static purity (`RYX2012`)
 - [x] `rynixc security` + `scope` (deny-by-default patch write)
 - [x] Local path packages (`rynix.toml` `[dependencies]` + `rynixc deps` / build gate; no registry)
-- [x] C11 backend **deferred** with documented alternative ([ADR-0008](adr/0008-deferred-c11-backend.md) — LLVM + C RT; no stub transpiler)
-- [x] UI/canvas **deferred** ([ADR-0007](adr/0007-deferred-ui-frameworks.md) — WS networking ≠ UI)
+- [x] Local path packages + filesystem package index ([ADR-0010](adr/0010-local-package-index.md); no network CDN)
+- [x] C11 backend **deferred** ([ADR-0008](adr/0008-deferred-c11-backend.md))
+- [x] UI/canvas **deferred** ([ADR-0007](adr/0007-deferred-ui-frameworks.md))
 
 Ordered backlog: [SURPASS_END_PLAN.md](SURPASS_END_PLAN.md).
 

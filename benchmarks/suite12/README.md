@@ -33,6 +33,7 @@ evidence gate.
 | `dna_levenshtein.c` | #7 | `525912` | MATCH all langs |
 | `gemm_matrix.c` | #10 | `6422836` | MATCH all langs |
 | `monte_carlo_bs.c` | #11 | `10440246` | MATCH all langs |
+| `binary_trees.c` | #2 | `407713` | MATCH all langs (heavier; CI OK at `-O3`) |
 
 Gates: `size_echo_gates::suite12_*_checksum`.
 

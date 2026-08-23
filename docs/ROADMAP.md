@@ -141,21 +141,20 @@ Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
 | Use-after-move (linear types) | ✅ | `RYX2011` + `sema_unit` |
 | `#^ effect: pure` | ✅ | `RYX2012` + `effects_pure` + wave1 contract |
 | Agent `security` / `scope` | ✅ | `agent_cli` + MCP `rynix_security` / `rynix_scope` |
-| Local path packages (`rynix.toml` deps) | ✅ | `deps` + `rynix.deps.v1` + build gate; `testdata/pkg_*` |
+| Local path packages (`rynix.toml` deps) | ✅ | path + **local index** (`[registry]`); ADR-0010 |
 | `rynixc new` / `dna` | ✅ | scaffold + `rynix.dna.v1` + MCP |
 | TLS echo (SChannel / OpenSSL) | ✅ | `tls_echo_smoke_c` + soft builtins |
 | HMAC + AES-GCM KAT | ✅ | RFC 4231 + NIST empty-tag; `crypto_kv_smoke` |
 | VS Code CodeLens (check/alloc/impact) | ✅ | `editors/vscode` CodeLens provider |
-| Suite12 honesty + checksum ports | ✅ | ALU/HFT/JSON/FSM gates; skip divergent End ids |
-| WS accept-key + frames (RFC 6455) | ✅ | `ws_frames_smoke_c` + soft builtins |
-| Windows IOCP runtime | ✅ | `--runtime=iocp` AcceptEx/ConnectEx + WSARecv/WSASend |
-| WS frames ≤65535 + fragmentation | ✅ | `ws_frames_smoke_c` KATs |
-| Suite12 MATCH ports | ✅ | ALU/HFT/JSON/FSM/DNA/GEMM/MC checksum gates |
-| GPG release path | ✅ | `release.yml` + `gpg_sign_smoke` (skip without gpg) |
+| Suite12 MATCH ports | ✅ | ALU/HFT/JSON/FSM/DNA/GEMM/MC/trees checksum gates |
+| WS RFC6455 (64-bit + frag) | ✅ | `ws_frames_smoke_c` KATs |
+| Windows IOCP runtime | ✅ | AcceptEx/ConnectEx + WSARecv/WSASend |
+| GPG release path | ✅ | `release.yml` + `gpg_sign_smoke` |
 | Release packaging + optional GPG | ✅ | `scripts/build_release.ps1` + `release.yml` |
 | DCE strips dead Suite5 noise | ✅ | `dce_matrix_noise` — matrix LLVM is `opaque*216` |
-| C11 backend | 🔄 deferred | ADR-0008 — beyond-Surpass closed without stub transpile |
-| UI / canvas | 🔄 deferred | ADR-0007 — beyond-Surpass closed without stub studio |
+| C11 backend | 🔄 deferred | ADR-0008 — no stub transpile |
+| UI / canvas | 🔄 deferred | ADR-0007 — no stub studio |
+| Network package registry | 🔄 deferred | ADR-0010 — local index only |
 
 ## CI
 

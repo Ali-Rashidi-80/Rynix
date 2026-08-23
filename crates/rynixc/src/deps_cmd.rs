@@ -32,22 +32,32 @@ pub fn run(options: &DepsOptions) -> ExitCode {
         }
         ErrorFormat::Human => {
             println!(
-                "package `{}` ({}): {} path dep(s)",
+                "package `{}` ({}): {} dep(s)",
                 report.package,
                 report.root_manifest.display(),
                 report.deps.len()
             );
+            if let Some(reg) = &report.registry {
+                println!("  registry: {}", reg.display());
+            }
             for d in &report.deps {
                 let mark = if d.ok { "ok" } else { "FAIL" };
+                let ver = d
+                    .version
+                    .as_ref()
+                    .map(|v| format!(" @{v}"))
+                    .unwrap_or_default();
                 println!(
-                    "  [{mark}] {} -> {} ({})",
+                    "  [{mark}] {} ({}){} -> {} ({})",
                     d.name,
+                    d.kind,
+                    ver,
                     d.path.display(),
                     d.detail
                 );
             }
             if report.deps.is_empty() {
-                println!("  (no [dependencies] — local path deps only; no registry)");
+                println!("  (no [dependencies])");
             }
         }
     }

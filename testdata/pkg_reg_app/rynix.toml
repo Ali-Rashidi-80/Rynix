@@ -1,0 +1,10 @@
+[package]
+name = "pkg_reg_app"
+version = "0.1.0"
+entry = "main.ryx"
+
+[registry]
+path = "vendor"
+
+[dependencies]
+util = "0.1.0"

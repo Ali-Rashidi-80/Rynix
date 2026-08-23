@@ -657,6 +657,15 @@ fn suite12_monte_carlo_bs_checksum() {
 }
 
 #[test]
+fn suite12_binary_trees_checksum() {
+    suite12_checksum_gate(
+        "benchmarks/suite12/binary_trees.c",
+        "rynix_suite12_trees",
+        "checksum=407713",
+    );
+}
+
+#[test]
 fn ws_accept_smoke_c() {
     let Some(clang) = clang() else {
         eprintln!("skip: no clang on PATH");

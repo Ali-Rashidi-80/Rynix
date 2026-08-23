@@ -18,9 +18,9 @@ ad-hoc scraping.
 - Structure: `rynixc graph file.ryx` / `rynixc slice file.ryx`
 - Contracts: `rynixc verify --contract=docs/contracts/wave1.contract.toml`
 - Agent write gate: `patch --write` denied unless `rynix.scope.toml` / `--force-write`
-- Path deps: `rynixc deps` → `rynix.deps.v1` (local `[dependencies]` only; no registry)
+- Path deps: `rynixc deps` → `rynix.deps.v1` (path + local `[registry]` index; no network)
 - Conventions: `rynixc dna` → `rynix.dna.v1` (heuristic; not “80 layers”)
-- Scaffold: `rynixc new <name>` → local package (no registry)
+- Scaffold: `rynixc new <name>` → local package (no registry CDN)
 ## Honesty rules
 
 - Do not mark ROADMAP items ✅ without in-tree tests.

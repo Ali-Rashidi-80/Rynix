@@ -1,0 +1,5 @@
+## vendor util 0.1.0 — local registry fixture
+
+fn util_id() -> i64 {
+  42
+}

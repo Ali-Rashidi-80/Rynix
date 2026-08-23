@@ -38,3 +38,5 @@ Revisit only when:
 - END_PEER_GAP “game/canvas” stays open; WebSocket networking may be ✅ separately
 - Competitive “beyond Surpass” wave (2026-08-23): **closed by this ADR** — shipping
   a stub studio would violate AGENTS.md; revisit criteria above are unchanged
+- Follow-on wave (same day): still **no UI** — network WS/registry advances do not
+  imply canvas/studio acceptance

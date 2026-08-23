@@ -8,6 +8,7 @@
     "schema": { "const": "rynix.deps.v1" },
     "manifest": { "type": "string" },
     "package": { "type": "string" },
+    "registry": { "type": ["string", "null"] },
     "status": { "type": "string", "enum": ["ok", "error"] },
     "dependencies": {
       "type": "array",
@@ -16,8 +17,9 @@
         "required": ["name", "kind", "path", "ok", "detail"],
         "properties": {
           "name": { "type": "string" },
-          "kind": { "const": "path" },
+          "kind": { "type": "string", "enum": ["path", "registry"] },
           "path": { "type": "string" },
+          "version": { "type": ["string", "null"] },
           "entry": { "type": ["string", "null"] },
           "ok": { "type": "boolean" },
           "detail": { "type": "string" }

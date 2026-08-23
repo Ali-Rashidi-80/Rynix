@@ -269,3 +269,36 @@ lower to `rynix_rt_*` symbols documented in [abi.md](abi.md):
 | `tensor`, `signal`, `agent` | smart primitives (stubs / hooks) |
 
 Notes in `std/*.ryx` are documentation only until a module loader ships.
+
+## 6. Packages & local index (v0.1)
+
+Packages are directories with a `rynix.toml` manifest. There is **no** network
+registry ([ADR-0010](adr/0010-local-package-index.md)).
+
+### 6.1 Path dependencies
+
+```toml
+[dependencies]
+util = { path = "../util" }
+```
+
+Resolved relative to the manifest directory. Missing dirs / `rynix.toml` fail
+`rynixc deps` and `rynixc build`.
+
+### 6.2 Local filesystem index
+
+```toml
+[registry]
+path = "vendor"
+
+[dependencies]
+util = "0.1.0"
+```
+
+Exact version strings resolve to, in order:
+
+1. `{registry}/{name}/{version}/` (must contain `rynix.toml`)
+2. `{registry}/{name}-{version}/`
+
+Semver ranges, downloads, and mirrors are out of scope for v0.1.
+

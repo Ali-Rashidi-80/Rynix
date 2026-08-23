@@ -261,6 +261,37 @@ fn deps_resolves_path_package() {
 }
 
 #[test]
+fn deps_resolves_local_registry_version() {
+    let root = repo_root();
+    let app = root.join("testdata/pkg_reg_app");
+    let out = rynixc()
+        .args([
+            "deps",
+            app.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["schema"], "rynix.deps.v1");
+    assert_eq!(v["status"], "ok");
+    assert_eq!(v["package"], "pkg_reg_app");
+    assert!(v["registry"].as_str().unwrap().contains("vendor"));
+    let deps = v["dependencies"].as_array().expect("deps");
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0]["name"], "util");
+    assert_eq!(deps[0]["kind"], "registry");
+    assert_eq!(deps[0]["version"], "0.1.0");
+    assert_eq!(deps[0]["ok"], true);
+}
+
+#[test]
 fn deps_fails_missing_path() {
     let dir = std::env::temp_dir().join("rynix_deps_missing");
     let _ = std::fs::remove_dir_all(&dir);
