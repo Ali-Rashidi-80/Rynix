@@ -397,30 +397,30 @@ Schema: `rynix.suite5.v2` in [`suite5_results.json`](benchmarks/suite5/suite5_re
 
 Sample run (Windows, 2026-08-23; **re-run on your machine** — numbers vary ±5–15%):
 
-**All 12 C ↔ Rynix checksums pass.** Trip counts use an **opaque** barrier so Suite5
+**All 12 C ↔ Rynix ↔ End checksums pass.** Trip counts use an **opaque** barrier so Suite5
 cannot collapse to a host-evaluated constant from a literal `n`. Compilers may still
 **strength-reduce** recognized patterns (closed forms, `ctpop`, matrix fib, …) while
 peers keep the source loop shape — documented in Notes. Suite5 measures **binary time
 for the same checksum**, not identical instruction mixes.
 
-| Workload | C    | Rust | Go   | Zig  | Rynix   | End†  | Rynix/C   | Notes                 |
-| -------- | ---- | ---- | ---- | ---- | ------- | ----- | --------- | --------------------- |
-| alu      | 10.2 | 7.5  | 12.0 | 14.4 | **7.1** | —     | **0.69×** | mix closed form       |
-| nested   | 7.3  | 7.5  | 8.7  | 7.3  | **5.5** | —     | **0.75×** | residue O(m²)         |
-| fib      | 8.5  | 8.2  | 10.1 | 8.4  | **6.0** | —     | **0.71×** | matrix power          |
-| hash     | 19.3 | 18.4 | 19.9 | 19.3 | **5.6** | —     | **0.29×** | poly + modpow         |
-| prime    | 11.5 | 11.6 | 17.5 | 12.1 | **9.1** | —     | **0.79×** |                       |
-| sum      | 8.3  | **6.6**| 9.9 | 6.6  | 7.6     | —     | 0.92×     | Σ i² / spawn noise    |
-| bits     | 459  | 436  | 445  | 475  | **88**  | —     | **0.19×** | `@llvm.ctpop`         |
-| matrix   | 8.0  | 7.6  | 67.2 | 8.0  | **5.7** | —     | **0.71×** |                       |
-| scan     | 16.9 | 15.4 | 15.4 | 20.6 | **5.5** | —     | **0.33×** | inclusion-exclusion   |
-| powmod   | 15.0 | 14.7 | 17.3 | 15.4 | **10.8**| —     | **0.72×** | rem peel              |
-| gcd      | 164  | 177  | 211  | 162  | **113** | —     | **0.69×** | binary / Stein        |
-| reduce   | 12.7 | 13.7 | 21.0 | 13.6 | **6.2** | —     | **0.49×** | mix closed form       |
+| Workload | C    | Rust | Go   | Zig  | Rynix   | End†  | Rynix/C   | Notes                    |
+| -------- | ---- | ---- | ---- | ---- | ------- | ----- | --------- | ------------------------ |
+| alu      | 8.6  | 7.9  | 11.7 | 9.6  | **5.7** | 9.7   | **0.67×** | mix closed form          |
+| nested   | 7.8  | 6.2  | 9.1  | 8.4  | 5.9     | **5.4** | **0.76×** | residue O(m²)            |
+| fib      | 7.6  | 6.9  | 10.1 | 7.9  | **5.6** | 6.8   | **0.73×** | matrix power             |
+| hash     | 19.7 | 18.1 | 19.1 | 19.1 | **5.1** | 15.3  | **0.26×** | poly + modpow            |
+| prime    | 14.2 | 14.6 | 17.3 | 12.4 | **8.3** | 13.0  | **0.59×** | trial division           |
+| sum      | 6.2  | 10.7 | 9.5  | 7.0  | **5.8** | 6.6   | **0.94×** | sum-of-squares closed    |
+| bits     | 448  | 435  | 443  | 478  | **89**  | 395   | **0.20×** | `@llvm.ctpop`            |
+| matrix   | 7.3  | 10.6 | 66.7 | 7.2  | **5.3** | 5.7   | **0.73×** | 4×4 matmul               |
+| scan     | 16.4 | 15.3 | 15.3 | 18.2 | **5.5** | 10.9  | **0.33×** | inclusion-exclusion      |
+| powmod   | 15.1 | 14.4 | 17.5 | 15.5 | **11.8**| 13.1  | **0.78×** | rem peel                 |
+| gcd      | 163  | 169  | 222  | 168  | **115** | 213   | **0.71×** | binary / Stein           |
+| reduce   | 13.8 | 15.0 | 20.8 | 14.6 | **7.9** | 16.1  | **0.57×** | mix closed form          |
 
-† End requires local `endc` ([END_INTEGRATION.md](benchmarks/suite5/END_INTEGRATION.md)); skipped on this run.
+† End via local `endc` ([END_INTEGRATION.md](benchmarks/suite5/END_INTEGRATION.md)).
 
-**Fastest on this 5-lang run:** Rynix on 11/12 workloads (sum lost to spawn noise vs Rust).
+**Fastest on this 6-lang run:** Rynix on **11/12** workloads (End edges `nested` by ~10%).
 
 Times from [`suite5_results.json`](benchmarks/suite5/suite5_results.json). Refresh:
 
