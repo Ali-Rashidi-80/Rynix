@@ -251,22 +251,9 @@ fn resolve_registry_version(manifest: &Manifest, name: &str, ver: &str) -> Resol
 
 pub fn resolve_deps(manifest: &Manifest) -> DepsReport {
     let mut out = Vec::new();
-    for dep in &manifest.deps {
-        match &dep.kind {
-            DepKind::Path(p) => {
-                let abs = if p.is_absolute() {
-                    p.clone()
-                } else {
-                    manifest.dir.join(p)
-                };
-                let abs = fs::canonicalize(&abs).unwrap_or(abs);
-                out.push(resolve_one_dir(&dep.name, "path", abs, None));
-            }
-            DepKind::Version(ver) => {
-                out.push(resolve_registry_version(manifest, &dep.name, ver));
-            }
-        }
-    }
+    let mut seen = std::collections::HashSet::new();
+    let mut stack = std::collections::HashSet::new();
+    resolve_deps_rec(manifest, &mut out, &mut seen, &mut stack);
     let registry = manifest.registry_path.as_ref().map(|p| {
         let abs = if p.is_absolute() {
             p.clone()
@@ -280,6 +267,61 @@ pub fn resolve_deps(manifest: &Manifest) -> DepsReport {
         package: manifest.name.clone(),
         registry,
         deps: out,
+    }
+}
+
+/// Depth-first post-order: transitive deps appear before their dependents.
+fn resolve_deps_rec(
+    manifest: &Manifest,
+    out: &mut Vec<ResolvedDep>,
+    seen: &mut std::collections::HashSet<PathBuf>,
+    stack: &mut std::collections::HashSet<PathBuf>,
+) {
+    for dep in &manifest.deps {
+        let resolved = match &dep.kind {
+            DepKind::Path(p) => {
+                let abs = if p.is_absolute() {
+                    p.clone()
+                } else {
+                    manifest.dir.join(p)
+                };
+                let abs = fs::canonicalize(&abs).unwrap_or(abs);
+                resolve_one_dir(&dep.name, "path", abs, None)
+            }
+            DepKind::Version(ver) => resolve_registry_version(manifest, &dep.name, ver),
+        };
+        if !resolved.ok {
+            out.push(resolved);
+            continue;
+        }
+        let key = resolved.path.clone();
+        if stack.contains(&key) {
+            out.push(ResolvedDep {
+                name: resolved.name,
+                kind: resolved.kind,
+                path: resolved.path,
+                version: resolved.version,
+                entry: resolved.entry,
+                ok: false,
+                detail: format!("cyclic dependency involving `{}`", dep.name),
+            });
+            continue;
+        }
+        if seen.contains(&key) {
+            continue;
+        }
+        stack.insert(key.clone());
+        let child_toml = key.join("rynix.toml");
+        if child_toml.is_file()
+            && let Ok(child) = load_manifest(&child_toml)
+        {
+            // Child registry is relative to the child package; inherit root
+            // registry only when child has none and parent is the app with registry.
+            resolve_deps_rec(&child, out, seen, stack);
+        }
+        stack.remove(&key);
+        seen.insert(key);
+        out.push(resolved);
     }
 }
 
@@ -485,5 +527,19 @@ util = "0.1.0"
         assert_eq!(report.deps.len(), 1);
         assert_eq!(report.deps[0].kind, "registry");
         assert_eq!(report.deps[0].version.as_deref(), Some("0.1.0"));
+    }
+
+    #[test]
+    fn resolves_transitive_path_deps_postorder() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pkg_app");
+        let root = root.canonicalize().expect("testdata");
+        let m = load_manifest(&root.join("rynix.toml")).expect("manifest");
+        let report = resolve_deps(&m);
+        assert!(report.all_ok(), "{:?}", report.deps);
+        assert_eq!(report.deps.len(), 2, "core then util: {:?}", report.deps);
+        assert_eq!(report.deps[0].name, "core");
+        assert_eq!(report.deps[1].name, "util");
+        let entries = report.compile_entry_paths().expect("entries");
+        assert_eq!(entries.len(), 2);
     }
 }

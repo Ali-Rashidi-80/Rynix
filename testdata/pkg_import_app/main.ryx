@@ -1,0 +1,7 @@
+## Qualified call after `import util` (SPEC §6.4).
+import util
+
+def main() -> i64
+  print_i64(util.util_answer())
+  return 0
+end

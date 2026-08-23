@@ -863,6 +863,24 @@ impl<'a> Checker<'a> {
                     self.note_move_from(a, "<arg>", a.span());
                 }
                 let method = self.interner.resolve(m.method.name).to_string();
+                // `import util` then `util.fn(...)` — package-qualified call.
+                if matches!(self.types.kind(recv), TypeKind::Module)
+                    && let Some(fdef) = self.scopes.lookup(self.module_scope, m.method.name)
+                {
+                    let fty = self
+                        .def_types
+                        .get(&fdef)
+                        .copied()
+                        .unwrap_or(self.types.ty_error);
+                    if let TypeKind::Fn { params, ret } = self.types.kind(fty).clone() {
+                        if params.len() != m.args.len() {
+                            self.sink
+                                .emit(errors::wrong_arity(m.span, params.len(), m.args.len()));
+                        }
+                        self.node_types.insert(m.id, ret);
+                        return ret;
+                    }
+                }
                 let ty = match (self.types.kind(recv), method.as_str()) {
                     (TypeKind::Slice(_), "len") => self.types.ty_int,
                     (TypeKind::Vec, "len" | "get") => self.types.ty_int,
@@ -1038,7 +1056,8 @@ impl<'a> Checker<'a> {
             self.node_types.insert(path.id, ty);
             return ty;
         }
-        // Multi-segment: if first is a module, remainder is opaque (external).
+        // Multi-segment: `import util` then `util.fn` resolves `fn` in the
+        // flat module scope (unity-compiled package deps, SPEC §6.3–6.4).
         if matches!(
             self.types.kind(
                 self.def_types
@@ -1048,7 +1067,27 @@ impl<'a> Checker<'a> {
             ),
             TypeKind::Module
         ) {
-            return self.types.ty_error; // unknown external — soft
+            if path.segments.len() == 2 {
+                let seg = &path.segments[1];
+                if let Some(fdef) = self.scopes.lookup(self.module_scope, seg.name) {
+                    let fty = self
+                        .def_types
+                        .get(&fdef)
+                        .copied()
+                        .unwrap_or(self.types.ty_error);
+                    if matches!(self.types.kind(fty), TypeKind::Fn { .. }) {
+                        self.path_resolution.insert(path.id, fdef);
+                        self.node_types.insert(path.id, fty);
+                        return fty;
+                    }
+                }
+                self.sink.emit(errors::unresolved_name(
+                    seg.span,
+                    self.interner.resolve(seg.name),
+                ));
+                return self.types.ty_error;
+            }
+            return self.types.ty_error; // longer module paths — soft/unknown
         }
         // Otherwise unresolved nested path.
         let last = path.segments.last().unwrap();

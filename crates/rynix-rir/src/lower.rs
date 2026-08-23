@@ -4469,10 +4469,16 @@ impl LowerCtx<'_, '_> {
         for a in c.args {
             args.push(self.expr(a));
         }
-        if let Expr::Path(p) = c.callee
-            && p.segments.len() == 1
-        {
-            let name = p.segments[0].name;
+        if let Expr::Path(p) = c.callee {
+            // `fn(...)` or `pkg.fn(...)` after `import pkg` (flat unity symbols).
+            let name = if p.segments.len() == 1 {
+                Some(p.segments[0].name)
+            } else if p.segments.len() == 2 {
+                Some(p.segments[1].name)
+            } else {
+                None
+            };
+            if let Some(name) = name {
             if self.interner.resolve(name) == "popcount" && args.len() == 1 {
                 return self.b.push_value(Inst::CtPop(args[0]));
             }
@@ -4501,22 +4507,52 @@ impl LowerCtx<'_, '_> {
                 }
                 return self.b.call(fid, args, ret);
             }
-            // External / builtin.
-            let n = self.interner.resolve(name).to_string();
-            if n == "tensor" && args.len() == 2 {
-                return args[1];
+            // External / builtin (single-segment only).
+            if p.segments.len() == 1 {
+                let n = self.interner.resolve(name).to_string();
+                if n == "tensor" && args.len() == 2 {
+                    return args[1];
+                }
+                return self.lower_soft_call(&n, name, args, c.id);
             }
-            return self.lower_soft_call(&n, name, args, c.id);
+            }
         }
         let _ = self.expr(c.callee);
         self.b.iconst(0)
     }
 
     fn lower_method_call(&mut self, m: &rynix_ast::MethodCallExpr<'_>) -> ValueId {
-        let recv = self.expr(m.receiver);
-        let method = self.interner.resolve(m.method.name).to_string();
         let recv_ty = self.analysis.node_types.get(&m.receiver.id()).copied();
         let kind = recv_ty.map(|t| self.analysis.types.kind(t));
+        // `import util` then `util.fn(...)` — flat package call (no receiver arg).
+        if kind.is_some_and(|k| matches!(k, TypeKind::Module)) {
+            let name = m.method.name;
+            let mut args = Vec::new();
+            for a in m.args {
+                args.push(self.expr(a));
+            }
+            if let Some(&fid) = self.fn_map.get(&name) {
+                let ret = self
+                    .analysis
+                    .scopes
+                    .lookup(self.analysis.module_scope, name)
+                    .and_then(|d| self.analysis.def_types.get(&d).copied())
+                    .map(|t| match self.analysis.types.kind(t) {
+                        TypeKind::Fn { ret, .. } => map_ty(self.analysis, *ret),
+                        _ => IrTy::Unit,
+                    })
+                    .unwrap_or(IrTy::Unit);
+                if let Some(fdef) = self.fn_bodies.get(&name)
+                    && is_inlineable(fdef, self.fn_map)
+                {
+                    return self.inline_call(fdef, &args, ret);
+                }
+                return self.b.call(fid, args, ret);
+            }
+            return self.b.iconst(0);
+        }
+        let recv = self.expr(m.receiver);
+        let method = self.interner.resolve(m.method.name).to_string();
         if method == "len" && kind.is_some_and(|k| matches!(k, TypeKind::Slice(_))) {
             return self.b.push_value(Inst::ArrayLen(recv));
         }

@@ -1,0 +1,4 @@
+## Transitive leaf package — compiled before dependents (SPEC §6.3).
+def core_id() -> i64
+  return 7
+end
