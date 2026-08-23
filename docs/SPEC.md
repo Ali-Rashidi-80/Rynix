@@ -268,7 +268,9 @@ lower to `rynix_rt_*` symbols documented in [abi.md](abi.md):
 | `kv_new` / `kv_put` / `kv_get` / `kv_len` | arena string→i64 map |
 | `tensor`, `signal`, `agent` | smart primitives (stubs / hooks) |
 
-Notes in `std/*.ryx` are documentation only until a module loader ships.
+Notes in `std/*.ryx` that contain **no** `def` remain documentation for soft
+builtins. Modules with real `def`s (e.g. `std/math.ryx`) load via
+`import std::<module>` (SPEC §6.5).
 
 ## 6. Packages & local index (v0.1)
 
@@ -300,23 +302,27 @@ Exact version strings resolve to, in order:
 1. `{registry}/{name}/{version}/` (must contain `rynix.toml`)
 2. `{registry}/{name}-{version}/`
 
-Semver ranges, downloads, and mirrors are out of scope for v0.1
+Semver ranges for the local index (`^`, `>=`, `=` — Cargo-compatible; for
+`0.y.z`, `^0.y.z` stays on the `0.y` line), downloads, and mirrors remain
+out of scope for CDN. Exact directory names still work; ranges pick the
+**highest** matching `{registry}/{name}/{version}/` folder
 ([ADR-0010](adr/0010-local-package-index.md)).
 
 ### 6.3 Unity compile of dependency entries
 
 `rynixc build` / `emit-ll` load each resolved dependency’s `[package].entry`
-**before** the app source and parse them as **one** compilation unit (flat
-symbol namespace). App code may call `def` names from dependency entries
-directly, or via `import` qualified calls (§6.4).
+**before** the app source and parse them as **one** compilation unit.
+Dependency `def` names are mangled to `pkg__fn` (double underscore). App bare
+calls to unique exports are rewritten to the mangled name; `pkg.fn(...)` is
+rewritten the same way. Soft builtins stay unmangled.
 
 Rules:
 
 - Every declared dependency must have a resolvable `entry` file at compile time
 - Dependency entries must **not** define `def main`
-- Duplicate `def` names across units are a compile error
-- Transitive deps are included (§6.4); network registries stay out of scope
-- Soft `std` builtins remain injected by sema (not loaded from `std/*.ryx`)
+- Duplicate bare `def` names across packages are a compile error
+- Transitive deps are included; network registries stay out of scope
+- Soft `std` builtins remain injected by sema
 
 Evidence: `testdata/pkg_app`, `testdata/pkg_reg_app`,
 `build_pkg_app_calls_path_dep`, `build_pkg_reg_app_resolves_registry_deps`.
@@ -331,10 +337,8 @@ def main() -> i64
 end
 ```
 
-`import name` binds `name` as a module. A call `name.fn(...)` is parsed as a
-method call on the module and resolves `fn` in the flat unity symbol table
-(same `def` as a bare `fn(...)` call). Longer paths and a full module loader
-remain out of scope.
+`import name` binds `name` as a module. A call `name.fn(...)` resolves to the
+mangled `name__fn` symbol in the unity unit.
 
 Evidence: `testdata/pkg_import_app`, `build_pkg_import_app_qualified_call`.
 
@@ -343,5 +347,21 @@ their deps) and included in the unity unit. Cycles fail resolve.
 
 Evidence: `testdata/pkg_core` ← `pkg_util` ← `pkg_app`,
 `deps_resolves_transitive_core_before_util`.
+
+### 6.5 Real `std/*.ryx` loader
+
+`import std::<module>` loads `{toolchain}/std/<module>.ryx` into the unity unit
+when that file contains at least one `def`. Modules that are docs-only (no
+`def`) are skipped — soft builtins (§5) remain the ABI for those symbols.
+
+```ryx
+import std::math
+
+def main() -> i64
+  return math.add3(40, 1, 1)
+end
+```
+
+Evidence: `std/math.ryx`, `testdata/pkg_std_app`, `build_pkg_std_app_loads_math`.
 
 

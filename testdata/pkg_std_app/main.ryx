@@ -1,0 +1,7 @@
+## Loads real std/math.ryx via import (SPEC §6.5).
+import std::math
+
+def main() -> i64
+  print_i64(math.add3(40, 1, 1))
+  return 0
+end

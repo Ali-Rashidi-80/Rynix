@@ -1,0 +1,5 @@
+## Resolves util via caret range to highest matching vendor version.
+def main() -> i64
+  print_i64(util_answer())
+  return 0
+end

@@ -61,18 +61,15 @@ impl DepsReport {
         self.deps.iter().all(|d| d.ok)
     }
 
-    /// Entry `.ryx` paths that must be unity-compiled with the app (SPEC §6.3).
-    ///
-    /// Every declared dependency needs a resolvable `entry` file. Check-only
-    /// deps (manifest without `entry`) are rejected at compile time.
-    pub fn compile_entry_paths(&self) -> Result<Vec<PathBuf>, String> {
+    /// Entry units for unity compile: `(package_name, entry_path)`.
+    pub fn compile_units(&self) -> Result<Vec<(String, PathBuf)>, String> {
         let mut out = Vec::new();
         for d in &self.deps {
             if !d.ok {
                 return Err(format!("{}: {}", d.name, d.detail));
             }
             match &d.entry {
-                Some(p) if p.is_file() => out.push(p.clone()),
+                Some(p) if p.is_file() => out.push((d.name.clone(), p.clone())),
                 Some(p) => {
                     return Err(format!(
                         "dependency `{}` entry missing for compile: {}",
@@ -89,6 +86,12 @@ impl DepsReport {
             }
         }
         Ok(out)
+    }
+
+    /// Entry `.ryx` paths (tests / helpers).
+    #[allow(dead_code)]
+    pub fn compile_entry_paths(&self) -> Result<Vec<PathBuf>, String> {
+        Ok(self.compile_units()?.into_iter().map(|(_, p)| p).collect())
     }
 
     pub fn to_json(&self) -> Value {
@@ -206,13 +209,13 @@ fn resolve_one_dir(name: &str, kind: &str, abs: PathBuf, version: Option<String>
     }
 }
 
-fn resolve_registry_version(manifest: &Manifest, name: &str, ver: &str) -> ResolvedDep {
+fn resolve_registry_version(manifest: &Manifest, name: &str, ver_req: &str) -> ResolvedDep {
     let Some(reg_rel) = &manifest.registry_path else {
         return ResolvedDep {
             name: name.into(),
             kind: "registry".into(),
             path: manifest.dir.clone(),
-            version: Some(ver.into()),
+            version: Some(ver_req.into()),
             entry: None,
             ok: false,
             detail: "version dep requires [registry] path = \"…\" (local index only)".into(),
@@ -224,26 +227,80 @@ fn resolve_registry_version(manifest: &Manifest, name: &str, ver: &str) -> Resol
         manifest.dir.join(reg_rel)
     };
     let reg = fs::canonicalize(&reg).unwrap_or(reg);
-    // Layouts: vendor/<name>/<version>/  then  vendor/<name>-<version>/
-    let candidates = [
-        reg.join(name).join(ver),
-        reg.join(format!("{name}-{ver}")),
-    ];
-    for cand in &candidates {
-        if cand.is_dir() && cand.join("rynix.toml").is_file() {
-            let abs = fs::canonicalize(cand).unwrap_or_else(|_| cand.clone());
-            return resolve_one_dir(name, "registry", abs, Some(ver.into()));
+
+    // Exact directory match only when the req is a plain version (not a range).
+    if semver::Version::parse(ver_req).is_ok() {
+        let exact_candidates = [
+            reg.join(name).join(ver_req),
+            reg.join(format!("{name}-{ver_req}")),
+        ];
+        for cand in &exact_candidates {
+            if cand.is_dir() && cand.join("rynix.toml").is_file() {
+                let abs = fs::canonicalize(cand).unwrap_or_else(|_| cand.clone());
+                return resolve_one_dir(name, "registry", abs, Some(ver_req.into()));
+            }
         }
     }
+
+    // Semver range: ^1.2.3, >=1.2.3, =1.2.3 — pick highest matching hierarchical version.
+    let req = match semver::VersionReq::parse(ver_req) {
+        Ok(r) => r,
+        Err(e) => {
+            return ResolvedDep {
+                name: name.into(),
+                kind: "registry".into(),
+                path: reg.clone(),
+                version: Some(ver_req.into()),
+                entry: None,
+                ok: false,
+                detail: format!(
+                    "invalid version req `{ver_req}` for `{name}`: {e} (use exact dir, ^x.y.z, or >=x.y.z)"
+                ),
+            };
+        }
+    };
+
+    let pkg_dir = reg.join(name);
+    let mut best: Option<(semver::Version, PathBuf)> = None;
+    if pkg_dir.is_dir()
+        && let Ok(rd) = fs::read_dir(&pkg_dir)
+    {
+        for ent in rd.flatten() {
+            let path = ent.path();
+            if !path.is_dir() || !path.join("rynix.toml").is_file() {
+                continue;
+            }
+            let Some(ver_s) = path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            let Ok(ver) = semver::Version::parse(ver_s) else {
+                continue;
+            };
+            if !req.matches(&ver) {
+                continue;
+            }
+            match &best {
+                None => best = Some((ver, path)),
+                Some((cur, _)) if ver > *cur => best = Some((ver, path)),
+                _ => {}
+            }
+        }
+    }
+
+    if let Some((ver, path)) = best {
+        let abs = fs::canonicalize(&path).unwrap_or(path);
+        return resolve_one_dir(name, "registry", abs, Some(ver.to_string()));
+    }
+
     ResolvedDep {
         name: name.into(),
         kind: "registry".into(),
         path: reg.clone(),
-        version: Some(ver.into()),
+        version: Some(ver_req.into()),
         entry: None,
         ok: false,
         detail: format!(
-            "package `{name}` version `{ver}` not found under local registry (tried {}/{{name}}/{{ver}} and {{name}}-{{ver}})",
+            "package `{name}` req `{ver_req}` not found under local registry (exact dir or semver range under {}/{{name}}/)",
             reg.display()
         ),
     }
@@ -412,7 +469,8 @@ fn parse_bare_string(rhs: &str) -> Option<String> {
         return None;
     }
     let v = rhs.trim_matches(|c| c == '"' || c == '\'');
-    if v.is_empty() || v.contains('=') {
+    // Reject empty / unquoted inline junk; allow semver ops (`>=`, `<=`, `=`).
+    if v.is_empty() {
         None
     } else {
         Some(v.to_string())
@@ -541,5 +599,55 @@ util = "0.1.0"
         assert_eq!(report.deps[1].name, "util");
         let entries = report.compile_entry_paths().expect("entries");
         assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn resolves_semver_caret_to_highest() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pkg_semver_app");
+        let root = root.canonicalize().expect("testdata");
+        let m = load_manifest(&root.join("rynix.toml")).expect("manifest");
+        let report = resolve_deps(&m);
+        assert!(report.all_ok(), "{:?}", report.deps);
+        assert_eq!(report.deps.len(), 1);
+        assert_eq!(report.deps[0].name, "util");
+        assert_eq!(report.deps[0].version.as_deref(), Some("0.2.0"));
+    }
+
+    #[test]
+    fn resolves_semver_caret_stays_on_minor_0() {
+        let dir = std::env::temp_dir().join("rynix_semver_caret");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("vendor/util/0.1.0")).unwrap();
+        std::fs::create_dir_all(dir.join("vendor/util/0.2.0")).unwrap();
+        for ver in ["0.1.0", "0.2.0"] {
+            std::fs::write(
+                dir.join(format!("vendor/util/{ver}/rynix.toml")),
+                format!("[package]\nname = \"util\"\nversion = \"{ver}\"\nentry = \"lib.ryx\"\n"),
+            )
+            .unwrap();
+            std::fs::write(
+                dir.join(format!("vendor/util/{ver}/lib.ryx")),
+                "def util_answer() -> i64\n  return 1\nend\n",
+            )
+            .unwrap();
+        }
+        std::fs::write(
+            dir.join("rynix.toml"),
+            r#"
+[package]
+name = "app"
+entry = "main.ryx"
+[registry]
+path = "vendor"
+[dependencies]
+util = "^0.1.0"
+"#,
+        )
+        .unwrap();
+        std::fs::write(dir.join("main.ryx"), "def main() -> i64\n  return 0\nend\n").unwrap();
+        let m = load_manifest(&dir.join("rynix.toml")).expect("manifest");
+        let report = resolve_deps(&m);
+        assert!(report.all_ok(), "{:?}", report.deps);
+        assert_eq!(report.deps[0].version.as_deref(), Some("0.1.0"));
     }
 }

@@ -454,6 +454,74 @@ fn deps_resolves_transitive_core_before_util() {
 }
 
 #[test]
+fn build_pkg_semver_caret_picks_highest() {
+    let root = repo_root();
+    let main = root.join("testdata/pkg_semver_app/main.ryx");
+    let out_dir = root.join("target/test-pkg-semver-app");
+    std::fs::create_dir_all(&out_dir).ok();
+    let exe = out_dir.join(if cfg!(windows) {
+        "pkg_semver_app.exe"
+    } else {
+        "pkg_semver_app"
+    });
+    let build = rynixc()
+        .args([
+            "build",
+            main.to_str().unwrap(),
+            "-o",
+            exe.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .output()
+        .expect("spawn build");
+    assert!(
+        build.status.success(),
+        "build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let run = Command::new(&exe).output().expect("run");
+    assert!(run.status.success(), "run failed");
+    assert!(
+        String::from_utf8_lossy(&run.stdout).contains("42"),
+        "expected 42 from >=0.1.0 → 0.2.0"
+    );
+}
+
+#[test]
+fn build_pkg_std_app_loads_math() {
+    let root = repo_root();
+    let main = root.join("testdata/pkg_std_app/main.ryx");
+    let out_dir = root.join("target/test-pkg-std-app");
+    std::fs::create_dir_all(&out_dir).ok();
+    let exe = out_dir.join(if cfg!(windows) {
+        "pkg_std_app.exe"
+    } else {
+        "pkg_std_app"
+    });
+    let build = rynixc()
+        .args([
+            "build",
+            main.to_str().unwrap(),
+            "-o",
+            exe.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .output()
+        .expect("spawn build");
+    assert!(
+        build.status.success(),
+        "build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let run = Command::new(&exe).output().expect("run");
+    assert!(run.status.success(), "run failed");
+    assert!(
+        String::from_utf8_lossy(&run.stdout).contains("42"),
+        "expected 42 from math.add3"
+    );
+}
+
+#[test]
 fn deps_fails_missing_path() {
     let dir = std::env::temp_dir().join("rynix_deps_missing");
     let _ = std::fs::remove_dir_all(&dir);

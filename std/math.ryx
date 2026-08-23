@@ -1,0 +1,5 @@
+## std.math — real loaded module (SPEC §6.5). Soft builtins stay in sema.
+
+def add3(a: i64, b: i64, c: i64) -> i64
+  return a + b + c
+end

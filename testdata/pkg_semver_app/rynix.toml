@@ -1,0 +1,11 @@
+[package]
+name = "pkg_semver_app"
+version = "0.1.0"
+entry = "main.ryx"
+
+[registry]
+path = "../pkg_reg_app/vendor"
+
+[dependencies]
+# Cargo-compatible: ^0.1.0 only matches 0.1.x; use >= to pick 0.2.0.
+util = ">=0.1.0"

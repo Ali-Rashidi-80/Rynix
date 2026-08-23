@@ -1,6 +1,7 @@
 //! Shared front-end → RIR pipeline for codegen subcommands.
 
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use rynix_ast::AstArena;
@@ -23,27 +24,50 @@ pub struct CodegenResult {
     pub const_print_i64: Option<i64>,
 }
 
+/// One unity-compile unit: package name (mangling prefix) + entry path.
+#[derive(Debug, Clone)]
+pub struct CompileUnit {
+    pub name: String,
+    pub path: PathBuf,
+}
+
 /// Compile one primary `.ryx` (no package deps).
-#[allow(dead_code)] // public helper; build/emit-ll use `compile_to_llvm_with_deps`
+#[allow(dead_code)]
 pub fn compile_to_llvm(
     path: &Path,
     optimize: bool,
     error_format: ErrorFormat,
 ) -> Result<CodegenResult, ExitCode> {
-    compile_to_llvm_with_deps(path, &[], optimize, error_format)
+    compile_to_llvm_with_units(path, &[], optimize, error_format)
 }
 
-/// Unity-compile primary + dependency `entry` files into one LLVM unit (SPEC §6.3).
+/// Unity-compile primary + dependency/std units (SPEC §6.3–6.5).
 ///
-/// Flat symbol namespace: `def` names from deps are visible to the app without
-/// `import`. Dependency units must not define `main`.
+/// Dependency `def` names are mangled to `pkg__fn`. Soft builtins stay unmangled.
+#[allow(dead_code)] // legacy PathBuf helper
 pub fn compile_to_llvm_with_deps(
     primary: &Path,
-    dep_entries: &[std::path::PathBuf],
+    dep_entries: &[PathBuf],
     optimize: bool,
     error_format: ErrorFormat,
 ) -> Result<CodegenResult, ExitCode> {
-    let (unity_name, unity_text) = match build_unity_source(primary, dep_entries) {
+    let units: Vec<CompileUnit> = dep_entries
+        .iter()
+        .map(|p| CompileUnit {
+            name: package_name_from_entry(p),
+            path: p.clone(),
+        })
+        .collect();
+    compile_to_llvm_with_units(primary, &units, optimize, error_format)
+}
+
+pub fn compile_to_llvm_with_units(
+    primary: &Path,
+    dep_units: &[CompileUnit],
+    optimize: bool,
+    error_format: ErrorFormat,
+) -> Result<CodegenResult, ExitCode> {
+    let (unity_name, unity_text) = match build_unity_source(primary, dep_units) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("error: {e}");
@@ -90,8 +114,8 @@ pub fn compile_to_llvm_with_deps(
     inject_regions(&mut rir, &report);
     prune_unreachable(&mut rir, &interner);
     let ll = emit_llvm(&rir, &interner, Some(&report));
-    let const_print_i64 = detect_const_print_i64(&ll)
-        .or_else(|| eval_const_print_if_acyclic(&rir, &interner));
+    let const_print_i64 =
+        detect_const_print_i64(&ll).or_else(|| eval_const_print_if_acyclic(&rir, &interner));
 
     Ok(CodegenResult {
         ll,
@@ -99,43 +123,303 @@ pub fn compile_to_llvm_with_deps(
     })
 }
 
-/// Concatenate dependency entries (first) then primary into one parse unit.
+#[allow(dead_code)]
+fn package_name_from_entry(entry: &Path) -> String {
+    entry
+        .parent()
+        .and_then(|p| p.file_name())
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "dep".into())
+}
+
+/// Concatenate mangled dependency units, std imports, then primary.
 fn build_unity_source(
     primary: &Path,
-    dep_entries: &[std::path::PathBuf],
+    dep_units: &[CompileUnit],
 ) -> Result<(String, String), String> {
     let mut unity = String::new();
-    for dep in dep_entries {
-        let text = std::fs::read_to_string(dep)
-            .map_err(|e| format!("cannot read dependency {}: {e}", dep.display()))?;
+    let mut exports: HashMap<String, String> = HashMap::new();
+    let mut pkg_prefixes: HashMap<String, String> = HashMap::new();
+
+    for unit in dep_units {
+        let text = std::fs::read_to_string(&unit.path)
+            .map_err(|e| format!("cannot read dependency {}: {e}", unit.path.display()))?;
         if has_def_main(&text) {
             return Err(format!(
                 "dependency entry {} defines `main` — library packages must not",
-                dep.display()
+                unit.path.display()
             ));
         }
-        unity.push_str(&format!("## package unit: {}\n", dep.display()));
-        unity.push_str(&text);
-        if !text.ends_with('\n') {
+        let prefix = sanitize_pkg_prefix(&unit.name);
+        pkg_prefixes.insert(unit.name.clone(), prefix.clone());
+        let mangled = mangle_unit(&prefix, &text, &mut exports)?;
+        unity.push_str(&format!(
+            "## package unit: {} ({prefix}__*)\n",
+            unit.path.display()
+        ));
+        unity.push_str(&mangled);
+        if !mangled.ends_with('\n') {
             unity.push('\n');
         }
         unity.push('\n');
     }
+
     let primary_text = std::fs::read_to_string(primary)
         .map_err(|e| format!("cannot read {}: {e}", primary.display()))?;
-    if !dep_entries.is_empty() {
-        unity.push_str(&format!("## package unit: {}\n", primary.display()));
-    }
-    unity.push_str(&primary_text);
-    if !primary_text.ends_with('\n') {
+
+    // `import std.math` → load std/math.ryx (real defs only; soft builtins stay in sema).
+    let std_units = collect_std_imports(&primary_text)?;
+    for (mod_name, path) in &std_units {
+        let text = std::fs::read_to_string(path)
+            .map_err(|e| format!("cannot read std module {}: {e}", path.display()))?;
+        if has_def_main(&text) {
+            return Err(format!("std module {} must not define main", path.display()));
+        }
+        let prefix = sanitize_pkg_prefix(mod_name);
+        pkg_prefixes.insert(mod_name.clone(), prefix.clone());
+        let mangled = mangle_unit(&prefix, &text, &mut exports)?;
+        unity.push_str(&format!("## std unit: {} ({prefix}__*)\n", path.display()));
+        unity.push_str(&mangled);
+        if !mangled.ends_with('\n') {
+            unity.push('\n');
+        }
         unity.push('\n');
     }
-    let name = if dep_entries.is_empty() {
+
+    let mut app = primary_text.clone();
+    // Rewrite bare calls to unique dep/std exports.
+    let mut pairs: Vec<_> = exports.iter().collect();
+    pairs.sort_by_key(|(k, _)| std::cmp::Reverse(k.len()));
+    for (bare, mangled) in pairs {
+        app = rewrite_call_name(&app, bare, mangled);
+    }
+    // Rewrite `pkg.fn(` → `pkg__fn(` for method-style package calls.
+    for (pkg, prefix) in &pkg_prefixes {
+        app = rewrite_qualified_calls(&app, pkg, prefix);
+    }
+
+    if !dep_units.is_empty() || !std_units.is_empty() {
+        unity.push_str(&format!("## package unit: {}\n", primary.display()));
+    }
+    unity.push_str(&app);
+    if !app.ends_with('\n') {
+        unity.push('\n');
+    }
+    let name = if dep_units.is_empty() && std_units.is_empty() {
         primary.display().to_string()
     } else {
         format!("unity:{}", primary.display())
     };
     Ok((name, unity))
+}
+
+fn sanitize_pkg_prefix(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    for c in name.chars() {
+        if c.is_ascii_alphanumeric() || c == '_' {
+            out.push(c);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "pkg".into()
+    } else if out.as_bytes()[0].is_ascii_digit() {
+        format!("p_{out}")
+    } else {
+        out
+    }
+}
+
+fn collect_def_names(text: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    for line in text.lines() {
+        let t = line.split("##").next().unwrap_or("").trim();
+        let Some(rest) = t.strip_prefix("def ") else {
+            continue;
+        };
+        let name: String = rest
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        if !name.is_empty() {
+            names.push(name);
+        }
+    }
+    names
+}
+
+fn mangle_unit(
+    prefix: &str,
+    text: &str,
+    exports: &mut HashMap<String, String>,
+) -> Result<String, String> {
+    let mut out = text.to_string();
+    // Rewrite calls to already-exported symbols (transitive deps).
+    let mut prior: Vec<_> = exports.iter().map(|(a, b)| (a.clone(), b.clone())).collect();
+    prior.sort_by_key(|(k, _)| std::cmp::Reverse(k.len()));
+    for (bare, mangled) in &prior {
+        out = rewrite_call_name(&out, bare, mangled);
+    }
+
+    let defs = collect_def_names(&out);
+    for name in &defs {
+        let mangled = format!("{prefix}__{name}");
+        if let Some(prev) = exports.get(name) {
+            if prev != &mangled {
+                return Err(format!(
+                    "duplicate def `{name}` across packages (`{prev}` vs `{mangled}`)"
+                ));
+            }
+        } else {
+            exports.insert(name.clone(), mangled);
+        }
+    }
+
+    let mut defs_sorted = defs;
+    defs_sorted.sort_by_key(|n| std::cmp::Reverse(n.len()));
+    for name in defs_sorted {
+        let mangled = format!("{prefix}__{name}");
+        out = rewrite_def_name(&out, &name, &mangled);
+        out = rewrite_call_name(&out, &name, &mangled);
+    }
+    Ok(out)
+}
+
+fn rewrite_def_name(text: &str, from: &str, to: &str) -> String {
+    let needle = format!("def {from}");
+    let repl = format!("def {to}");
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find(&needle) {
+        let after = i + needle.len();
+        let ok_boundary = rest
+            .as_bytes()
+            .get(after)
+            .is_none_or(|b| !b.is_ascii_alphanumeric() && *b != b'_');
+        out.push_str(&rest[..i]);
+        if ok_boundary {
+            out.push_str(&repl);
+            rest = &rest[after..];
+        } else {
+            out.push_str(&needle);
+            rest = &rest[after..];
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn rewrite_call_name(text: &str, from: &str, to: &str) -> String {
+    let needle = format!("{from}(");
+    let repl = format!("{to}(");
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find(&needle) {
+        let before_ok = if i == 0 {
+            true
+        } else {
+            let b = rest.as_bytes()[i - 1];
+            !b.is_ascii_alphanumeric() && b != b'_' && b != b'.'
+        };
+        out.push_str(&rest[..i]);
+        if before_ok {
+            out.push_str(&repl);
+            rest = &rest[i + needle.len()..];
+        } else {
+            out.push_str(&needle);
+            rest = &rest[i + needle.len()..];
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// `util.foo(` → `util__foo(` so method-call sugar becomes a bare mangled call.
+fn rewrite_qualified_calls(text: &str, pkg: &str, prefix: &str) -> String {
+    let needle = format!("{pkg}.");
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find(&needle) {
+        let after = i + needle.len();
+        let before_ok = if i == 0 {
+            true
+        } else {
+            let b = rest.as_bytes()[i - 1];
+            !b.is_ascii_alphanumeric() && b != b'_'
+        };
+        out.push_str(&rest[..i]);
+        if !before_ok {
+            out.push_str(&needle);
+            rest = &rest[after..];
+            continue;
+        }
+        let rem = &rest[after..];
+        let name: String = rem
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        if name.is_empty() || !rem[name.len()..].starts_with('(') {
+            out.push_str(&needle);
+            rest = &rest[after..];
+            continue;
+        }
+        out.push_str(prefix);
+        out.push_str("__");
+        out.push_str(&name);
+        out.push('(');
+        rest = &rem[name.len() + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
+fn collect_std_imports(primary_text: &str) -> Result<Vec<(String, PathBuf)>, String> {
+    let Some(std_root) = std_root() else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for line in primary_text.lines() {
+        let t = line.split("##").next().unwrap_or("").trim();
+        let Some(rest) = t.strip_prefix("import ") else {
+            continue;
+        };
+        let path = rest.trim();
+        // `std::math` (SPEC path) or legacy `std.math`
+        let norm = path.replace('.', "::");
+        let mut parts = norm.split("::").map(str::trim).filter(|s| !s.is_empty());
+        let Some(first) = parts.next() else {
+            continue;
+        };
+        if first != "std" {
+            continue;
+        }
+        let module = parts.next().unwrap_or("core");
+        if parts.next().is_some() {
+            return Err(format!(
+                "import `{path}`: only `import std` or `import std::<module>` supported"
+            ));
+        }
+        if !seen.insert(module.to_string()) {
+            continue;
+        }
+        let file = std_root.join(format!("{module}.ryx"));
+        if !file.is_file() {
+            return Err(format!(
+                "std module `{module}` not found at {}",
+                file.display()
+            ));
+        }
+        // Skip docs-only modules with no `def` (soft builtins cover those).
+        let text = std::fs::read_to_string(&file)
+            .map_err(|e| format!("cannot read {}: {e}", file.display()))?;
+        if collect_def_names(&text).is_empty() {
+            continue;
+        }
+        out.push((module.to_string(), file));
+    }
+    Ok(out)
 }
 
 fn has_def_main(src: &str) -> bool {
@@ -146,6 +430,10 @@ fn has_def_main(src: &str) -> bool {
         }
     }
     false
+}
+
+fn std_root() -> Option<PathBuf> {
+    runtime_root().map(|rt| rt.parent().unwrap_or(&rt).join("std"))
 }
 
 /// Folded / unrolled kernels with no back-edges: interpret once at compile time.
@@ -236,15 +524,11 @@ fn detect_const_print_i64(ll: &str) -> Option<i64> {
 }
 
 /// Locate the `rt/` directory (contains `portable.c` and `include/`).
-pub fn runtime_root() -> Option<std::path::PathBuf> {
+pub fn runtime_root() -> Option<PathBuf> {
     if let Ok(exe) = std::env::current_exe()
         && let Some(dir) = exe.parent()
     {
-        for c in [
-            dir.join("rt"),
-            dir.join("../rt"),
-            dir.join("../../rt"),
-        ] {
+        for c in [dir.join("rt"), dir.join("../rt"), dir.join("../../rt")] {
             if c.join("portable.c").is_file() {
                 return Some(c);
             }
@@ -262,6 +546,6 @@ pub fn runtime_root() -> Option<std::path::PathBuf> {
 
 /// Locate `rt/portable.c` (unity build of the portable runtime).
 #[allow(dead_code)]
-pub fn portable_runtime_c() -> Option<std::path::PathBuf> {
+pub fn portable_runtime_c() -> Option<PathBuf> {
     runtime_root().map(|r| r.join("portable.c"))
 }

@@ -143,7 +143,7 @@ Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
 | Use-after-move (linear types) | ✅ | `RYX2011` + `sema_unit` |
 | `#^ effect: pure` | ✅ | `RYX2012` + `effects_pure` + wave1 contract |
 | Agent `security` / `scope` | ✅ | `agent_cli` + MCP `rynix_security` / `rynix_scope` |
-| Local path packages (`rynix.toml` deps) | ✅ | path + index + unity compile + **transitive** + `import pkg.fn` |
+| Local path packages (`rynix.toml` deps) | ✅ | path + index + unity + transitive + mangling + semver + `std::` |
 | `rynixc new` / `dna` | ✅ | scaffold + `rynix.dna.v1` + MCP |
 | TLS echo (SChannel / OpenSSL) | ✅ | `tls_echo_smoke_c` + soft builtins |
 | HMAC + AES-GCM KAT | ✅ | RFC 4231 + NIST empty-tag; `crypto_kv_smoke` |

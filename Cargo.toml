@@ -42,7 +42,7 @@ rustc-hash = "2"   # FxHashMap for the string interner (Phase 1)
 bumpalo = "3"      # AST arena (Phase 2)
 serde = { version = "1", features = ["derive"] }  # rynix-diag JSON only
 serde_json = "1"                                  # rynix-diag JSON only
-
+semver = "1"       # local registry version reqs (cold path; ADR-0010)
 # Dev-only dependencies
 insta = { version = "1", features = ["glob"] }
 proptest = "1"

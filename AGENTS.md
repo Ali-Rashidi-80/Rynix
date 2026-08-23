@@ -19,7 +19,7 @@ ad-hoc scraping.
 - Contracts: `rynixc verify --contract=docs/contracts/wave1.contract.toml`
 - Agent write gate: `patch --write` denied unless `rynix.scope.toml` / `--force-write`
 - Path deps: `rynixc deps` → `rynix.deps.v1` (path + local `[registry]` index; no network)
-- Package compile: `rynixc build` unity-compiles dep entries (transitive; SPEC §6.3–6.4 `import pkg.fn`)
+- Package compile: unity + `pkg__fn` mangling; semver `^`/`>=`; `import std::mod` (SPEC §6.2–6.5)
 - Conventions: `rynixc dna` → `rynix.dna.v1` (heuristic; not “80 layers”)
 - Scaffold: `rynixc new <name>` → local package (no registry CDN)
 

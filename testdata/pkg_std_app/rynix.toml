@@ -1,0 +1,4 @@
+[package]
+name = "pkg_std_app"
+version = "0.1.0"
+entry = "main.ryx"

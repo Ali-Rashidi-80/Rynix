@@ -8,7 +8,7 @@ use crate::codegen_pipe;
 use crate::manifest::{resolve_for_source, DepsReport};
 
 pub fn run(options: &BuildOptions) -> ExitCode {
-    let dep_entries = match gate_and_collect_compile_entries(&options.path) {
+    let dep_units = match gate_and_collect_compile_units(&options.path) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("error: {e}");
@@ -57,9 +57,9 @@ pub fn run(options: &BuildOptions) -> ExitCode {
         );
     }
 
-    let result = match codegen_pipe::compile_to_llvm_with_deps(
+    let result = match codegen_pipe::compile_to_llvm_with_units(
         &options.path,
-        &dep_entries,
+        &dep_units,
         true,
         options.error_format,
     ) {
@@ -410,15 +410,19 @@ fn find_msvcrt_gcc() -> Option<PathBuf> {
     }
 }
 
-fn gate_and_collect_compile_entries(source: &Path) -> Result<Vec<PathBuf>, String> {
+fn gate_and_collect_compile_units(
+    source: &Path,
+) -> Result<Vec<codegen_pipe::CompileUnit>, String> {
     match resolve_for_source(source) {
         Ok(None) => Ok(Vec::new()),
-        Ok(Some(report)) => compile_entries_from_report(&report),
+        Ok(Some(report)) => compile_units_from_report(&report),
         Err(e) => Err(e),
     }
 }
 
-fn compile_entries_from_report(report: &DepsReport) -> Result<Vec<PathBuf>, String> {
+fn compile_units_from_report(
+    report: &DepsReport,
+) -> Result<Vec<codegen_pipe::CompileUnit>, String> {
     if !report.all_ok() {
         let fails: Vec<_> = report
             .deps
@@ -431,7 +435,13 @@ fn compile_entries_from_report(report: &DepsReport) -> Result<Vec<PathBuf>, Stri
             fails.join("\n  ")
         ));
     }
-    report.compile_entry_paths().map_err(|e| {
-        format!("dependency compile failed:\n  {e}")
-    })
+    report
+        .compile_units()
+        .map(|units| {
+            units
+                .into_iter()
+                .map(|(name, path)| codegen_pipe::CompileUnit { name, path })
+                .collect()
+        })
+        .map_err(|e| format!("dependency compile failed:\n  {e}"))
 }

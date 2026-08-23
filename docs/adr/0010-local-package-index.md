@@ -25,16 +25,20 @@ util = "0.1.0"                 # → vendor/util/0.1.0/ or vendor/util-0.1.0/
 lib  = { path = "../lib" }     # unchanged path form
 ```
 
-3. Resolution is exact-version only (no semver ranges yet).
+3. Resolution supports **exact** version directories and **semver ranges**
+   (`^1.2.3`, `>=1.2.3`, `=1.2.3`) against hierarchical
+   `{registry}/{name}/{version}/` folders (highest match wins). Hyphenated
+   `{name}-{version}` remains exact-only.
 4. `rynixc deps` / build gate report `kind: "registry" | "path"` in `rynix.deps.v1`.
-5. `rynixc build` / `emit-ll` **unity-compile** each dep `[package].entry` with the
-   app (flat symbols; SPEC §6.3). Resolve-only is insufficient.
+5. `rynixc build` / `emit-ll` **unity-compile** each dep `[package].entry` with
+   `pkg__fn` mangling (SPEC §6.3–6.5). Soft builtins stay in sema; `import std::X`
+   loads real `std/X.ryx` defs when present.
 
 ## Consequences
 
-- SPEC §6 documents the layouts, unity compile, and honesty bound (no network).
-- Tests: `manifest::resolves_local_registry_layout`, `deps_resolves_local_registry_version`,
-  `build_pkg_app_calls_path_dep`, `build_pkg_reg_app_resolves_registry_deps`.
+- SPEC §6 documents layouts, ranges, mangling, std loader, and honesty (no CDN).
+- Tests: registry exact + caret (`pkg_semver_app`), mangled path/registry builds,
+  `build_pkg_std_app_loads_math`.
 - Global/registry CDN remains out of scope until a future ADR with mirror +
-  checksum policy + CI evidence. **Wave close (2026-08-23):** no stub CDN —
-  local index + unity compile is the shipping package story.
+  checksum policy + CI evidence.
+- Dependency: workspace `semver` (cold path only; ADR-0004).
