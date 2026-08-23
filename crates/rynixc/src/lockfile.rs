@@ -206,3 +206,35 @@ pub fn verify_if_present(report: &DepsReport) -> Result<(), String> {
     let lock = read_lock(&path)?;
     verify_report(report, &lock)
 }
+
+/// Attach `lock` object to a `rynix.deps.v1` JSON value (for CLI/MCP).
+pub fn enrich_deps_json(report: &DepsReport, mut v: serde_json::Value) -> serde_json::Value {
+    let path = lock_path_for_manifest(&report.root_manifest);
+    let lock = if !path.is_file() {
+        serde_json::json!({
+            "present": false,
+            "ok": true,
+            "path": serde_json::Value::Null,
+            "detail": "no rynix.lock.toml",
+        })
+    } else {
+        match read_lock(&path).and_then(|l| verify_report(report, &l)) {
+            Ok(()) => serde_json::json!({
+                "present": true,
+                "ok": true,
+                "path": path.display().to_string(),
+                "detail": "verified",
+            }),
+            Err(e) => serde_json::json!({
+                "present": true,
+                "ok": false,
+                "path": path.display().to_string(),
+                "detail": e,
+            }),
+        }
+    };
+    if let Some(obj) = v.as_object_mut() {
+        obj.insert("lock".into(), lock);
+    }
+    v
+}

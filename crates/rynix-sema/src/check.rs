@@ -247,6 +247,8 @@ impl<'a> Checker<'a> {
         self.soft_fn("fs_write_file", vec![s, s], i);
         self.soft_fn("fs_read_file", vec![s], s);
         self.soft_fn("fs_read_file_eq", vec![s, s], i);
+        self.soft_fn("fs_exists", vec![s], i);
+        self.soft_fn("fs_remove_file", vec![s], i);
     }
 
     fn soft_fn(&mut self, name: &str, params: Vec<TypeId>, ret: TypeId) {

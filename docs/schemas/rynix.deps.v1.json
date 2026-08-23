@@ -30,6 +30,16 @@
         }
       }
     },
-    "note": { "type": "string" }
+    "note": { "type": "string" },
+    "lock": {
+      "type": "object",
+      "description": "Optional rynix.lock.toml status (CLI/MCP enrichment)",
+      "properties": {
+        "present": { "type": "boolean" },
+        "ok": { "type": "boolean" },
+        "path": { "type": ["string", "null"] },
+        "detail": { "type": "string" }
+      }
+    }
   }
 }

@@ -276,6 +276,7 @@ Optional manifest beside your sources (see repo root for a sample):
 name = "myapp"
 version = "0.1.0"
 entry = "src/main.ryx"
+# files = ["extra.ryx"]   # optional extra sources (SPEC §6.3)
 
 [build]
 runtime = "portable"   # Windows default; Linux may use "uring"
@@ -292,7 +293,10 @@ optimize = true
 ```
 
 `rynixc build` / `run` pick up `[build]` when a `rynix.toml` is present; broken path
-deps fail the build gate. Resolve with `rynixc deps [path] --error-format=json`.
+deps fail the build gate. Resolve with `rynixc deps [path] --error-format=json`
+(includes a `lock` object). Pin with `rynixc deps --lock` → `rynix.lock.toml`;
+`--locked` requires a matching pin. Soft `fs_*` builtins cover whole-file I/O
+(`fs_write_file` / `fs_read_file` / `fs_exists` / `fs_remove_file`).
 
 ### Verify (CI-equivalent)
 

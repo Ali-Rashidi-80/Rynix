@@ -54,6 +54,8 @@ parked). `tcp_accept` / `tcp_connect` use uring when the ring is ready.
 | `rynix_rt_fs_write_file` | `i64(path, data)` | Whole-file write (`0` / `-1`) |
 | `rynix_rt_fs_read_file` | `ptr(path)` | Heap NUL string or NULL |
 | `rynix_rt_fs_read_file_eq` | `i64(path, expect)` | Compare file to string (`0` / `-1`) |
+| `rynix_rt_fs_exists` | `i64(path)` | `1` if fopen succeeds, else `0` |
+| `rynix_rt_fs_remove_file` | `i64(path)` | Unlink (`0`; missing → `0`) |
 | `rynix_rt_aes128_gcm_nist_empty_tag_first_i64` | `i64()` | AES-GCM NIST empty tag (BCrypt/OpenSSL) |
 | `rynix_rt_kv_new` / `_put` / `_get` / `_len` | region string→i64 map | Arena KV (soft std) |
 | `rynix_rt_vec_i64_*` / `map_i64_*` | (see header) | Region Vec/Map |

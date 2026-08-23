@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use crate::cli::{DepsOptions, ErrorFormat};
 use crate::lockfile::{
-    lock_from_report, lock_path_for_manifest, read_lock, verify_report, write_lock,
+    enrich_deps_json, lock_from_report, lock_path_for_manifest, read_lock, verify_report, write_lock,
 };
 use crate::manifest::{find_manifest, load_manifest, resolve_deps};
 
@@ -31,7 +31,7 @@ pub fn run(options: &DepsOptions) -> ExitCode {
     let report = resolve_deps(&manifest);
     match options.error_format {
         ErrorFormat::Json => {
-            println!("{}", report.to_json());
+            println!("{}", enrich_deps_json(&report, report.to_json()));
         }
         ErrorFormat::Human => {
             println!(

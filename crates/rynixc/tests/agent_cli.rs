@@ -261,6 +261,8 @@ fn deps_resolves_path_package() {
     assert_eq!(deps[1]["name"], "util");
     assert_eq!(deps[1]["kind"], "path");
     assert_eq!(deps[1]["ok"], true);
+    assert_eq!(v["lock"]["present"], false);
+    assert_eq!(v["lock"]["ok"], true);
 }
 
 #[test]
@@ -585,7 +587,12 @@ core = {{ path = "{core_path}" }}
     assert!(dir.join("rynix.lock.toml").is_file());
 
     let locked_ok = rynixc()
-        .args(["deps", dir.to_str().unwrap(), "--locked"])
+        .args([
+            "deps",
+            dir.to_str().unwrap(),
+            "--locked",
+            "--error-format=json",
+        ])
         .output()
         .expect("spawn locked");
     assert!(
@@ -593,6 +600,10 @@ core = {{ path = "{core_path}" }}
         "stderr={}",
         String::from_utf8_lossy(&locked_ok.stderr)
     );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&locked_ok.stdout).trim()).expect("json");
+    assert_eq!(v["lock"]["present"], true);
+    assert_eq!(v["lock"]["ok"], true);
 
     // Tamper lock sha so verify fails.
     let lock_path = dir.join("rynix.lock.toml");

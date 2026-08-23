@@ -1,4 +1,4 @@
-/* Smoke: write + read_eq round-trip. */
+/* Smoke: write + read_eq + exists + remove round-trip. */
 
 #include "../include/rynix_rt.h"
 
@@ -18,6 +18,10 @@ int main(void) {
     fprintf(stderr, "fs_write_file failed\n");
     return 1;
   }
+  if (rynix_rt_fs_exists(TEST_PATH) != 1) {
+    fprintf(stderr, "fs_exists expected 1\n");
+    return 1;
+  }
   if (rynix_rt_fs_read_file_eq(TEST_PATH, msg) != 0) {
     fprintf(stderr, "fs_read_file_eq mismatch\n");
     return 1;
@@ -31,7 +35,18 @@ int main(void) {
     }
     free(got);
   }
-  remove(TEST_PATH);
+  if (rynix_rt_fs_remove_file(TEST_PATH) != 0) {
+    fprintf(stderr, "fs_remove_file failed\n");
+    return 1;
+  }
+  if (rynix_rt_fs_exists(TEST_PATH) != 0) {
+    fprintf(stderr, "fs_exists expected 0 after remove\n");
+    return 1;
+  }
+  if (rynix_rt_fs_remove_file(TEST_PATH) != 0) {
+    fprintf(stderr, "fs_remove_file not idempotent\n");
+    return 1;
+  }
   puts("fs_smoke ok");
   return 0;
 }

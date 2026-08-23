@@ -225,8 +225,9 @@ Full-runtime hello gate remains **&lt;300 KiB**.
 actually ships in working code** (HTTP/crypto/KV/TLS, region/pipe/effects, verify
 stack, MCP/fibers/LLVM). End still leads on **spectacle and deferred UI/C11**.
 Phase 11 backlog is closed in-tree (suite12 MATCH ports, WS 64-bit + large wire,
-local registry index + **unity compile**, IOCP, GPG smoke). UI/C11/network CDN stay
-ADR-deferred; suite12 #1/#5/#6 closed by [ADR-0011](adr/0011-suite12-divergent-benches.md).
+local registry index + **unity compile** + multifile/`rynix.lock.toml`/`fs_*`,
+IOCP, GPG smoke). UI/C11/network CDN stay ADR-deferred; suite12 #1/#5/#6 closed by
+[ADR-0011](adr/0011-suite12-divergent-benches.md).
 
 See also: [COMPARE.md](COMPARE.md), [ROADMAP.md](ROADMAP.md),
 [benchmarks/README.md](../benchmarks/README.md).

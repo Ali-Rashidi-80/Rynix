@@ -269,6 +269,8 @@ lower to `rynix_rt_*` symbols documented in [abi.md](abi.md):
 | `fs_write_file(path, data)` | write whole file (0 / -1) |
 | `fs_read_file(path)` | read whole file as `str` (or fail) |
 | `fs_read_file_eq(path, expect)` | compare file to string (0 / -1) |
+| `fs_exists(path)` | `1` if readable file, else `0` |
+| `fs_remove_file(path)` | unlink (`0`; missing path is ok) |
 | `tensor`, `signal`, `agent` | smart primitives (stubs / hooks) |
 
 Notes in `std/*.ryx` that contain **no** `def` remain documentation for soft

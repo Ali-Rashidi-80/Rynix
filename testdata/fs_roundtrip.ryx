@@ -5,8 +5,20 @@ def main() -> i64
     print_i64(-1)
     return 1
   end
-  if fs_read_file_eq(path, "rynix-fs-ok") != 0
+  if fs_exists(path) != 1
     print_i64(-2)
+    return 1
+  end
+  if fs_read_file_eq(path, "rynix-fs-ok") != 0
+    print_i64(-3)
+    return 1
+  end
+  if fs_remove_file(path) != 0
+    print_i64(-4)
+    return 1
+  end
+  if fs_exists(path) != 0
+    print_i64(-5)
     return 1
   end
   print_i64(0)

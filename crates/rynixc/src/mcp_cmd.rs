@@ -14,6 +14,7 @@ use std::process::ExitCode;
 use crate::architecture::ArchitectureEngine;
 use crate::contract::ContractEngine;
 use crate::dna::mine_dna;
+use crate::lockfile::enrich_deps_json;
 use crate::manifest::{find_manifest, load_manifest, resolve_deps};
 use crate::scope::load_scope;
 use crate::security::scan_source;
@@ -342,8 +343,9 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         };
         let manifest = load_manifest(&m_path).map_err(|e| rpc_error(-32000, e))?;
         let report = resolve_deps(&manifest);
+        let body = enrich_deps_json(&report, report.to_json());
         return Ok(json!({
-            "content": [{ "type": "text", "text": report.to_json().to_string() }]
+            "content": [{ "type": "text", "text": body.to_string() }]
         }));
     }
 

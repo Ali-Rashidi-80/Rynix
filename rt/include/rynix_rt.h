@@ -121,6 +121,8 @@ int64_t rynix_rt_kv_len(void *kv);
 int64_t rynix_rt_fs_write_file(const char *path, const char *data);
 char *rynix_rt_fs_read_file(const char *path);
 int64_t rynix_rt_fs_read_file_eq(const char *path, const char *expect);
+int64_t rynix_rt_fs_exists(const char *path);
+int64_t rynix_rt_fs_remove_file(const char *path);
 
 /* ---- TLS (SChannel on Windows; OpenSSL when available; else -2) ------- */
 int64_t rynix_rt_tls_serve_once_echo(int64_t port);

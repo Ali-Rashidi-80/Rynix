@@ -83,7 +83,9 @@ pub fn emit_llvm(
     out.push_str("declare i64 @rynix_rt_kv_len(ptr)\n");
     out.push_str("declare i64 @rynix_rt_fs_write_file(ptr, ptr)\n");
     out.push_str("declare ptr @rynix_rt_fs_read_file(ptr)\n");
-    out.push_str("declare i64 @rynix_rt_fs_read_file_eq(ptr, ptr)\n\n");
+    out.push_str("declare i64 @rynix_rt_fs_read_file_eq(ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_fs_exists(ptr)\n");
+    out.push_str("declare i64 @rynix_rt_fs_remove_file(ptr)\n\n");
     out.push_str(
         "@.rynix.bounds = private unnamed_addr constant [20 x i8] c\"index out of bounds\\00\", align 1\n\n",
     );

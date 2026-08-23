@@ -83,3 +83,35 @@ int64_t rynix_rt_fs_read_file_eq(const char *path, const char *expect) {
   free(got);
   return ok;
 }
+
+/* 1 if path exists as a regular file (or any fopen-readable), else 0. */
+int64_t rynix_rt_fs_exists(const char *path) {
+  FILE *f;
+  if (!path) {
+    return 0;
+  }
+  f = fopen(path, "rb");
+  if (!f) {
+    return 0;
+  }
+  fclose(f);
+  return 1;
+}
+
+/* 0 on success, -1 on failure. Missing path is success (idempotent). */
+int64_t rynix_rt_fs_remove_file(const char *path) {
+  FILE *probe;
+  if (!path) {
+    return -1;
+  }
+  if (remove(path) == 0) {
+    return 0;
+  }
+  /* Already gone → ok. */
+  probe = fopen(path, "rb");
+  if (!probe) {
+    return 0;
+  }
+  fclose(probe);
+  return -1;
+}

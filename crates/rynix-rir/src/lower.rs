@@ -4646,6 +4646,8 @@ impl LowerCtx<'_, '_> {
             "fs_write_file" => (self.interner.intern("rynix_rt_fs_write_file"), IrTy::I64),
             "fs_read_file" => (self.interner.intern("rynix_rt_fs_read_file"), IrTy::Str),
             "fs_read_file_eq" => (self.interner.intern("rynix_rt_fs_read_file_eq"), IrTy::I64),
+            "fs_exists" => (self.interner.intern("rynix_rt_fs_exists"), IrTy::I64),
+            "fs_remove_file" => (self.interner.intern("rynix_rt_fs_remove_file"), IrTy::I64),
             "signal" | "agent" => (name, IrTy::Unit),
             _ => {
                 let ret = self
