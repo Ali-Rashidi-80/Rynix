@@ -14,13 +14,19 @@ pub fn suite5_print_i64(n: i64) void {
 
 
 pub fn opaque_i64(x: i64) i64 {
+  // Side-effecting getenv keeps x from being treated as a pure literal by endc/LTO.
+  val env: *u8 = getenv("SUITE5_OPAQUE")
   mut v: i64 = x
+  if env != (0 as *u8) {
+    v = v + 1
+  }
   ret v
 }
 
 pub fn main() i32 {
+  val n: i64 = opaque_i64(10000000)
   mut acc: i64 = 0
-  for i_idx in 10000000 {
+  for i_idx in n {
     val i: i64 = i_idx as i64
     acc = acc + i * 31 - i / 8 + i % 13
   }

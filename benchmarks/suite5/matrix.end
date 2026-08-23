@@ -25,7 +25,12 @@ pub fn cell(i: i64, j: i64) i64 {
 
 
 pub fn opaque_i64(x: i64) i64 {
+  // Side-effecting getenv keeps x from being treated as a pure literal by endc/LTO.
+  val env: *u8 = getenv("SUITE5_OPAQUE")
   mut v: i64 = x
+  if env != (0 as *u8) {
+    v = v + 1
+  }
   ret v
 }
 
@@ -34,7 +39,7 @@ pub fn main() i32 {
   val c11: i64 = cell(1, 1)
   val c22: i64 = cell(2, 2)
   val c33: i64 = cell(3, 3)
-  val per: i64 = 225000
+  val per: i64 = opaque_i64(225000)
   val trace: i64 = per * (c00 + c11 + c22 + c33)
   suite5_print_i64(trace)
   ret 0

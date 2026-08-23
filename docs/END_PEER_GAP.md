@@ -60,22 +60,24 @@ Cross-repo speed claims must name the **exact harness and source file**.
 
 ### Latest local Suite5 (2026-08-23, Windows) — Rynix rank / 6
 
+Fair opaque trip counts on **all** langs including End. Numbers vary ±5–15%.
+
 | Workload | Best | Rynix | Rank | vs best |
 |----------|------|------:|-----:|--------:|
-| alu | rynix 5.7 | 5.7 | **1** | 0% |
-| nested | end 5.4 | 5.9 | 2 | +10% |
-| fib | rynix 5.6 | 5.6 | **1** | 0% |
-| hash | rynix 5.1 | 5.1 | **1** | 0% |
-| prime | rynix 8.3 | 8.3 | **1** | 0% |
-| sum | rynix 5.8 | 5.8 | **1** | 0% |
-| bits | rynix 89 | 89 | **1** | 0% |
-| matrix | rynix 5.3 | 5.3 | **1** | 0% |
-| scan | rynix 5.5 | 5.5 | **1** | 0% |
-| powmod | rynix 11.8 | 11.8 | **1** | 0% |
-| gcd | rynix 115 | 115 | **1** | 0% |
-| reduce | rynix 7.9 | 7.9 | **1** | 0% |
+| alu | rynix 5.9 | 5.9 | **1** | 0% |
+| nested | end 5.9 | 6.3 | 2 | +7% |
+| fib | rynix 5.3 | 5.3 | **1** | 0% |
+| hash | rynix 6.1 | 6.1 | **1** | 0% |
+| prime | rynix 8.0 | 8.0 | **1** | 0% |
+| sum | rynix 5.3 | 5.3 | **1** | 0% |
+| bits | rynix 88 | 88 | **1** | 0% |
+| matrix | rynix 5.7 | 5.7 | **1** | 0% |
+| scan | rynix 6.0 | 6.0 | **1** | 0% |
+| powmod | end 13.2 | 16.4 | 5 | +24% |
+| gcd | rynix 112 | 112 | **1** | 0% |
+| reduce | rynix 5.3 | 5.3 | **1** | 0% |
 
-Rynix leads **11/12**; End edges `nested` (~10%). Full ms matrix: root [README.md](../README.md).
+Rynix leads **10/12**; End edges `nested` and `powmod`. Full ms matrix: root [README.md](../README.md).
 
 Refresh: `python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary`
 

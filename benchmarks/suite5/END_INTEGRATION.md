@@ -7,9 +7,31 @@ suite12 unified binary (different programs).
 
 | Piece | Status |
 |-------|--------|
-| `build_end()` in `run_suite5.py` | ✅ wired (skips if toolchain missing) |
-| 12× `{challenge}.end` sources | ✅ in-tree (ported from Suite5 C/Rynix) |
-| Status | ✅ sources + harness; **local checksum parity vs C/Rynix on all 12** (needs `endc` on PATH) |
+| `build_end()` in `run_suite5.py` | wired (skips if toolchain missing) |
+| 12× `{challenge}.end` sources | in-tree ports of Suite5 C/Rynix algorithms |
+| Fairness | opaque trip counts via `opaque_i64` + `getenv("SUITE5_OPAQUE")` |
+| Correctness | local checksum parity vs C/Rynix on all 12 (needs `endc` on PATH) |
+
+## What these `.end` files are (honesty)
+
+- They are **Rynix-maintained Suite5 ports**, not copies of End’s official
+  [suite12](https://github.com/IrMaho/End/tree/main/benchmarks/suite12).
+- End’s suite12 uses **different** workloads (SDF, HFT, SHA-256, …). Do **not**
+  compare suite12 ms to Suite5 ms.
+- Algorithm bodies match the C/Rynix Suite5 sources (same checksums). Compilers
+  may still strength-reduce patterns; that is disclosed in README Notes.
+
+## Fairness contract (must match other langs)
+
+| Requirement | End port |
+|-------------|---------|
+| Opaque trip / scale inputs | `val n = opaque_i64(…)` then `for i in n` (matrix: opaque `per`) |
+| Opaque barrier | `getenv("SUITE5_OPAQUE")` side effect inside `opaque_i64` |
+| Timing sink | `suite5_print_i64` honors `SUITE5_BENCH` like `bench.h` |
+
+**Audit note (2026-08-23):** an earlier revision defined `opaque_i64` but still used
+literal `for i in N`, so End could const-fold while peers could not. That is fixed
+in-tree; re-run Suite5 after pulling.
 
 ## Safety
 
@@ -28,15 +50,9 @@ python benchmarks/suite5/run_suite5.py --langs c,rynix,end --summary
 python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary
 ```
 
-Each `.end` file embeds `suite5_print_i64` (same `SUITE5_BENCH` contract as `bench.h`).
-
 ## Port notes
 
 - Syntax follows End suite12 style (`pub fn`, `val`/`mut`, `for i in N`, `@import_c`).
-- Sources use opaque trip counts (same fairness contract as other Suite5 ports).
 - If End’s CLI flags differ (`--strip` vs `--release`), adjust `build_end()` in `run_suite5.py`.
-
-## suite12 (End’s own matrix)
-
-End’s `benchmarks/suite12/suite12_*.` files are **not** Suite5-compatible.
-Do **not** compare suite12 ms to Suite5 ms in README tables.
+- `bits.end` uses a software popcount loop (End `>>` quirks); Rynix may lower the
+  same source shape to `@llvm.ctpop` — a disclosed compiler win, not a harness cheat.
