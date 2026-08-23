@@ -1,5 +1,4 @@
-## vendor util 0.1.0 — local registry fixture
-
-fn util_id() -> i64 {
-  42
-}
+## vendor util 0.1.0 — local registry fixture (valid `def`, compiled into app).
+def util_answer() -> i64
+  return 42
+end

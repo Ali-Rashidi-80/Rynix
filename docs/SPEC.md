@@ -300,5 +300,25 @@ Exact version strings resolve to, in order:
 1. `{registry}/{name}/{version}/` (must contain `rynix.toml`)
 2. `{registry}/{name}-{version}/`
 
-Semver ranges, downloads, and mirrors are out of scope for v0.1.
+Semver ranges, downloads, and mirrors are out of scope for v0.1
+([ADR-0010](adr/0010-local-package-index.md)).
+
+### 6.3 Unity compile of dependency entries
+
+`rynixc build` / `emit-ll` load each resolved dependency’s `[package].entry`
+**before** the app source and parse them as **one** compilation unit (flat
+symbol namespace). App code may call `def` names from dependency entries
+directly (no `import` loader yet).
+
+Rules:
+
+- Every declared dependency must have a resolvable `entry` file at compile time
+- Dependency entries must **not** define `def main`
+- Duplicate `def` names across units are a compile error
+- Transitive dependencies and network registries are out of scope
+- Soft `std` builtins remain injected by sema (not loaded from `std/*.ryx`)
+
+Evidence: `testdata/pkg_app`, `testdata/pkg_reg_app`,
+`build_pkg_app_calls_path_dep`, `build_pkg_reg_app_resolves_registry_deps`.
+
 

@@ -27,10 +27,14 @@ lib  = { path = "../lib" }     # unchanged path form
 
 3. Resolution is exact-version only (no semver ranges yet).
 4. `rynixc deps` / build gate report `kind: "registry" | "path"` in `rynix.deps.v1`.
+5. `rynixc build` / `emit-ll` **unity-compile** each dep `[package].entry` with the
+   app (flat symbols; SPEC §6.3). Resolve-only is insufficient.
 
 ## Consequences
 
-- SPEC §6 documents the layouts and honesty bound (no network).
-- Tests: `manifest::resolves_local_registry_layout`, `deps_resolves_local_registry_version`.
-- Global/registry.cdn remains out of scope until a future ADR with mirror +
-  checksum policy + CI evidence.
+- SPEC §6 documents the layouts, unity compile, and honesty bound (no network).
+- Tests: `manifest::resolves_local_registry_layout`, `deps_resolves_local_registry_version`,
+  `build_pkg_app_calls_path_dep`, `build_pkg_reg_app_resolves_registry_deps`.
+- Global/registry CDN remains out of scope until a future ADR with mirror +
+  checksum policy + CI evidence. **Wave close (2026-08-23):** no stub CDN —
+  local index + unity compile is the shipping package story.

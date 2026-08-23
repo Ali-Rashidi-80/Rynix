@@ -23,20 +23,36 @@ pub struct CodegenResult {
     pub const_print_i64: Option<i64>,
 }
 
+/// Compile one primary `.ryx` (no package deps).
+#[allow(dead_code)] // public helper; build/emit-ll use `compile_to_llvm_with_deps`
 pub fn compile_to_llvm(
     path: &Path,
     optimize: bool,
     error_format: ErrorFormat,
 ) -> Result<CodegenResult, ExitCode> {
-    let mut sources = SourceMap::new();
-    let file_id = match sources.load_file(path) {
-        Ok(id) => id,
-        Err(error) => {
-            eprintln!("error: cannot read {}: {error}", path.display());
-            return Err(ExitCode::from(3));
+    compile_to_llvm_with_deps(path, &[], optimize, error_format)
+}
+
+/// Unity-compile primary + dependency `entry` files into one LLVM unit (SPEC §6.3).
+///
+/// Flat symbol namespace: `def` names from deps are visible to the app without
+/// `import`. Dependency units must not define `main`.
+pub fn compile_to_llvm_with_deps(
+    primary: &Path,
+    dep_entries: &[std::path::PathBuf],
+    optimize: bool,
+    error_format: ErrorFormat,
+) -> Result<CodegenResult, ExitCode> {
+    let (unity_name, unity_text) = match build_unity_source(primary, dep_entries) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return Err(ExitCode::from(1));
         }
     };
 
+    let mut sources = SourceMap::new();
+    let file_id = sources.add_owned(unity_name, unity_text);
     let file = sources.file(file_id);
     let arena = AstArena::new();
     let mut interner = Interner::new();
@@ -81,6 +97,55 @@ pub fn compile_to_llvm(
         ll,
         const_print_i64,
     })
+}
+
+/// Concatenate dependency entries (first) then primary into one parse unit.
+fn build_unity_source(
+    primary: &Path,
+    dep_entries: &[std::path::PathBuf],
+) -> Result<(String, String), String> {
+    let mut unity = String::new();
+    for dep in dep_entries {
+        let text = std::fs::read_to_string(dep)
+            .map_err(|e| format!("cannot read dependency {}: {e}", dep.display()))?;
+        if has_def_main(&text) {
+            return Err(format!(
+                "dependency entry {} defines `main` — library packages must not",
+                dep.display()
+            ));
+        }
+        unity.push_str(&format!("## package unit: {}\n", dep.display()));
+        unity.push_str(&text);
+        if !text.ends_with('\n') {
+            unity.push('\n');
+        }
+        unity.push('\n');
+    }
+    let primary_text = std::fs::read_to_string(primary)
+        .map_err(|e| format!("cannot read {}: {e}", primary.display()))?;
+    if !dep_entries.is_empty() {
+        unity.push_str(&format!("## package unit: {}\n", primary.display()));
+    }
+    unity.push_str(&primary_text);
+    if !primary_text.ends_with('\n') {
+        unity.push('\n');
+    }
+    let name = if dep_entries.is_empty() {
+        primary.display().to_string()
+    } else {
+        format!("unity:{}", primary.display())
+    };
+    Ok((name, unity))
+}
+
+fn has_def_main(src: &str) -> bool {
+    for line in src.lines() {
+        let t = line.split("##").next().unwrap_or("").trim();
+        if t.starts_with("def main") {
+            return true;
+        }
+    }
+    false
 }
 
 /// Folded / unrolled kernels with no back-edges: interpret once at compile time.

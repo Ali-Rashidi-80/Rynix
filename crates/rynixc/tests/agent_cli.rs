@@ -320,7 +320,75 @@ fn build_pkg_reg_app_resolves_registry_deps() {
     let run = Command::new(&exe).output().expect("run");
     assert!(run.status.success(), "run failed");
     let stdout = String::from_utf8_lossy(&run.stdout);
-    assert!(stdout.contains('1'), "expected 1 on stdout, got: {stdout}");
+    assert!(
+        stdout.contains("42"),
+        "expected util_answer()=42 on stdout, got: {stdout}"
+    );
+}
+
+#[test]
+fn build_pkg_app_calls_path_dep() {
+    let root = repo_root();
+    let main = root.join("testdata/pkg_app/main.ryx");
+    let out_dir = root.join("target/test-pkg-app");
+    std::fs::create_dir_all(&out_dir).ok();
+    let exe = out_dir.join(if cfg!(windows) {
+        "pkg_app.exe"
+    } else {
+        "pkg_app"
+    });
+    let build = rynixc()
+        .args([
+            "build",
+            main.to_str().unwrap(),
+            "-o",
+            exe.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .output()
+        .expect("spawn build");
+    assert!(
+        build.status.success(),
+        "build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let run = Command::new(&exe).output().expect("run");
+    assert!(run.status.success(), "run failed");
+    let stdout = String::from_utf8_lossy(&run.stdout);
+    assert!(
+        stdout.contains("42"),
+        "expected util_answer()=42 on stdout, got: {stdout}"
+    );
+}
+
+#[test]
+fn emit_ll_pkg_app_includes_dep_fn() {
+    let root = repo_root();
+    let main = root.join("testdata/pkg_app/main.ryx");
+    let out_dir = root.join("target/test-pkg-app-ll");
+    std::fs::create_dir_all(&out_dir).ok();
+    let ll = out_dir.join("pkg_app.ll");
+    let emit = rynixc()
+        .args([
+            "emit-ll",
+            main.to_str().unwrap(),
+            "-o",
+            ll.to_str().unwrap(),
+        ])
+        .output()
+        .expect("spawn emit-ll");
+    assert!(
+        emit.status.success(),
+        "emit-ll failed:\n{}",
+        String::from_utf8_lossy(&emit.stderr)
+    );
+    let text = std::fs::read_to_string(&ll).expect("read .ll");
+    // Small dep bodies may inline; evidence is the constant from util_answer().
+    assert!(
+        text.contains("42") && text.contains("rynix_rt_print_i64"),
+        "expected inlined util_answer()=42 print in IR, got snippet:\n{}",
+        &text[..text.len().min(800)]
+    );
 }
 
 #[test]

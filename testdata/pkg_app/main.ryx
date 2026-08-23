@@ -1,5 +1,5 @@
-## App that depends on path package `util` (resolve-only in v0.1).
+## App that calls path package `util` via unity compile (SPEC §6.3).
 def main() -> i64
-  print_i64(42)
+  print_i64(util_answer())
   return 0
 end

@@ -143,20 +143,21 @@ Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
 | Use-after-move (linear types) | ✅ | `RYX2011` + `sema_unit` |
 | `#^ effect: pure` | ✅ | `RYX2012` + `effects_pure` + wave1 contract |
 | Agent `security` / `scope` | ✅ | `agent_cli` + MCP `rynix_security` / `rynix_scope` |
-| Local path packages (`rynix.toml` deps) | ✅ | path + **local index** (`[registry]`); ADR-0010 |
+| Local path packages (`rynix.toml` deps) | ✅ | path + local index + **unity compile** (SPEC §6.3) |
 | `rynixc new` / `dna` | ✅ | scaffold + `rynix.dna.v1` + MCP |
 | TLS echo (SChannel / OpenSSL) | ✅ | `tls_echo_smoke_c` + soft builtins |
 | HMAC + AES-GCM KAT | ✅ | RFC 4231 + NIST empty-tag; `crypto_kv_smoke` |
 | VS Code CodeLens (check/alloc/impact) | ✅ | `editors/vscode` CodeLens provider |
 | Suite12 MATCH ports | ✅ | ALU/HFT/JSON/FSM/DNA/GEMM/MC/trees/SHA checksum gates |
-| WS RFC6455 (64-bit + frag) | ✅ | `ws_frames_smoke_c` KATs |
+| Suite12 divergent #1/#5/#6 | ✅ deferred | [ADR-0011](adr/0011-suite12-divergent-benches.md) — no stub |
+| WS RFC6455 (64-bit + frag + large wire) | ✅ | `ws_frames_smoke_c` + `ws_large_echo_smoke_c` |
 | Windows IOCP runtime | ✅ | AcceptEx/ConnectEx + WSARecv/WSASend |
 | GPG release path | ✅ | `release.yml` + `gpg_sign_smoke` |
 | Release packaging + optional GPG | ✅ | `scripts/build_release.ps1` + `release.yml` |
 | DCE strips dead Suite5 noise | ✅ | `dce_matrix_noise` — matrix LLVM is `opaque*216` |
 | C11 backend | 🔄 deferred | ADR-0008 — no stub transpile |
 | UI / canvas | 🔄 deferred | ADR-0007 — no stub studio |
-| Network package registry | 🔄 deferred | ADR-0010 — local index only |
+| Network package registry | 🔄 deferred | ADR-0010 — local index + unity compile only |
 
 ## CI
 

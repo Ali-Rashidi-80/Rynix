@@ -84,7 +84,7 @@ Where End markets “every domain,” Rynix statuses are **evidence-gated** (tes
 | Microbench matrix | 🟢 Shipping | Suite5 × 5–6 langs, C↔Rynix CI gate |
 | suite12 MATCH ports | 🟢 Shipping | `benchmarks/suite12/` checksum gates (9 ids) |
 | HTTP / JSON / TLS / WS / crypto / KV | 🟢 Shipping | `size_echo_gates`, `std/*` |
-| Packages (path + local index) | 🟢 Shipping | `rynixc deps`, ADR-0010, `testdata/pkg_reg_app` |
+| Packages (path + local index) | 🟢 Shipping | unity compile SPEC §6.3; ADR-0010 |
 | Web frameworks / UI canvas | ⚪ Deferred | [ADR-0007](docs/adr/0007-deferred-ui-frameworks.md) |
 | C11 backend | ⚪ Deferred | [ADR-0008](docs/adr/0008-deferred-c11-backend.md) |
 | Agent contract DSL | ⚪ Design only | [ADR-0009](docs/adr/0009-agent-contracts-toolchain.md) — toolchain evidence, not End syntax |

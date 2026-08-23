@@ -21,6 +21,8 @@ evidence gate.
 3. Spirit analogues (e.g. Suite5 `reduce` vs End #12 ALU mix) must be labeled
    as such in [docs/END_PEER_GAP.md](../../docs/END_PEER_GAP.md).
 4. Skip ports where End/C/peers diverge (raymarcher #1, n-body #5, ring #6).
+   Closed by [ADR-0011](../../docs/adr/0011-suite12-divergent-benches.md) —
+   no stub ports without a shared oracle checksum.
 
 ## Locked ports (CI)
 

@@ -61,6 +61,36 @@ impl DepsReport {
         self.deps.iter().all(|d| d.ok)
     }
 
+    /// Entry `.ryx` paths that must be unity-compiled with the app (SPEC §6.3).
+    ///
+    /// Every declared dependency needs a resolvable `entry` file. Check-only
+    /// deps (manifest without `entry`) are rejected at compile time.
+    pub fn compile_entry_paths(&self) -> Result<Vec<PathBuf>, String> {
+        let mut out = Vec::new();
+        for d in &self.deps {
+            if !d.ok {
+                return Err(format!("{}: {}", d.name, d.detail));
+            }
+            match &d.entry {
+                Some(p) if p.is_file() => out.push(p.clone()),
+                Some(p) => {
+                    return Err(format!(
+                        "dependency `{}` entry missing for compile: {}",
+                        d.name,
+                        p.display()
+                    ));
+                }
+                None => {
+                    return Err(format!(
+                        "dependency `{}` has no `[package].entry` — cannot compile into the app",
+                        d.name
+                    ));
+                }
+            }
+        }
+        Ok(out)
+    }
+
     pub fn to_json(&self) -> Value {
         json!({
             "schema": "rynix.deps.v1",

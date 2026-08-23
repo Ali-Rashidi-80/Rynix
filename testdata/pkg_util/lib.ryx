@@ -1,4 +1,4 @@
-## Tiny path-dep library (D3 fixture).
+## Tiny path-dep library (D3 fixture) — compiled into dependents (SPEC §6.3).
 def util_answer() -> i64
   return 42
 end

@@ -40,3 +40,5 @@ Revisit only when:
   a stub studio would violate AGENTS.md; revisit criteria above are unchanged
 - Follow-on wave (same day): still **no UI** — network WS/registry advances do not
   imply canvas/studio acceptance
+- **Wave close (user request 2026-08-23):** UI/canvas/hot-reload remain out of
+  scope; no stub `std/ui.ryx`. WebSocket framing stays networking-only

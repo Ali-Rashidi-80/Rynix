@@ -5,13 +5,16 @@ use std::process::{Command, ExitCode};
 
 use crate::cli::{BuildOptions, PgoMode, RuntimeKind};
 use crate::codegen_pipe;
-use crate::manifest::resolve_for_source;
+use crate::manifest::{resolve_for_source, DepsReport};
 
 pub fn run(options: &BuildOptions) -> ExitCode {
-    if let Err(e) = gate_path_deps(&options.path) {
-        eprintln!("error: {e}");
-        return ExitCode::from(1);
-    }
+    let dep_entries = match gate_and_collect_compile_entries(&options.path) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return ExitCode::from(1);
+        }
+    };
     let Some(clang) = find_clang() else {
         eprintln!(
             "error: `clang` not found on PATH\n\
@@ -54,7 +57,12 @@ pub fn run(options: &BuildOptions) -> ExitCode {
         );
     }
 
-    let result = match codegen_pipe::compile_to_llvm(&options.path, true, options.error_format) {
+    let result = match codegen_pipe::compile_to_llvm_with_deps(
+        &options.path,
+        &dep_entries,
+        true,
+        options.error_format,
+    ) {
         Ok(r) => r,
         Err(code) => return code,
     };
@@ -402,22 +410,28 @@ fn find_msvcrt_gcc() -> Option<PathBuf> {
     }
 }
 
-fn gate_path_deps(source: &Path) -> Result<(), String> {
+fn gate_and_collect_compile_entries(source: &Path) -> Result<Vec<PathBuf>, String> {
     match resolve_for_source(source) {
-        Ok(None) => Ok(()),
-        Ok(Some(report)) if report.all_ok() => Ok(()),
-        Ok(Some(report)) => {
-            let fails: Vec<_> = report
-                .deps
-                .iter()
-                .filter(|d| !d.ok)
-                .map(|d| format!("{}: {}", d.name, d.detail))
-                .collect();
-            Err(format!(
-                "path dependency resolve failed:\n  {}",
-                fails.join("\n  ")
-            ))
-        }
+        Ok(None) => Ok(Vec::new()),
+        Ok(Some(report)) => compile_entries_from_report(&report),
         Err(e) => Err(e),
     }
+}
+
+fn compile_entries_from_report(report: &DepsReport) -> Result<Vec<PathBuf>, String> {
+    if !report.all_ok() {
+        let fails: Vec<_> = report
+            .deps
+            .iter()
+            .filter(|d| !d.ok)
+            .map(|d| format!("{}: {}", d.name, d.detail))
+            .collect();
+        return Err(format!(
+            "path dependency resolve failed:\n  {}",
+            fails.join("\n  ")
+        ));
+    }
+    report.compile_entry_paths().map_err(|e| {
+        format!("dependency compile failed:\n  {e}")
+    })
 }

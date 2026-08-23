@@ -38,3 +38,5 @@ Until then, stubs that print C without semantics are **forbidden** (AGENTS.md).
 - Competitive “beyond Surpass” wave (2026-08-23): **no C11 transpile** — LLVM + C
   runtime remains the honest alternative; revisit criteria above are unchanged
 - Follow-on wave: local package **index** (ADR-0010) is not a C11 backend
+- **Wave close (user request 2026-08-23):** still deferred — shipping a stub
+  Rynix→C11 emitter would violate AGENTS.md; no change to revisit criteria

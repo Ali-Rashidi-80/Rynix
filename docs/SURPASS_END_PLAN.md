@@ -197,5 +197,6 @@ After Wave 2, re-score [END_PEER_GAP.md](END_PEER_GAP.md) §3 (“more valuable?
 ## Tracking
 
 - Phase 11 items with in-tree tests are ✅ in [ROADMAP.md](ROADMAP.md).
-- Follow-on gates landed: `build_pkg_reg_app_resolves_registry_deps`, `ws_large_echo_smoke_c`.
+- Follow-on gates landed: `build_pkg_*` unity compile, `ws_large_echo_smoke_c`,
+  ADR-0011 (suite12 divergent), ADR-0007/0008/0010 reaffirmation (no stubs).
 - Do not widen language surface without SPEC + tests.

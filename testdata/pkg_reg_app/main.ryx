@@ -1,5 +1,5 @@
-## App resolved via local [registry] index (ADR-0010 fixture).
+## App resolved via local [registry] index; calls util_answer from vendor entry.
 def main() -> i64
-  print_i64(1)
+  print_i64(util_answer())
   return 0
 end
