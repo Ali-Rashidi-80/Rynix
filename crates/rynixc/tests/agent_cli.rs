@@ -254,10 +254,13 @@ fn deps_resolves_path_package() {
     assert_eq!(v["status"], "ok");
     assert_eq!(v["package"], "pkg_app");
     let deps = v["dependencies"].as_array().expect("deps");
-    assert_eq!(deps.len(), 1);
-    assert_eq!(deps[0]["name"], "util");
+    assert_eq!(deps.len(), 2, "transitive: core then util");
+    assert_eq!(deps[0]["name"], "core");
     assert_eq!(deps[0]["kind"], "path");
     assert_eq!(deps[0]["ok"], true);
+    assert_eq!(deps[1]["name"], "util");
+    assert_eq!(deps[1]["kind"], "path");
+    assert_eq!(deps[1]["ok"], true);
 }
 
 #[test]
