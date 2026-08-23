@@ -200,6 +200,7 @@ Full-runtime hello gate remains **&lt;300 KiB**.
 - [x] suite12 checksum-locked C ports (ALU/trees/HFT/SHA/JSON/FSM/DNA/GEMM/MC; skip divergent ids #1/#5/#6 per [ADR-0011](adr/0011-suite12-divergent-benches.md))
 - [x] Unity compile of path/registry dep entries (SPEC §6.3; `build_pkg_app_calls_path_dep`)
 - [x] Transitive deps + `import pkg.fn` qualified calls (SPEC §6.4; `build_pkg_import_app_qualified_call`)
+- [x] Semver ranges + `pkg__fn` mangling + `import std::math` loader (SPEC §6.2–6.5)
 
 ### P3 — editor & release polish
 
