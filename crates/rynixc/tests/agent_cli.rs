@@ -1315,3 +1315,25 @@ fn struct_literal_field() {
         "expected printed 12 (10+2), got {stdout:?}"
     );
 }
+
+#[test]
+fn agent_skill_mentions_emit_wasm_and_attest() {
+    let skill = repo_root().join(".agents/skills/rynix/SKILL.md");
+    let text = std::fs::read_to_string(&skill).expect("read agent skill");
+    for needle in [
+        "emit-wasm",
+        "rynix.attest.v1",
+        "--attest",
+        "no WASI",
+        "not a language keyword",
+    ] {
+        assert!(
+            text.contains(needle),
+            "agent skill missing `{needle}` (Phase 15 Wave B Skills pack)"
+        );
+    }
+    assert!(
+        !text.contains("feature/skill/task") || text.contains("Do **not** invent"),
+        "skill must refuse End feature/skill language keywords"
+    );
+}

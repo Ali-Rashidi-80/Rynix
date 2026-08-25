@@ -204,6 +204,7 @@ Plan: **[PHASE15.md](PHASE15.md)**. Closes the emit→execute loop without WASI.
 | Wave | Theme | Status |
 |------|--------|--------|
 | A | Node instantiates `emit-wasm` module; `main()===42` | ✅ `emit_wasm_node_runs_main` |
+| B | Skills-as-docs pack (`emit-wasm` + attest honesty) | ✅ `agent_skill_mentions_emit_wasm_and_attest` |
 
 ## Follow-on (post-13 / parallel)
 
