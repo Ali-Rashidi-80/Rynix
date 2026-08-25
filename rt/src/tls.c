@@ -334,6 +334,34 @@ static int tls_decrypt_recv(RynixTls *t, int64_t fd, char *out, int out_cap) {
   }
 }
 
+static int tls_http_recv_message(RynixTls *t, int64_t fd, char *buf, int cap) {
+  int total = 0;
+  for (;;) {
+    if (total >= cap - 1) {
+      break;
+    }
+    int n = tls_decrypt_recv(t, fd, buf + total, cap - 1 - total);
+    if (n <= 0) {
+      break;
+    }
+    total += n;
+    buf[total] = '\0';
+    if (strstr(buf, "\r\n\r\n") != NULL) {
+      break;
+    }
+  }
+  buf[total] = '\0';
+  return total;
+}
+
+static const char *tls_http_body(const char *msg) {
+  const char *body = strstr(msg, "\r\n\r\n");
+  if (!body) {
+    return NULL;
+  }
+  return body + 4;
+}
+
 int64_t rynix_rt_tls_serve_once_echo(int64_t port) {
   if (port <= 0) {
     return -1;
@@ -395,6 +423,118 @@ int64_t rynix_rt_tls_client_echo(const char *host, int64_t port, const char *msg
     int n = tls_decrypt_recv(&tls, fd, buf, (int)sizeof(buf));
     if (n == nmsg && memcmp(buf, msg, (size_t)n) == 0) {
       rc = 0;
+    }
+  }
+  rynix_rt_tcp_close(fd);
+  tls_free(&tls);
+  return rc;
+}
+
+int64_t rynix_rt_http_tls_serve_once_json_i64(int64_t port, const char *path, int64_t value) {
+  if (!path || port <= 0) {
+    return -1;
+  }
+  PCCERT_CONTEXT cert = make_self_signed();
+  if (!cert) {
+    return -1;
+  }
+  RynixTls tls;
+  if (tls_acquire(&tls, 1, cert) != 0) {
+    CertFreeCertificateContext(cert);
+    return -1;
+  }
+  int64_t listen_fd = rynix_rt_tcp_listen(port);
+  if (listen_fd < 0) {
+    tls_free(&tls);
+    CertFreeCertificateContext(cert);
+    return -1;
+  }
+  int64_t client = rynix_rt_tcp_accept(listen_fd);
+  if (client < 0) {
+    rynix_rt_tcp_close(listen_fd);
+    tls_free(&tls);
+    CertFreeCertificateContext(cert);
+    return -1;
+  }
+  int64_t rc = -1;
+  if (tls_handshake(&tls, client, NULL) == 0) {
+    char req[2048];
+    if (tls_http_recv_message(&tls, client, req, (int)sizeof(req)) > 0) {
+      char *line_end = strstr(req, "\r\n");
+      if (line_end) {
+        *line_end = '\0';
+        char *sp1 = strchr(req, ' ');
+        char *req_path = sp1 ? sp1 + 1 : NULL;
+        char *sp2 = req_path ? strchr(req_path, ' ') : NULL;
+        if (sp2) {
+          *sp2 = '\0';
+        }
+        int path_ok = req_path && strcmp(req_path, path) == 0;
+        char body[128];
+        int body_n = snprintf(body, sizeof(body), "{\"value\": %lld}", (long long)value);
+        char resp[512];
+        int resp_n;
+        if (path_ok && body_n > 0 && body_n < (int)sizeof(body)) {
+          resp_n = snprintf(resp, sizeof(resp),
+                            "HTTP/1.1 200 OK\r\n"
+                            "Content-Type: application/json\r\n"
+                            "Content-Length: %d\r\n"
+                            "Connection: close\r\n"
+                            "\r\n"
+                            "%s",
+                            body_n, body);
+        } else {
+          static const char not_found[] = "{\"error\":\"not_found\"}";
+          resp_n = snprintf(resp, sizeof(resp),
+                            "HTTP/1.1 404 Not Found\r\n"
+                            "Content-Type: application/json\r\n"
+                            "Content-Length: %d\r\n"
+                            "Connection: close\r\n"
+                            "\r\n"
+                            "%s",
+                            (int)(sizeof(not_found) - 1), not_found);
+        }
+        if (resp_n > 0 && resp_n < (int)sizeof(resp) &&
+            tls_encrypt_send(&tls, client, resp, resp_n) == 0) {
+          rc = path_ok ? 0 : 1;
+        }
+      }
+    }
+  }
+  rynix_rt_tcp_close(client);
+  rynix_rt_tcp_close(listen_fd);
+  tls_free(&tls);
+  CertFreeCertificateContext(cert);
+  return rc;
+}
+
+int64_t rynix_rt_http_tls_get_json_i64(const char *host, int64_t port, const char *path,
+                                       const char *field) {
+  if (!host || !path || !field || port <= 0) {
+    return -1;
+  }
+  RynixTls tls;
+  if (tls_acquire(&tls, 0, NULL) != 0) {
+    return -1;
+  }
+  int64_t fd = rynix_rt_tcp_connect(host, port);
+  if (fd < 0) {
+    tls_free(&tls);
+    return -1;
+  }
+  int64_t rc = -1;
+  if (tls_handshake(&tls, fd, host) == 0) {
+    char req[512];
+    int n = snprintf(req, sizeof(req),
+                     "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", path, host);
+    if (n > 0 && n < (int)sizeof(req) && tls_encrypt_send(&tls, fd, req, n) == 0) {
+      char buf[4096];
+      if (tls_http_recv_message(&tls, fd, buf, (int)sizeof(buf)) > 0) {
+        const char *body = tls_http_body(buf);
+        if (body) {
+          rc = rynix_rt_json_get_i64(body, field);
+        }
+      }
     }
   }
   rynix_rt_tcp_close(fd);
@@ -580,6 +720,145 @@ int64_t rynix_rt_tls_client_echo(const char *host, int64_t port, const char *msg
   return rc;
 }
 
+static int ssl_http_recv_message(SSL *ssl, char *buf, int cap) {
+  int total = 0;
+  for (;;) {
+    if (total >= cap - 1) {
+      break;
+    }
+    int n = SSL_read(ssl, buf + total, cap - 1 - total);
+    if (n <= 0) {
+      break;
+    }
+    total += n;
+    buf[total] = '\0';
+    if (strstr(buf, "\r\n\r\n") != NULL) {
+      break;
+    }
+  }
+  buf[total] = '\0';
+  return total;
+}
+
+static const char *ssl_http_body(const char *msg) {
+  const char *body = strstr(msg, "\r\n\r\n");
+  if (!body) {
+    return NULL;
+  }
+  return body + 4;
+}
+
+int64_t rynix_rt_http_tls_serve_once_json_i64(int64_t port, const char *path, int64_t value) {
+  if (!path || port <= 0) {
+    return -1;
+  }
+  SSL_CTX *ctx = make_ctx(1);
+  if (!ctx) {
+    return -1;
+  }
+  int64_t listen_fd = rynix_rt_tcp_listen(port);
+  if (listen_fd < 0) {
+    SSL_CTX_free(ctx);
+    return -1;
+  }
+  int64_t client = rynix_rt_tcp_accept(listen_fd);
+  if (client < 0) {
+    rynix_rt_tcp_close(listen_fd);
+    SSL_CTX_free(ctx);
+    return -1;
+  }
+  SSL *ssl = ssl_wrap(ctx, client);
+  int64_t rc = -1;
+  if (ssl && SSL_accept(ssl) == 1) {
+    char req[2048];
+    if (ssl_http_recv_message(ssl, req, (int)sizeof(req)) > 0) {
+      char *line_end = strstr(req, "\r\n");
+      if (line_end) {
+        *line_end = '\0';
+        char *sp1 = strchr(req, ' ');
+        char *req_path = sp1 ? sp1 + 1 : NULL;
+        char *sp2 = req_path ? strchr(req_path, ' ') : NULL;
+        if (sp2) {
+          *sp2 = '\0';
+        }
+        int path_ok = req_path && strcmp(req_path, path) == 0;
+        char body[128];
+        int body_n = snprintf(body, sizeof(body), "{\"value\": %lld}", (long long)value);
+        char resp[512];
+        int resp_n;
+        if (path_ok && body_n > 0 && body_n < (int)sizeof(body)) {
+          resp_n = snprintf(resp, sizeof(resp),
+                            "HTTP/1.1 200 OK\r\n"
+                            "Content-Type: application/json\r\n"
+                            "Content-Length: %d\r\n"
+                            "Connection: close\r\n"
+                            "\r\n"
+                            "%s",
+                            body_n, body);
+        } else {
+          static const char not_found[] = "{\"error\":\"not_found\"}";
+          resp_n = snprintf(resp, sizeof(resp),
+                            "HTTP/1.1 404 Not Found\r\n"
+                            "Content-Type: application/json\r\n"
+                            "Content-Length: %d\r\n"
+                            "Connection: close\r\n"
+                            "\r\n"
+                            "%s",
+                            (int)(sizeof(not_found) - 1), not_found);
+        }
+        if (resp_n > 0 && resp_n < (int)sizeof(resp) && SSL_write(ssl, resp, resp_n) == resp_n) {
+          rc = path_ok ? 0 : 1;
+        }
+      }
+    }
+  }
+  if (ssl) {
+    SSL_free(ssl);
+  }
+  rynix_rt_tcp_close(client);
+  rynix_rt_tcp_close(listen_fd);
+  SSL_CTX_free(ctx);
+  return rc;
+}
+
+int64_t rynix_rt_http_tls_get_json_i64(const char *host, int64_t port, const char *path,
+                                       const char *field) {
+  if (!host || !path || !field || port <= 0) {
+    return -1;
+  }
+  SSL_CTX *ctx = make_ctx(0);
+  if (!ctx) {
+    return -1;
+  }
+  int64_t fd = rynix_rt_tcp_connect(host, port);
+  if (fd < 0) {
+    SSL_CTX_free(ctx);
+    return -1;
+  }
+  SSL *ssl = ssl_wrap(ctx, fd);
+  int64_t rc = -1;
+  if (ssl && SSL_connect(ssl) == 1) {
+    char req[512];
+    int n = snprintf(req, sizeof(req),
+                     "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", path, host);
+    if (n > 0 && n < (int)sizeof(req) && SSL_write(ssl, req, n) == n) {
+      char buf[4096];
+      if (ssl_http_recv_message(ssl, buf, (int)sizeof(buf)) > 0) {
+        const char *body = ssl_http_body(buf);
+        if (body) {
+          rc = rynix_rt_json_get_i64(body, field);
+        }
+      }
+    }
+  }
+  if (ssl) {
+    SSL_free(ssl);
+  }
+  rynix_rt_tcp_close(fd);
+  SSL_CTX_free(ctx);
+  return rc;
+}
+
 #else
 
 int64_t rynix_rt_tls_serve_once_echo(int64_t port) {
@@ -591,6 +870,22 @@ int64_t rynix_rt_tls_client_echo(const char *host, int64_t port, const char *msg
   (void)host;
   (void)port;
   (void)msg;
+  return -2;
+}
+
+int64_t rynix_rt_http_tls_serve_once_json_i64(int64_t port, const char *path, int64_t value) {
+  (void)port;
+  (void)path;
+  (void)value;
+  return -2;
+}
+
+int64_t rynix_rt_http_tls_get_json_i64(const char *host, int64_t port, const char *path,
+                                       const char *field) {
+  (void)host;
+  (void)port;
+  (void)path;
+  (void)field;
   return -2;
 }
 

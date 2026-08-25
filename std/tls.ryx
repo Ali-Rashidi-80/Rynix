@@ -20,3 +20,7 @@ validation). This is **not** production PKI — it proves real TLS framing
 unlike simulated “TLS” stubs.
 
 Evidence: `rt/tests/tls_echo_smoke.c` / `size_echo_gates::tls_echo_smoke_c`.
+
+HTTP JSON over the same TLS backends lives in soft HTTP
+(`http_tls_serve_once_json_i64` / `http_tls_get_json_i64`; see `std/http.ryx`
+and `http_tls_product_smoke`).

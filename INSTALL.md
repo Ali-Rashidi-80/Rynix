@@ -10,9 +10,25 @@ verify command — same gates as CI where noted.
 | Requirement | Notes |
 |-------------|-------|
 | **Rust** | MSRV **1.98** (`Cargo.toml`); [`rust-toolchain.toml`](rust-toolchain.toml) pins the `stable` channel |
-| **clang** | Required for `build` / `run` (native binaries) |
+| **clang** | Required for `build` / `run` / `emit-wasm` (one-path setup below) |
 | **Python 3** | Optional — Suite5 harness only |
-| **Node.js 18+** | Optional — VS Code extension only |
+| **Node.js 18+** | Optional — VS Code extension; also runs `emit-wasm` Node smokes |
+
+### One-path clang (Win + Linux)
+
+Rynix links through **clang** only — no second compiler path. Install once, put it on
+`PATH`, then `rynixc build` / `run` / `emit-wasm` use the same driver.
+
+| Platform | One-path clang setup |
+|----------|----------------------|
+| **Windows** | Install **LLVM/clang** or **MinGW-w64 clang** (`x86_64-w64-mingw32-clang`). Add the `bin` directory to `PATH`. Prefer cargo target `x86_64-pc-windows-gnu`. Verify: `clang --version` (or `x86_64-w64-mingw32-clang --version`). Runtime default: `--runtime=portable` (optional `--runtime=iocp`). |
+| **Linux** | Install distro **clang** (e.g. `sudo apt install clang` / `sudo dnf install clang`). Verify: `clang --version`. Runtime: `--runtime=portable` or `--runtime=uring` when built with `RYNIX_RT_URING`. |
+
+```sh
+# Both platforms — confirm clang is the single link driver on PATH:
+clang --version
+rynixc build examples/01_hello.ryx -o target/hello --runtime=portable
+```
 
 ### Platform toolchains
 
@@ -181,7 +197,8 @@ See [`editors/vscode/README.md`](editors/vscode/README.md).
 
 | Problem | Fix |
 |---------|-----|
-| `clang not found` on Windows | Install MinGW-w64 clang; add to PATH |
+| `clang not found` on Windows | Install MinGW-w64 / LLVM clang (see **One-path clang** above); add `bin` to PATH |
+| `clang not found` on Linux | Install distro clang (`apt`/`dnf`/`pacman`); confirm `clang --version` |
 | `linker failed` on Windows | Use `x86_64-pc-windows-gnu` target; `-fuse-ld=lld` if needed |
 | `Architecture.toml not found` | Run `arch check` from repo root, or pass `--root /path/to/Rynix` |
 | `build` succeeds but run hangs on TCP | Standalone smokes use blocking connect; fiber apps need `rynix_rt_run` |

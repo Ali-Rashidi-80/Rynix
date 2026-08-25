@@ -58,9 +58,10 @@ end
         eprintln!("error: write main.ryx: {e}");
         return ExitCode::from(3);
     }
-    println!("created {}", root.display());
+    println!("ok: created package `{name}` at {}", root.display());
     println!("  rynix.toml");
     println!("  src/main.ryx");
-    println!("next: rynixc build");
+    println!("next: cd {} && rynixc build", root.display());
+    println!("hint: local packages only (no CDN registry); rynixc deps --attest for rynix.attest.v1");
     ExitCode::SUCCESS
 }

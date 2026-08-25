@@ -111,7 +111,7 @@ pub fn run(options: &DepsOptions) -> ExitCode {
         match lock_from_report(&report).and_then(|lock| write_lock(&lock_path, &lock)) {
             Ok(()) => {
                 if matches!(options.error_format, ErrorFormat::Human) {
-                    eprintln!("wrote {}", lock_path.display());
+                    eprintln!("ok: wrote {}", lock_path.display());
                 }
             }
             Err(e) => {
@@ -133,7 +133,10 @@ pub fn run(options: &DepsOptions) -> ExitCode {
         match from_lock(&lock_path, &lock).and_then(|a| write_attest(&attest_path, &a)) {
             Ok(()) => {
                 if matches!(options.error_format, ErrorFormat::Human) {
-                    eprintln!("wrote {}", attest_path.display());
+                    eprintln!(
+                        "ok: wrote {} (schema rynix.attest.v1, local digest — not Sigstore/Rekor)",
+                        attest_path.display()
+                    );
                 }
             }
             Err(e) => {

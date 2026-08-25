@@ -3,8 +3,9 @@
 **Date:** 2026-08-25  
 **Peer:** [IrMaho/End](https://github.com/IrMaho/End) `main` @ **`cf5bef3`**  
 (local clone `D:\0\End-peer`, `git fetch` + `pull --ff-only` — **no peer source edits**)  
-**This repo:** Rynix Phase 14 complete ([PHASE14.md](PHASE14.md)); Phase 15
-Waves A–B complete ([PHASE15.md](PHASE15.md)). Phase 12 product realness:
+**This repo:** Rynix Phase 15 complete ([PHASE15.md](PHASE15.md)); Phase 16 in
+progress ([PHASE16.md](PHASE16.md)) toward Niche-10
+([ADR-0013](adr/0013-niche-10-scorecard.md)). Phase 12 product realness:
 [LEAD_AHEAD.md](LEAD_AHEAD.md).
 
 This document answers one question under audit rules:
@@ -79,12 +80,12 @@ Large wins use **disclosed** strength reduction (same checksum). See
 [END_PEER_GAP.md](END_PEER_GAP.md) §2 and
 [benchmarks/suite5/README.md](../benchmarks/suite5/README.md).
 
-### vs End on Suite5 (2026-08-25, this machine)
+### vs End on Suite5 (2026-08-25 Phase 16-A, this machine)
 
 Peer `endc` built release-only from untouched `D:\0\End-peer` @ `cf5bef3`
 (`ENDC_PATH=…/endc/target/release/endc.exe`).
 
-**Peer compiler regressions discovered during this audit (not Rynix edits):**
+**Peer compiler regressions discovered during prior audit (not Rynix edits):**
 
 1. Statement `if cond { … }` **fails to parse** — End’s own
    `benchmarks/suite12/suite12_end.end` errors with `Expected token Else, found LBrace`.
@@ -92,9 +93,9 @@ Peer `endc` built release-only from untouched `D:\0\End-peer` @ `cf5bef3`
 3. Rynix-owned Suite5 `.end` ports use only `for` / `while` / `getenv as i64`
    (see `benchmarks/suite5/regen_end_ports.py` + `END_INTEGRATION.md`).
 
-Live head-to-head numbers: `benchmarks/suite5/suite5_summary_2026-08-25_vs_end_mulhu.txt`
-(and table in [END_PEER_GAP.md](END_PEER_GAP.md) §2). Checksums must match C on every
-counted End row.
+Live head-to-head: `benchmarks/suite5/suite5_summary_2026-08-25_phase16.txt`
+(**Rynix 11 · End 1** on `matrix`) and table in [END_PEER_GAP.md](END_PEER_GAP.md) §2.
+Checksums must match C on every counted End row.
 
 Binary size (hello full RT gate): **&lt;300 KiB** (~13 KiB measured 2026-08-25).
 Suite5 `--bench` Rynix bins were smaller than End `--strip` on prior Windows run.
@@ -149,7 +150,7 @@ cargo test -p rynixc --test agent_cli
 | Question | Answer |
 |----------|--------|
 | Who is ahead on **real shipping** systems + agent toolchain? | **You (Rynix)** |
-| Who is ahead on **Suite5 same-algorithm wall-clock** vs End@cf5bef3? | **You — 10 wins, 2 losses (`nested`, `sum`)** (checksums OK; `sum` gap ~1.03×) |
+| Who is ahead on **Suite5 same-algorithm wall-clock** vs End@cf5bef3? | **You — 11 wins, 1 loss (`matrix`)** (Phase 16-A; checksums OK) |
 | Who is ahead on **brochure / domain spectacle**? | Friend (End) — by design of their README |
 | Is Rynix a waste of time vs End? | **No** — Rynix leads where code must be true; End’s suite12 `.end` does not even parse at peer HEAD |
 | What would reverse this? | End ships real TLS, MCP, fixes `if` parsing, and drops STATUS green on stubs — then re-audit |

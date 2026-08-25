@@ -1,0 +1,46 @@
+# Phase 19 — path-first MCP + LSP completion/rename (ADR-0009 toolchain evidence)
+
+[contract]
+name = "phase19-path-mcp"
+
+[[evidence]]
+id = "mcp-impact-path-file"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_impact_path_file"
+
+[[evidence]]
+id = "mcp-precheck-path-file"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_precheck_path_file"
+
+[[evidence]]
+id = "lsp-completion-gate"
+kind = "cargo_test"
+package = "rynixc"
+filter = "completion_lists_fn_and_let"
+
+[[evidence]]
+id = "lsp-rename-gate"
+kind = "cargo_test"
+package = "rynixc"
+filter = "rename_local_updates_def_and_refs"
+
+[[evidence]]
+id = "skill-completion-rename"
+kind = "file"
+path = ".agents/skills/rynix/SKILL.md"
+contains = "completion"
+
+[[evidence]]
+id = "skill-rename"
+kind = "file"
+path = ".agents/skills/rynix/SKILL.md"
+contains = "rename"
+
+[[evidence]]
+id = "skill-path-first-mcp"
+kind = "file"
+path = ".agents/skills/rynix/SKILL.md"
+contains = "path-first"

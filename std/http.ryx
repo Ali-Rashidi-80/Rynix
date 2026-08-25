@@ -45,9 +45,36 @@ smokes without a full router.
 Same contract with **three** routes (`/a`, `/b`, `/c` in smokes). Still not a
 general HTTP framework — bounded path dispatch only.
 
+`http_serve_loop_path_param_json_i64(port, prefix, max_reqs) -> i64`
+
+Matching GET on `{prefix}{decimal}` (e.g. prefix `/items/` + `/items/42`) responds
+with `{"value": 42}`. Non-digit or trailing junk → 404. Counts toward `max_reqs`.
+
+`http_serve_loop_header_json_i64(port, path, header_name, max_reqs) -> i64`
+
+Matching GET on `path` with request header `header_name` parsed as decimal i64
+responds `{"value": N}`. Missing/non-decimal header → 400 (does not count).
+
+`http_serve_loop_post_echo_json_i64(port, path, field, max_reqs, max_body) -> i64`
+
+Bounded POST echo of JSON `field` (like `serve_once_echo`). If body length
+exceeds `max_body` → 400 `body_too_large` (does not count).
+
+`http_serve_loop_keepalive_json_i64(port, path, value, max_reqs) -> i64`
+
+One `accept`, then up to `max_reqs` matching GETs on the **same** connection
+(`Connection: keep-alive`, `close` on the last match).
+
+`http_tls_serve_once_json_i64(port, path, value) -> i64` /
+`http_tls_get_json_i64(host, port, path, field) -> i64`
+
+HTTP JSON GET over the TLS stack (SChannel / OpenSSL / stub `-2`).
+
 Pair with a fiber client (see `rt/tests/http_post_echo_smoke.c` /
 `rt/tests/http_loop_three_gets_smoke.c` / `rt/tests/http_loop_2paths_smoke.c` /
-`rt/tests/http_loop_3paths_smoke.c`)
+`rt/tests/http_loop_3paths_smoke.c` / `rt/tests/http_loop_path_param_smoke.c` /
+`rt/tests/http_header_i64_smoke.c` / `rt/tests/http_body_bounded_smoke.c` /
+`rt/tests/http_keepalive_bounded_smoke.c` / `rt/tests/http_tls_product_smoke.c`)
 or an external HTTP client.
 
 Low-level TCP remains in `std/net.ryx` (`tcp_listen`, `tcp_connect`, …).

@@ -1,0 +1,19 @@
+enum Color
+  Red
+  Green
+  Blue
+end
+
+def main() -> i64
+  let c = Green
+  if c == Green
+    print_i64(42)
+  end
+  if c == Red
+    print_i64(99)
+  end
+  if Red == Blue
+    print_i64(0)
+  end
+  return 0
+end

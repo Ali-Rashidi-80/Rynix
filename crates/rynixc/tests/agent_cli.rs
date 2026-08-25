@@ -1205,8 +1205,9 @@ fn new_scaffolds_package() {
     assert!(root.join("src/main.ryx").is_file());
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
-        stdout.lines().any(|l| l.trim() == "next: rynixc build"),
-        "expected next: rynixc build, got: {stdout}"
+        stdout.contains("ok: created package")
+            && stdout.lines().any(|l| l.contains("next:") && l.contains("rynixc build")),
+        "expected clear new success + next build hint, got: {stdout}"
     );
     let build = rynixc()
         .current_dir(&root)
@@ -1218,6 +1219,65 @@ fn new_scaffolds_package() {
         "scaffold build without path failed:\n{}",
         String::from_utf8_lossy(&build.stderr)
     );
+}
+
+#[test]
+fn package_ux_new_deps_attest() {
+    let parent = std::env::temp_dir().join("rynix_pkg_ux_parent");
+    let _ = std::fs::remove_dir_all(&parent);
+    std::fs::create_dir_all(&parent).unwrap();
+    let name = "ux_attest_app";
+    let created = rynixc()
+        .args(["new", name, "--path", parent.to_str().unwrap()])
+        .output()
+        .expect("spawn new");
+    assert!(
+        created.status.success(),
+        "new failed: {}",
+        String::from_utf8_lossy(&created.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&created.stdout);
+    assert!(
+        stdout.contains("ok: created package"),
+        "new should print clear success, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("rynix.attest.v1") || stdout.contains("deps --attest"),
+        "new should hint attest UX, got: {stdout}"
+    );
+
+    let root = parent.join(name);
+    let attest = rynixc()
+        .current_dir(&root)
+        .args(["deps", ".", "--attest"])
+        .output()
+        .expect("spawn deps --attest");
+    assert!(
+        attest.status.success(),
+        "deps --attest failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&attest.stderr),
+        String::from_utf8_lossy(&attest.stdout)
+    );
+    let err = String::from_utf8_lossy(&attest.stderr);
+    assert!(
+        err.contains("ok: wrote") && err.contains("rynix.attest.v1"),
+        "deps --attest should print clear attest success, got stderr: {err}"
+    );
+    assert!(
+        err.contains("local digest") || err.contains("not Sigstore"),
+        "attest success should stay honest about local digest, got: {err}"
+    );
+
+    let attest_path = root.join("rynix.attest.v1.json");
+    assert!(
+        attest_path.is_file(),
+        "missing {}",
+        attest_path.display()
+    );
+    let body: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&attest_path).unwrap())
+            .expect("attest json");
+    assert_eq!(body["schema"], "rynix.attest.v1");
 }
 
 /// Phase 12 Wave 1b: negative memory corpus asserts diagnostic *codes* only.
@@ -1316,6 +1376,62 @@ fn struct_literal_field() {
     );
 }
 
+fn build_run_fixture(name: &str, expect_stdout: &str) {
+    let root = repo_root();
+    let main = root.join("testdata").join(format!("{name}.ryx"));
+    let out_dir = root.join(format!("target/test-{name}"));
+    std::fs::create_dir_all(&out_dir).ok();
+    let exe = out_dir.join(if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    });
+    let build = rynixc()
+        .args([
+            "build",
+            main.to_str().unwrap(),
+            "-o",
+            exe.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .output()
+        .expect("spawn build");
+    assert!(
+        build.status.success(),
+        "{name} build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let run = Command::new(&exe)
+        .current_dir(&out_dir)
+        .output()
+        .expect("run");
+    assert!(
+        run.status.success(),
+        "{name} run failed: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&run.stdout);
+    assert!(
+        stdout.contains(expect_stdout),
+        "{name}: expected {expect_stdout:?} in stdout {stdout:?}"
+    );
+}
+
+#[test]
+fn struct_str_field_roundtrip() {
+    build_run_fixture("struct_str_field_roundtrip", "7");
+}
+
+#[test]
+fn index_assign_ok() {
+    build_run_fixture("index_assign_ok", "139");
+}
+
+#[test]
+fn enum_value_roundtrip() {
+    build_run_fixture("enum_value_roundtrip", "42");
+}
+
 #[test]
 fn agent_skill_mentions_emit_wasm_and_attest() {
     let skill = repo_root().join(".agents/skills/rynix/SKILL.md");
@@ -1335,5 +1451,376 @@ fn agent_skill_mentions_emit_wasm_and_attest() {
     assert!(
         !text.contains("feature/skill/task") || text.contains("Do **not** invent"),
         "skill must refuse End feature/skill language keywords"
+    );
+}
+
+#[test]
+fn mcp_graph_path_file() {
+    use std::io::{BufRead, BufReader, Write};
+    use std::process::{Command, Stdio};
+
+    let path = example("02_match_loop.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .arg("mcp-serve")
+        .current_dir(repo_root())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mcp-serve");
+
+    let mut stdin = child.stdin.take().expect("stdin");
+    let stdout = child.stdout.take().expect("stdout");
+    let mut reader = BufReader::new(stdout);
+
+    let call = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "rynix_graph",
+            "arguments": { "path": path_str }
+        }
+    });
+    let body = serde_json::to_vec(&call).unwrap();
+    write!(stdin, "Content-Length: {}\r\n\r\n", body.len()).unwrap();
+    stdin.write_all(&body).unwrap();
+    stdin.flush().unwrap();
+
+    let mut content_length = None;
+    loop {
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("headers");
+        let trimmed = line.trim_end();
+        if trimmed.is_empty() {
+            break;
+        }
+        let lower = trimmed.to_ascii_lowercase();
+        if let Some(rest) = lower.strip_prefix("content-length:") {
+            content_length = rest.trim().parse::<usize>().ok();
+        }
+    }
+    let len = content_length.expect("Content-Length");
+    let mut buf = vec![0u8; len];
+    use std::io::Read;
+    reader.read_exact(&mut buf).expect("body");
+    let resp: serde_json::Value = serde_json::from_slice(&buf).expect("json");
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    assert!(
+        text.contains("rynix.graph.v1"),
+        "expected graph schema, got: {text}"
+    );
+    assert!(text.contains("\"edges\""), "expected edges: {text}");
+    assert!(
+        text.contains("02_match_loop.ryx") || text.contains("classify"),
+        "expected path or fn names: {text}"
+    );
+
+    // Fail-closed: missing file must error (not invent empty graph).
+    let bad = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+            "name": "rynix_graph",
+            "arguments": { "path": "definitely/missing/no_such_file.ryx" }
+        }
+    });
+    let body = serde_json::to_vec(&bad).unwrap();
+    write!(stdin, "Content-Length: {}\r\n\r\n", body.len()).unwrap();
+    stdin.write_all(&body).unwrap();
+    let _ = stdin.flush();
+
+    let mut content_length = None;
+    loop {
+        let mut line = String::new();
+        if reader.read_line(&mut line).unwrap_or(0) == 0 {
+            break;
+        }
+        let trimmed = line.trim_end();
+        if trimmed.is_empty() {
+            break;
+        }
+        let lower = trimmed.to_ascii_lowercase();
+        if let Some(rest) = lower.strip_prefix("content-length:") {
+            content_length = rest.trim().parse::<usize>().ok();
+        }
+    }
+    if let Some(len) = content_length {
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf).expect("err body");
+        let resp: serde_json::Value = serde_json::from_slice(&buf).expect("err json");
+        assert!(
+            resp.get("error").is_some(),
+            "missing path must fail-closed with error: {resp}"
+        );
+    }
+
+    drop(stdin);
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+fn mcp_tools_call(name: &str, arguments: serde_json::Value) -> (serde_json::Value, Option<serde_json::Value>) {
+    use std::io::{BufRead, BufReader, Read, Write};
+    use std::process::{Command, Stdio};
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .arg("mcp-serve")
+        .current_dir(repo_root())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mcp-serve");
+
+    let mut stdin = child.stdin.take().expect("stdin");
+    let stdout = child.stdout.take().expect("stdout");
+    let mut reader = BufReader::new(stdout);
+
+    let call = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": { "name": name, "arguments": arguments }
+    });
+    let body = serde_json::to_vec(&call).unwrap();
+    write!(stdin, "Content-Length: {}\r\n\r\n", body.len()).unwrap();
+    stdin.write_all(&body).unwrap();
+    stdin.flush().unwrap();
+
+    let mut content_length = None;
+    loop {
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("headers");
+        let trimmed = line.trim_end();
+        if trimmed.is_empty() {
+            break;
+        }
+        let lower = trimmed.to_ascii_lowercase();
+        if let Some(rest) = lower.strip_prefix("content-length:") {
+            content_length = rest.trim().parse::<usize>().ok();
+        }
+    }
+    let len = content_length.expect("Content-Length");
+    let mut buf = vec![0u8; len];
+    reader.read_exact(&mut buf).expect("body");
+    let ok_resp: serde_json::Value = serde_json::from_slice(&buf).expect("json");
+
+    let bad = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+            "name": name,
+            "arguments": { "path": "definitely/missing/no_such_file.ryx" }
+        }
+    });
+    let body = serde_json::to_vec(&bad).unwrap();
+    write!(stdin, "Content-Length: {}\r\n\r\n", body.len()).unwrap();
+    stdin.write_all(&body).unwrap();
+    let _ = stdin.flush();
+
+    let mut content_length = None;
+    loop {
+        let mut line = String::new();
+        if reader.read_line(&mut line).unwrap_or(0) == 0 {
+            break;
+        }
+        let trimmed = line.trim_end();
+        if trimmed.is_empty() {
+            break;
+        }
+        let lower = trimmed.to_ascii_lowercase();
+        if let Some(rest) = lower.strip_prefix("content-length:") {
+            content_length = rest.trim().parse::<usize>().ok();
+        }
+    }
+    let err_resp = content_length.map(|len| {
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf).expect("err body");
+        serde_json::from_slice(&buf).expect("err json")
+    });
+
+    drop(stdin);
+    let _ = child.kill();
+    let _ = child.wait();
+    (ok_resp, err_resp)
+}
+
+#[test]
+fn mcp_impact_path_file() {
+    let path = example("02_match_loop.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let (resp, err) = mcp_tools_call(
+        "rynix_impact",
+        serde_json::json!({ "path": path_str, "fn": "main" }),
+    );
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    assert!(
+        text.contains("rynix.impact.v1"),
+        "expected impact schema, got: {text}"
+    );
+    assert!(text.contains("\"nodes\""), "expected nodes: {text}");
+    assert!(
+        text.contains("main") || text.contains("classify"),
+        "expected fn names: {text}"
+    );
+    let err = err.expect("fail-closed response");
+    assert!(
+        err.get("error").is_some(),
+        "missing path must fail-closed with error: {err}"
+    );
+}
+
+#[test]
+fn mcp_precheck_path_file() {
+    let path = example("02_match_loop.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let (resp, err) = mcp_tools_call(
+        "rynix_precheck",
+        serde_json::json!({ "path": path_str, "fn": "main" }),
+    );
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    assert!(
+        text.contains("rynix.precheck.v1"),
+        "expected precheck schema, got: {text}"
+    );
+    assert!(text.contains("rynix.impact.v1") || text.contains("\"impact\""), "expected impact nest: {text}");
+    let err = err.expect("fail-closed response");
+    assert!(
+        err.get("error").is_some(),
+        "missing path must fail-closed with error: {err}"
+    );
+}
+
+#[test]
+fn verify_phase19_path_mcp_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase19_path_mcp.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "verify failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["schema"], "rynix.verify.v1");
+    assert_eq!(v["status"], "passed");
+    assert_eq!(v["contract"], "phase19-path-mcp");
+    assert_eq!(v["ran_tests"], false);
+}
+
+#[test]
+fn agent_skill_mentions_completion_rename_path_mcp() {
+    let skill = repo_root().join(".agents/skills/rynix/SKILL.md");
+    let text = std::fs::read_to_string(&skill).expect("read agent skill");
+    for needle in [
+        "completion",
+        "rename",
+        "path-first",
+        "rynix_impact",
+        "rynix_precheck",
+        "phase19_path_mcp.contract.toml",
+    ] {
+        assert!(
+            text.contains(needle),
+            "agent skill missing `{needle}` (Phase 19)"
+        );
+    }
+}
+
+#[test]
+fn install_one_path_clang_win_linux() {
+    let text = std::fs::read_to_string(repo_root().join("INSTALL.md")).expect("INSTALL.md");
+    assert!(
+        text.contains("One-path clang"),
+        "INSTALL.md must document one-path clang setup"
+    );
+    let lower = text.to_ascii_lowercase();
+    assert!(
+        lower.contains("windows") && lower.contains("clang"),
+        "INSTALL.md must mention clang for Windows"
+    );
+    assert!(
+        lower.contains("linux") && lower.contains("clang"),
+        "INSTALL.md must mention clang for Linux"
+    );
+    // Both platforms appear in the one-path section (not only troubleshooting).
+    let idx = text
+        .find("One-path clang")
+        .expect("One-path clang heading");
+    let section = &text[idx..];
+    let section_end = section.find("\n## ").unwrap_or(section.len());
+    let one_path = &section[..section_end];
+    assert!(
+        one_path.contains("Windows") && one_path.contains("Linux"),
+        "one-path section must cover Windows and Linux"
+    );
+    assert!(
+        one_path.to_ascii_lowercase().matches("clang").count() >= 2,
+        "one-path section should mention clang for both platforms"
+    );
+}
+
+#[test]
+fn niche10_scorecard_links_gates() {
+    let text = std::fs::read_to_string(repo_root().join("docs/NICHE10.md")).expect("NICHE10.md");
+    for gate in [
+        "emit_wasm_host_print_i64",
+        "package_ux_new_deps_attest",
+        "install_one_path_clang_win_linux",
+        "niche10_scorecard_links_gates",
+        "http_loop_path_param",
+        "http_header_i64_smoke",
+        "http_body_bounded_smoke",
+        "http_keepalive_bounded_smoke",
+        "http_tls_product_smoke",
+        "mcp_graph_path_file",
+        "mcp_impact_path_file",
+        "mcp_precheck_path_file",
+        "completion_lists_fn_and_let",
+        "rename_local_updates_def_and_refs",
+        "struct_str_field_roundtrip",
+        "index_assign_ok",
+        "enum_value_roundtrip",
+        "suite5_twelve_workloads_checksum_gate",
+        "deps_attest_write_verify_and_tamper",
+        "iocp_echo_smoke_c",
+        "uring_sqe_smoke_c",
+        "ws_frames_smoke_c",
+        "crypto_kv_smoke_c",
+    ] {
+        assert!(
+            text.contains(gate),
+            "docs/NICHE10.md must link gate `{gate}` (Phase 20-D)"
+        );
+    }
+    assert!(
+        text.contains("**10**") || text.contains("| **10**"),
+        "NICHE10.md must score axes at 10 only with evidence"
+    );
+    assert!(
+        text.contains("**not** full WASI") || text.contains("not full WASI"),
+        "NICHE10.md must refuse full WASI theater"
     );
 }

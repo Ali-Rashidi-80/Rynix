@@ -73,32 +73,29 @@ Cross-repo speed claims must name the **exact harness and source file**.
 4. Literal-bound host-fold outside Suite5 remains a normal compiler feature
    (unit-tested under `crates/rynix-rir/tests/fold_fixtures/`).
 
-### Latest local Suite5 (2026-08-25, Windows) — vs C / Rynix / End
+### Latest local Suite5 (2026-08-25, Windows, Phase 16-A) — vs C / Rynix / End
 
 Fair opaque trip counts. Peer `endc` from untouched End@`cf5bef3` release build
-(`ENDC_PATH`). Warmup=3, runs=9, trimmed median ms. **All 12 checksums OK**
-(C ↔ Rynix ↔ End). End ports regenerated for peer parser regressions
-(`regen_end_ports.py`; statement-`if` and expression-`if` broken upstream — see
-[END_INTEGRATION.md](../benchmarks/suite5/END_INTEGRATION.md)).
+(`ENDC_PATH`; peer still ff-only up to date). Warmup=3, runs=9, trimmed median ms.
+**All 12 checksums OK** (C ↔ Rust ↔ Go ↔ Zig ↔ Rynix ↔ End).
 
 | Challenge | c | rynix | end | Best | Rynix/End |
 |-----------|--:|------:|----:|------|----------:|
-| alu | 8.7 | 6.1 | 8.5 | **rynix** | 0.72 |
-| nested | 6.9 | 5.9 | 5.7 | **end** | 1.03 |
-| fib | 8.1 | 5.5 | 8.0 | **rynix** | 0.68 |
-| hash | 28.3 | 5.7 | 14.8 | **rynix** | 0.38 |
-| prime | 11.6 | 8.6 | 59.3 | **rynix** | 0.15 |
-| sum | 12.5 | 7.3 | 7.0 | **end** | 1.03 |
-| bits | 454.0 | 90.0 | 375.3 | **rynix** | 0.24 |
-| matrix | 7.7 | 5.6 | 5.7 | **rynix** | 0.99 |
-| scan | 16.8 | 6.0 | 12.2 | **rynix** | 0.50 |
-| powmod | 15.5 | 6.8 | 13.3 | **rynix** | 0.51 |
-| gcd | 163.7 | 116.1 | 209.7 | **rynix** | 0.55 |
-| reduce | 13.1 | 5.4 | 15.2 | **rynix** | 0.35 |
+| alu | 8.0 | 7.4 | 8.6 | **rynix** | 0.86 |
+| nested | 6.8 | 5.4 | 5.7 | **rynix** | 0.95 |
+| fib | 8.0 | 7.0 | 7.2 | **rynix** | 0.97 |
+| hash | 19.1 | 6.8 | 15.7 | **rynix** | 0.43 |
+| prime | 11.7 | 8.0 | 60.7 | **rynix** | 0.13 |
+| sum | 6.7 | 5.6 | 5.7 | **rynix** | 0.98 |
+| bits | 497.5 | 90.5 | 374.5 | **rynix** | 0.24 |
+| matrix | 6.8 | 9.8 | 5.7 | **end** | 1.72 |
+| scan | 16.5 | 5.7 | 11.9 | **rynix** | 0.48 |
+| powmod | 16.4 | 5.6 | 16.4 | **rynix** | 0.34 |
+| gcd | 201.7 | 111.8 | 206.2 | **rynix** | 0.54 |
+| reduce | 12.8 | 5.6 | 14.7 | **rynix** | 0.38 |
 
-**Score this run:** Rynix **10** · End **2** (`nested`, `sum`). `sum` Rynix/End
-improved from ~1.24 to ~1.03 after reciprocal-mul closed form (same checksum).
-Artifact: `benchmarks/suite5/suite5_summary_2026-08-25_vs_end_mulhu.txt`.
+**Score this run:** Rynix **11** · End **1** (`matrix`). Artifact:
+`benchmarks/suite5/suite5_summary_2026-08-25_phase16.txt` (+ `suite5_results.json`).
 
 ### Prior multi-lang snapshot (2026-08-25, no End) — vs C / Rust / Go / Zig
 

@@ -27,7 +27,8 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
 - Path deps: `rynixc deps` → `rynix.deps.v1`; `--lock` / `--locked`;
   `--attest` / `--attest-verify` → `rynix.attest.v1.json` (local digest, **not** Sigstore Rekor)
 - WASM: `emit-ll --target=wasm32-unknown-unknown`; `emit-wasm -o out.wasm` (clang,
-  no WASI / no `rt/`); Node can run arith `main` ([docs/PHASE15.md](../../docs/PHASE15.md))
+  no WASI / no `rt/`); Node can run arith `main` and host-import `env.print_i64`
+  ([docs/PHASE15.md](../../docs/PHASE15.md), [docs/NICHE10.md](../../docs/NICHE10.md))
 - Runtime: `--runtime=portable` (default) | `iocp` (Windows) | `uring` (Linux)
 - Contracts: `rynixc verify --contract=docs/contracts/…`
 - Agent write: `patch --write` needs `rynix.scope.toml` or `--force-write`
@@ -35,10 +36,17 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
 ## Language pointers
 
 - Spec: `docs/SPEC.md`
-- Roadmap / phases: `docs/ROADMAP.md`, `docs/LEAD_AHEAD.md`, `docs/PHASE14.md`, `docs/PHASE15.md`
+- Roadmap / phases: `docs/ROADMAP.md`, `docs/LEAD_AHEAD.md`, `docs/PHASE14.md`, `docs/PHASE15.md`,
+  `docs/PHASE16.md`
+- Contracts: `docs/contracts/wave1.contract.toml`, `wave12_manifest.contract.toml`,
+  `phase19_path_mcp.contract.toml` (path-first MCP + LSP completion/rename)
 - vs End verdict: `docs/VERDICT.md`, `docs/END_PEER_GAP.md`
 - Soft builtins and std: README Soft builtins + `std/*.ryx` (`std::fs`, `std::crypto`,
-  HTTP loop `_2paths_` / `_3paths_`)
+  HTTP loop `_2paths_` / `_3paths_` / `path_param`)
+- LSP (`rynixc lsp-serve`): diagnostics, hover, go-to-definition, **completion**
+  (local/module `def` + `let` near cursor), **rename** (in-document local symbol)
+- MCP: prefer `rynix_graph` / `rynix_impact` / `rynix_precheck` with filesystem `path`
+  (path-first; fail-closed on missing file); inline `source` still works when no path
 - Memory: escape / region / linear move (`RYX2011`) / `#^ effect: pure` (`RYX2012`)
 - Reserved stubs rejected: `tensor` / `signal` / `agent` → `RYX2013`
 
@@ -50,6 +58,9 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
   and disclosed Notes — not “identical work across languages.”
 - Peer End clone: read-only for audit; never edit friend sources for marketing wins.
 - Refuse: full WASI theater, UI canvas stubs, Raft/GGUF Stable rows without real FFI gates.
+- Niche-10 path: [docs/adr/0013-niche-10-scorecard.md](../../docs/adr/0013-niche-10-scorecard.md);
+  certification: [docs/NICHE10.md](../../docs/NICHE10.md);
+  Raft deferred: [docs/adr/0012-deferred-consensus.md](../../docs/adr/0012-deferred-consensus.md)
 
 ## Quick compile
 

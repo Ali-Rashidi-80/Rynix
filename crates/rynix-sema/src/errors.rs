@@ -135,6 +135,7 @@ pub(crate) fn stub_reserved(span: Span, name: &str) -> Diagnostic {
     )
 }
 
+#[allow(dead_code)] // retained for future unsupported place forms
 pub(crate) fn field_assign_unsupported(span: Span) -> Diagnostic {
     Diagnostic::error(
         codes::FIELD_ASSIGN_UNSUPPORTED,

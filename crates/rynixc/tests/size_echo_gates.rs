@@ -655,6 +655,383 @@ end
 }
 
 #[test]
+fn http_loop_path_param() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+
+    let ryx = root.join("target/http_loop_path_param_check.ryx");
+    std::fs::write(
+        &ryx,
+        r#"def main() -> i64
+  let rc = http_serve_loop_path_param_json_i64(0, "/items/", 3)
+  return rc
+end
+"#,
+    )
+    .unwrap();
+    let check = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["check", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "http_serve_loop_path_param_json_i64 check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["emit-ll", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(ll.status.success(), "emit-ll failed");
+    let text = String::from_utf8_lossy(&ll.stdout);
+    assert!(
+        text.contains("rynix_rt_http_serve_loop_path_param_json_i64"),
+        "missing path_param serve_loop runtime call in IR"
+    );
+
+    let out = std::env::temp_dir().join("rynix_http_loop_path_param_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/http_loop_path_param_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld")
+            .arg("-lws2_32")
+            .arg("-lsecur32")
+            .arg("-lcrypt32")
+            .arg("-lbcrypt");
+    }
+    assert!(
+        cmd.status().unwrap().success(),
+        "http_loop_path_param smoke compile failed"
+    );
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(
+        Command::new(exe).status().unwrap().success(),
+        "http_loop_path_param smoke failed"
+    );
+}
+
+#[test]
+fn http_header_i64_smoke() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+
+    let ryx = root.join("target/http_header_i64_check.ryx");
+    std::fs::write(
+        &ryx,
+        r#"def main() -> i64
+  let rc = http_serve_loop_header_json_i64(0, "/h", "X-Num", 3)
+  return rc
+end
+"#,
+    )
+    .unwrap();
+    let check = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["check", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "http_serve_loop_header_json_i64 check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["emit-ll", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(ll.status.success(), "emit-ll failed");
+    let text = String::from_utf8_lossy(&ll.stdout);
+    assert!(
+        text.contains("rynix_rt_http_serve_loop_header_json_i64"),
+        "missing header serve_loop runtime call in IR"
+    );
+
+    let out = std::env::temp_dir().join("rynix_http_header_i64_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/http_header_i64_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld")
+            .arg("-lws2_32")
+            .arg("-lsecur32")
+            .arg("-lcrypt32")
+            .arg("-lbcrypt");
+    }
+    assert!(
+        cmd.status().unwrap().success(),
+        "http_header_i64 smoke compile failed"
+    );
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(
+        Command::new(exe).status().unwrap().success(),
+        "http_header_i64 smoke failed"
+    );
+}
+
+#[test]
+fn http_body_bounded_smoke() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+
+    let ryx = root.join("target/http_body_bounded_check.ryx");
+    std::fs::write(
+        &ryx,
+        r#"def main() -> i64
+  let rc = http_serve_loop_post_echo_json_i64(0, "/echo", "n", 2, 16)
+  return rc
+end
+"#,
+    )
+    .unwrap();
+    let check = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["check", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "http_serve_loop_post_echo_json_i64 check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["emit-ll", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(ll.status.success(), "emit-ll failed");
+    let text = String::from_utf8_lossy(&ll.stdout);
+    assert!(
+        text.contains("rynix_rt_http_serve_loop_post_echo_json_i64"),
+        "missing post_echo serve_loop runtime call in IR"
+    );
+
+    let out = std::env::temp_dir().join("rynix_http_body_bounded_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/http_body_bounded_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld")
+            .arg("-lws2_32")
+            .arg("-lsecur32")
+            .arg("-lcrypt32")
+            .arg("-lbcrypt");
+    }
+    assert!(
+        cmd.status().unwrap().success(),
+        "http_body_bounded smoke compile failed"
+    );
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(
+        Command::new(exe).status().unwrap().success(),
+        "http_body_bounded smoke failed"
+    );
+}
+
+#[test]
+fn http_keepalive_bounded_smoke() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+
+    let ryx = root.join("target/http_keepalive_bounded_check.ryx");
+    std::fs::write(
+        &ryx,
+        r#"def main() -> i64
+  let rc = http_serve_loop_keepalive_json_i64(0, "/api", 7, 3)
+  return rc
+end
+"#,
+    )
+    .unwrap();
+    let check = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["check", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "http_serve_loop_keepalive_json_i64 check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["emit-ll", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(ll.status.success(), "emit-ll failed");
+    let text = String::from_utf8_lossy(&ll.stdout);
+    assert!(
+        text.contains("rynix_rt_http_serve_loop_keepalive_json_i64"),
+        "missing keepalive serve_loop runtime call in IR"
+    );
+
+    let out = std::env::temp_dir().join("rynix_http_keepalive_bounded_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/http_keepalive_bounded_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld")
+            .arg("-lws2_32")
+            .arg("-lsecur32")
+            .arg("-lcrypt32")
+            .arg("-lbcrypt");
+    }
+    assert!(
+        cmd.status().unwrap().success(),
+        "http_keepalive_bounded smoke compile failed"
+    );
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(
+        Command::new(exe).status().unwrap().success(),
+        "http_keepalive_bounded smoke failed"
+    );
+}
+
+#[test]
+fn http_tls_product_smoke() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+
+    let ryx = root.join("target/http_tls_product_check.ryx");
+    std::fs::write(
+        &ryx,
+        r#"def main() -> i64
+  let rc = http_tls_serve_once_json_i64(0, "/api", 42)
+  let n = http_tls_get_json_i64("127.0.0.1", 0, "/api", "value")
+  return rc + n
+end
+"#,
+    )
+    .unwrap();
+    let check = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["check", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "http_tls_* check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["emit-ll", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(ll.status.success(), "emit-ll failed");
+    let text = String::from_utf8_lossy(&ll.stdout);
+    assert!(
+        text.contains("rynix_rt_http_tls_serve_once_json_i64")
+            && text.contains("rynix_rt_http_tls_get_json_i64"),
+        "missing http_tls runtime calls in IR"
+    );
+
+    let out = std::env::temp_dir().join("rynix_http_tls_product_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/http_tls_product_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld")
+            .arg("-lws2_32")
+            .arg("-lsecur32")
+            .arg("-lcrypt32")
+            .arg("-lbcrypt");
+    } else {
+        // Opt-in OpenSSL backend: `clang -DRYNIX_RT_OPENSSL … -lssl -lcrypto`
+        // Default Linux builds use the stub (-2) so CI needs no libssl.
+    }
+    let compiled = cmd.status().unwrap().success();
+    if !compiled {
+        if cfg!(windows) {
+            panic!("http_tls_product smoke compile failed");
+        }
+        eprintln!("skip: TLS backend not available for link");
+        return;
+    }
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    let status = Command::new(exe).status().unwrap();
+    let code = status.code().unwrap_or(1);
+    if code == 77 {
+        eprintln!("skip: http_tls_product unsupported on this host");
+        return;
+    }
+    assert!(status.success(), "http_tls_product smoke failed code={code}");
+}
+
+#[test]
 fn http_post_echo_smoke_c() {
     let Some(clang) = clang() else {
         eprintln!("skip: no clang on PATH");
@@ -1381,6 +1758,78 @@ console.log("emit_wasm_node_runs_main ok");
     assert!(
         run.status.success(),
         "node failed to run emit-wasm module:\nstdout={}\nstderr={}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+}
+
+#[test]
+fn emit_wasm_host_print_i64() {
+    let Some(_clang) = clang_with_wasm_link() else {
+        eprintln!("skip: no clang that can link wasm32 freestanding .wasm");
+        return;
+    };
+    if Command::new("node").arg("--version").output().is_err() {
+        eprintln!("skip: node not on PATH");
+        return;
+    }
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("target")).ok();
+
+    let wasm = root.join("target/wasm_host_print_i64.wasm");
+    let _ = std::fs::remove_file(&wasm);
+    let status = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .current_dir(&root)
+        .args([
+            "emit-wasm",
+            "testdata/wasm_host_print_i64.ryx",
+            "-o",
+            wasm.to_str().unwrap(),
+        ])
+        .status()
+        .expect("emit-wasm");
+    assert!(status.success(), "emit-wasm with print_i64 host-import failed");
+
+    let script = root.join("target/wasm_host_print_i64_check.mjs");
+    std::fs::write(
+        &script,
+        r#"import fs from "node:fs";
+const buf = fs.readFileSync("target/wasm_host_print_i64.wasm");
+const seen = [];
+const imports = {
+  env: {
+    print_i64(n) {
+      seen.push(typeof n === "bigint" ? Number(n) : n);
+    },
+  },
+};
+const { instance } = await WebAssembly.instantiate(buf, imports);
+if (typeof instance.exports.main !== "function") {
+  console.error("missing export main");
+  process.exit(1);
+}
+const got = instance.exports.main();
+if (got !== 0) {
+  console.error("main() returned", got, "want 0");
+  process.exit(1);
+}
+if (seen.length !== 1 || seen[0] !== 7) {
+  console.error("print_i64 host import not called with 7; seen=", seen);
+  process.exit(1);
+}
+console.log("emit_wasm_host_print_i64 ok");
+"#,
+    )
+    .unwrap();
+    let run = Command::new("node")
+        .current_dir(&root)
+        .arg("target/wasm_host_print_i64_check.mjs")
+        .output()
+        .expect("node wasm host-import run");
+    assert!(
+        run.status.success(),
+        "node failed host-import print_i64 smoke:\nstdout={}\nstderr={}",
         String::from_utf8_lossy(&run.stdout),
         String::from_utf8_lossy(&run.stderr)
     );

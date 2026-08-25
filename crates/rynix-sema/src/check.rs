@@ -29,6 +29,8 @@ pub struct Analysis {
     pub path_resolution: FxHashMap<rynix_ast::NodeId, DefId>,
     /// Struct field byte/slot index (i64 slots) for lowering.
     pub field_offsets: FxHashMap<(DefId, Symbol), u32>,
+    /// Nullary enum variant `DefId` → discriminant (Phase 17-C).
+    pub variant_disc: FxHashMap<DefId, i64>,
     /// Inferred effect sets per function (`DefId`), when source was provided.
     pub fn_effects: FxHashMap<DefId, crate::effects::EffectSet>,
 }
@@ -85,6 +87,8 @@ struct Checker<'a> {
     field_offsets: FxHashMap<(DefId, Symbol), u32>,
     /// Enum `DefId` → variant name → (Variant `DefId`, optional payload type).
     enum_variants: FxHashMap<DefId, FxHashMap<Symbol, (DefId, Option<TypeId>)>>,
+    /// Nullary variant `DefId` → discriminant i64.
+    variant_disc: FxHashMap<DefId, i64>,
     /// Fn `DefId` → function type.
     fn_sigs: FxHashMap<DefId, TypeId>,
     /// Type alias `DefId` → aliased type.
@@ -112,6 +116,7 @@ impl<'a> Checker<'a> {
             struct_fields: FxHashMap::default(),
             field_offsets: FxHashMap::default(),
             enum_variants: FxHashMap::default(),
+            variant_disc: FxHashMap::default(),
             fn_sigs: FxHashMap::default(),
             aliases: FxHashMap::default(),
             ownership: FxHashMap::default(),
@@ -129,6 +134,7 @@ impl<'a> Checker<'a> {
             def_types: self.def_types,
             path_resolution: self.path_resolution,
             field_offsets: self.field_offsets,
+            variant_disc: self.variant_disc,
             fn_effects: self.fn_effects,
         }
     }
@@ -232,6 +238,12 @@ impl<'a> Checker<'a> {
             vec![i, s, i, s, i, s, i, i],
             i,
         );
+        self.soft_fn("http_serve_loop_path_param_json_i64", vec![i, s, i], i);
+        self.soft_fn("http_serve_loop_header_json_i64", vec![i, s, s, i], i);
+        self.soft_fn("http_serve_loop_post_echo_json_i64", vec![i, s, s, i, i], i);
+        self.soft_fn("http_serve_loop_keepalive_json_i64", vec![i, s, i, i], i);
+        self.soft_fn("http_tls_serve_once_json_i64", vec![i, s, i], i);
+        self.soft_fn("http_tls_get_json_i64", vec![s, i, s, s], i);
         self.soft_fn("frame_serve_once_echo", vec![i], i);
         self.soft_fn("frame_client_echo", vec![s, i, s], i);
         self.soft_fn("tls_serve_once_echo", vec![i], i);
@@ -372,6 +384,7 @@ impl<'a> Checker<'a> {
         }
         for (def, e) in pending_enums {
             let mut variants = FxHashMap::default();
+            let mut disc: i64 = 0;
             for v in e.variants {
                 let vdef = self.alloc_def(DefKind::Variant {
                     parent: def,
@@ -387,7 +400,11 @@ impl<'a> Checker<'a> {
                 // Nullary variant: value of enum type; payload variant: fn(payload) -> enum
                 let vty = match payload {
                     Some(p) => self.types.fn_type(vec![p], enum_ty),
-                    None => enum_ty,
+                    None => {
+                        self.variant_disc.insert(vdef, disc);
+                        disc += 1;
+                        enum_ty
+                    }
                 };
                 self.def_types.insert(vdef, vty);
                 variants.insert(v.name.name, (vdef, payload));
@@ -786,9 +803,9 @@ impl<'a> Checker<'a> {
                 // Field store (Wave 3): require a mut root binding.
                 self.check_field_assign_mut(f.base, scope);
             }
-            Expr::Index(_) => {
-                // Index stores remain unsupported (RYX2020).
-                self.sink.emit(errors::field_assign_unsupported(expr.span()));
+            Expr::Index(i) => {
+                // Index store (Phase 17-B): require a mut root binding.
+                self.check_field_assign_mut(i.base, scope);
             }
             _ => {}
         }
@@ -1108,14 +1125,16 @@ impl<'a> Checker<'a> {
             return self.types.ty_error;
         };
 
-        // v1: struct literal fields are i64 only (LEAD_AHEAD L9).
+        // Niche-10 / Phase 17: struct literal fields may be `i64` or `str`.
         for (name, &fty) in &fields {
-            if !self.types.compatible(fty, self.types.ty_int) {
+            let ok = self.types.compatible(fty, self.types.ty_int)
+                || self.types.compatible(fty, self.types.ty_str);
+            if !ok {
                 self.sink.emit(errors::type_mismatch(
                     lit.span,
-                    "i64",
+                    "i64 or str",
                     &format!(
-                        "field `{}` has type `{}` (struct literals are i64-only)",
+                        "field `{}` has type `{}` (struct literals allow i64|str)",
                         self.interner.resolve(*name),
                         self.display_ty(fty)
                     ),
@@ -1395,7 +1414,7 @@ impl<'a> Checker<'a> {
                 | TypeKind::Ptr
                 | TypeKind::Slice(_)
                 | TypeKind::Struct(_)
-                | TypeKind::Enum(_)
+            // Nullary enums are i64 discriminants (Phase 17-C) — Copy, not linear.
         )
     }
 

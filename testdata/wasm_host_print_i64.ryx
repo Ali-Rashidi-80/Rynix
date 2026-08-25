@@ -1,0 +1,5 @@
+## Freestanding wasm fixture: calls host-import env.print_i64 (no WASI / no rt/).
+def main() -> i64
+  print_i64(7)
+  return 0
+end

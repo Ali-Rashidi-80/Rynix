@@ -206,13 +206,35 @@ Plan: **[PHASE15.md](PHASE15.md)**. Closes the emit→execute loop without WASI.
 | A | Node instantiates `emit-wasm` module; `main()===42` | ✅ `emit_wasm_node_runs_main` |
 | B | Skills-as-docs pack (`emit-wasm` + attest honesty) | ✅ `agent_skill_mentions_emit_wasm_and_attest` |
 
+## Phase 16 — Honesty + path_param HTTP + MCP path-first
+
+Plan: **[PHASE16.md](PHASE16.md)**. Niche-10 base ([ADR-0013](adr/0013-niche-10-scorecard.md));
+Raft deferred ([ADR-0012](adr/0012-deferred-consensus.md)). Order: `0→A→B→C→D`.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| 0 | PHASE16 + ADR-0012/0013 locks | ✅ |
+| A | Suite5 + peer refresh | ✅ Suite5 Phase 16-A artifact |
+| B | PRODUCTION_READINESS / local-digest wording | ✅ |
+| C | `http_serve_loop_path_param_json_i64` | ✅ `http_loop_path_param` |
+| D | MCP `rynix_graph` path-first | ✅ `mcp_graph_path_file` |
+
+## Phases 17–20 — Niche-10 path (after 16)
+
+| Phase | Theme | Status |
+|-------|--------|--------|
+| 17 | Language: struct str, index assign, enum values, ADR-0014 mono collections | ✅ `struct_str_field_roundtrip`, `index_assign_ok`, `enum_value_roundtrip` |
+| 18 | Product HTTP(+TLS): header, bounded body, keep-alive, TLS path | ✅ `http_header_i64_smoke`, `http_body_bounded_smoke`, `http_keepalive_bounded_smoke`, `http_tls_product_smoke` |
+| 19 | LSP completion+rename; MCP path-first trio; agent contract | ✅ `completion_lists_fn_and_let`, `rename_local_updates_def_and_refs`, `mcp_impact_path_file`, `mcp_precheck_path_file`, `verify_phase19_path_mcp_contract` |
+| 20 | WASM host-import `print_i64`; package/INSTALL polish; Niche-10 certify | ✅ `emit_wasm_host_print_i64`, `package_ux_new_deps_attest`, `install_one_path_clang_win_linux`, `niche10_scorecard_links_gates` — [NICHE10.md](NICHE10.md) |
+
 ## Follow-on (post-13 / parallel)
 
 | Item | Status | Gate |
 |------|--------|------|
 | Local sparse package index (no CDN) | ✅ | `deps_resolves_sparse_local_index`, `build_pkg_sparse_app_resolves_index` |
 | Suite5 `sum` closed form without `sdiv`/IDIV | ✅ | `sum_opaque_closed_form_has_no_sdiv_or_loop` |
-| Sigstore-lite package attest | ✅ local digest (`rynix.attest.v1`) | `deps_attest_write_verify_and_tamper` |
+| Local package digest attest (not Sigstore/Rekor) | ✅ `rynix.attest.v1` | `deps_attest_write_verify_and_tamper` |
 | HTTP ≥3 paths / extra fiber smokes | ✅ | `http_loop_3paths` |
 
 ## CI

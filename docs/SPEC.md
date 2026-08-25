@@ -191,20 +191,22 @@ path        = Ident { "::" Ident }
 ```
 
 **Struct literals (v1):** named fields only — `Point { x: 1, y: 2 }`.
-Field types in a literal are **i64 only**; other field types are rejected.
-Enum *values* (constructing variants as expressions) are deferred.
+Field types in a literal are **`i64` or `str`** (Phase 17-A); other field types
+are rejected. Enum *nullary* values are supported as discriminant `i64`s
+(Phase 17-C); payload constructors remain deferred.
 
 Field assignment `p.x = …` is allowed when `p` is a `mut` binding.
-Index assignment (`a[i] = …`) remains unsupported (`RYX2020`).
+Index assignment (`a[i] = …`) is allowed when `a` is a `mut` array/slice
+binding (Phase 17-B).
 
 Reference types (`&T`) are not part of the shipping type grammar; ownership
 is inferred via escape analysis, not surface `&` syntax.
 
-Linear values (`Vec`, `Map`, user `struct`/`enum`, slices, opaque `ptr`)
+Linear values (`Vec`, `Map`, user `struct`, slices, opaque `ptr`)
 move on `let` binding from a path, assignment from a path, or call/pipe
 argument. Using a moved binding is `RYX2011`. Scalars (`i64`, `f64`, `bool`,
-`str`) copy. Exclusive borrow conflicts (`&` + mutate) are deferred until
-reference types are specified.
+`str`) and nullary enum discriminants copy. Exclusive borrow conflicts
+(`&` + mutate) are deferred until reference types are specified.
 
 Expression precedence (weakest to strongest, comparisons non-associative):
 
@@ -281,6 +283,11 @@ lower to `rynix_rt_*` symbols documented in [abi.md](abi.md):
 | `http_serve_loop_json_i64(port, path, value, max_reqs)` | bounded: exactly `max_reqs` matching GETs → `0` |
 | `http_serve_loop_2paths_json_i64(port, path_a, val_a, path_b, val_b, max_reqs)` | dual-path bounded loop (either path counts) |
 | `http_serve_loop_3paths_json_i64(port, path_a, val_a, path_b, val_b, path_c, val_c, max_reqs)` | triple-path bounded loop (any listed path counts) |
+| `http_serve_loop_path_param_json_i64(port, prefix, max_reqs)` | GET `{prefix}{digits}` → JSON value = parsed i64 |
+| `http_serve_loop_header_json_i64(port, path, header, max_reqs)` | GET `path` + header decimal → JSON value |
+| `http_serve_loop_post_echo_json_i64(port, path, field, max_reqs, max_body)` | bounded POST echo; body > max_body → 400 |
+| `http_serve_loop_keepalive_json_i64(port, path, value, max_reqs)` | one accept; up to max_reqs GETs on same conn |
+| `http_tls_serve_once_json_i64` / `http_tls_get_json_i64` | HTTP JSON over TLS (SChannel/OpenSSL; else `-2`) |
 | `frame_serve_once_echo` / `frame_client_echo` | length-prefixed binary frame echo |
 | `tls_serve_once_echo` / `tls_client_echo` | TLS echo (real SChannel/OpenSSL) |
 | `sha256_first_i64(data)` | SHA-256 → first 8 bytes as i64 |

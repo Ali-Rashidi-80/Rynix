@@ -103,12 +103,12 @@ fn map_ty(analysis: &Analysis, ty: TypeId) -> IrTy {
         TypeKind::Int => IrTy::I64,
         TypeKind::Float => IrTy::F64,
         TypeKind::Str => IrTy::Str,
+        TypeKind::Enum(_) => IrTy::I64,
         TypeKind::Ptr
         | TypeKind::Vec
         | TypeKind::Map
         | TypeKind::Slice(_)
         | TypeKind::Struct(_)
-        | TypeKind::Enum(_)
         | TypeKind::Fn { .. } => IrTy::Ptr,
     }
 }
@@ -3771,6 +3771,43 @@ impl LowerCtx<'_, '_> {
                         }
                     };
                     self.b.store(slot, val);
+                } else if let Expr::Index(i) = a.target {
+                    // Phase 17-B: `a[i] = …` on array/slice layout (len + elems).
+                    let base = self.expr(i.base);
+                    let index = self.expr(i.index);
+                    let len = self.b.push_value(Inst::ArrayLen(base));
+                    let _ = self.b.push(Inst::BoundsCheck { index, len });
+                    let one = self.b.iconst(1);
+                    let off = self.b.push_value(Inst::IAdd(index, one));
+                    let slot = self.b.push_value(Inst::GepI64 {
+                        base,
+                        index: off,
+                    });
+                    let rhs = self.expr(a.value);
+                    let val = match a.op {
+                        AssignOp::Eq => rhs,
+                        AssignOp::PlusEq => {
+                            let cur = self.b.load(slot);
+                            self.b.push_value(Inst::IAdd(cur, rhs))
+                        }
+                        AssignOp::MinusEq => {
+                            let cur = self.b.load(slot);
+                            self.b.push_value(Inst::ISub(cur, rhs))
+                        }
+                        AssignOp::StarEq => {
+                            let cur = self.b.load(slot);
+                            self.lower_int_mul(cur, rhs)
+                        }
+                        AssignOp::SlashEq => {
+                            let cur = self.b.load(slot);
+                            self.lower_int_div(cur, rhs)
+                        }
+                        AssignOp::PercentEq => {
+                            let cur = self.b.load(slot);
+                            self.lower_int_rem(cur, rhs)
+                        }
+                    };
+                    self.b.store(slot, val);
                 } else {
                     let _ = self.expr(a.value);
                 }
@@ -4178,6 +4215,12 @@ impl LowerCtx<'_, '_> {
                         Local::Ssa(v) => v,
                     };
                 }
+                // Nullary enum variant → discriminant i64 (Phase 17-C).
+                if let Some(&def) = self.analysis.path_resolution.get(&p.id)
+                    && let Some(&disc) = self.analysis.variant_disc.get(&def)
+                {
+                    return self.b.iconst(disc);
+                }
                 // Function ref as value not supported — zero.
                 self.b.iconst(0)
             }
@@ -4227,7 +4270,14 @@ impl LowerCtx<'_, '_> {
             }
             Expr::Field(f) => {
                 let slot = self.lower_field_slot(f);
-                self.b.load(slot)
+                let ty = self
+                    .analysis
+                    .node_types
+                    .get(&f.id)
+                    .copied()
+                    .map(|t| map_ty(self.analysis, t))
+                    .unwrap_or(IrTy::I64);
+                self.b.load_as(slot, ty)
             }
             Expr::StructLit(s) => {
                 let def = self
@@ -4741,6 +4791,36 @@ impl LowerCtx<'_, '_> {
                     self.interner.intern("rynix_rt_http_serve_loop_3paths_json_i64"),
                     IrTy::I64,
                 )
+            }
+            "http_serve_loop_path_param_json_i64" => {
+                (
+                    self.interner.intern("rynix_rt_http_serve_loop_path_param_json_i64"),
+                    IrTy::I64,
+                )
+            }
+            "http_serve_loop_header_json_i64" => {
+                (
+                    self.interner.intern("rynix_rt_http_serve_loop_header_json_i64"),
+                    IrTy::I64,
+                )
+            }
+            "http_serve_loop_post_echo_json_i64" => {
+                (
+                    self.interner.intern("rynix_rt_http_serve_loop_post_echo_json_i64"),
+                    IrTy::I64,
+                )
+            }
+            "http_serve_loop_keepalive_json_i64" => {
+                (
+                    self.interner.intern("rynix_rt_http_serve_loop_keepalive_json_i64"),
+                    IrTy::I64,
+                )
+            }
+            "http_tls_serve_once_json_i64" => {
+                (self.interner.intern("rynix_rt_http_tls_serve_once_json_i64"), IrTy::I64)
+            }
+            "http_tls_get_json_i64" => {
+                (self.interner.intern("rynix_rt_http_tls_get_json_i64"), IrTy::I64)
             }
             "frame_serve_once_echo" => {
                 (self.interner.intern("rynix_rt_frame_serve_once_echo"), IrTy::I64)

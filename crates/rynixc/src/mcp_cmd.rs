@@ -147,27 +147,25 @@ fn tool_defs() -> Value {
         },
         {
             "name": "rynix_graph",
-            "description": "Emit rynix.graph.v1 (functions + static call edges)",
+            "description": "Emit rynix.graph.v1 (functions + static call edges). Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "source": { "type": "string" },
-                    "path": { "type": "string" }
-                },
-                "required": ["source"]
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
             }
         },
         {
             "name": "rynix_impact",
-            "description": "Blast-radius callers/callees (rynix.impact.v1)",
+            "description": "Blast-radius callers/callees (rynix.impact.v1). Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "source": { "type": "string" },
-                    "path": { "type": "string" },
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" },
                     "fn": { "type": "string" }
-                },
-                "required": ["source"]
+                }
             }
         },
         {
@@ -205,16 +203,15 @@ fn tool_defs() -> Value {
         },
         {
             "name": "rynix_precheck",
-            "description": "Blast-radius + write gate (rynix.precheck.v1)",
+            "description": "Blast-radius + write gate (rynix.precheck.v1). Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "source": { "type": "string" },
-                    "path": { "type": "string" },
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" },
                     "fn": { "type": "string" },
                     "allow_write": { "type": "boolean" }
-                },
-                "required": ["source"]
+                }
             }
         },
         {
@@ -367,6 +364,52 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         }));
     }
 
+    // Path-first graph: read disk when `path` is set; inline `source` optional.
+    if name == "rynix_graph" {
+        let path_arg = args.get("path").and_then(|p| p.as_str());
+        let source_arg = args.get("source").and_then(|s| s.as_str());
+        let arena = AstArena::new();
+        let (label, mut parsed) = resolve_path_or_source(path_arg, source_arg, &arena)?;
+        if parsed.sink.error_count() > 0 {
+            return Err(rpc_error(-32000, "parse/sema errors"));
+        }
+        let g = if let (Some(path), None) = (path_arg, source_arg) {
+            crate::agent_lib::graph_json(Path::new(path), &mut parsed)
+        } else {
+            crate::agent_lib::graph_json_text(&label, &mut parsed)
+        };
+        return Ok(json!({ "content": [{ "type": "text", "text": g.to_string() }] }));
+    }
+
+    // Path-first impact / precheck (same fail-closed disk read as graph).
+    if name == "rynix_impact" || name == "rynix_precheck" {
+        let path_arg = args.get("path").and_then(|p| p.as_str());
+        let source_arg = args.get("source").and_then(|s| s.as_str());
+        let arena = AstArena::new();
+        let (label, mut parsed) = resolve_path_or_source(path_arg, source_arg, &arena)?;
+        if parsed.sink.error_count() > 0 {
+            return Err(rpc_error(-32000, "parse/sema errors"));
+        }
+        let target = args.get("fn").and_then(|f| f.as_str());
+        let impact = crate::agent_lib::impact_json(&label, &mut parsed, target)
+            .map_err(|e| rpc_error(-32000, e))?;
+        if name == "rynix_impact" {
+            return Ok(json!({ "content": [{ "type": "text", "text": impact.to_string() }] }));
+        }
+        let allow_write = args
+            .get("allow_write")
+            .and_then(|b| b.as_bool())
+            .unwrap_or(false);
+        let report = json!({
+            "schema": "rynix.precheck.v1",
+            "path": label,
+            "write_allowed": allow_write,
+            "fn": target,
+            "impact": impact,
+        });
+        return Ok(json!({ "content": [{ "type": "text", "text": report.to_string() }] }));
+    }
+
     let source = args
         .get("source")
         .and_then(|s| s.as_str())
@@ -397,60 +440,6 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         "apply_fix" => {
             let fixed = apply_fix_source(source);
             Ok(json!({ "content": [{ "type": "text", "text": fixed }] }))
-        }
-        "rynix_graph" => {
-            let path = args
-                .get("path")
-                .and_then(|p| p.as_str())
-                .unwrap_or("mcp.ryx");
-            let arena = AstArena::new();
-            let mut parsed = crate::agent_lib::parse_text(path, source, &arena);
-            if parsed.sink.error_count() > 0 {
-                return Err(rpc_error(-32000, "parse/sema errors"));
-            }
-            let g = crate::agent_lib::graph_json_text(path, &mut parsed);
-            Ok(json!({ "content": [{ "type": "text", "text": g.to_string() }] }))
-        }
-        "rynix_impact" => {
-            let path = args
-                .get("path")
-                .and_then(|p| p.as_str())
-                .unwrap_or("mcp.ryx");
-            let target = args.get("fn").and_then(|f| f.as_str());
-            let arena = AstArena::new();
-            let mut parsed = crate::agent_lib::parse_text(path, source, &arena);
-            if parsed.sink.error_count() > 0 {
-                return Err(rpc_error(-32000, "parse/sema errors"));
-            }
-            let impact = crate::agent_lib::impact_json(path, &mut parsed, target)
-                .map_err(|e| rpc_error(-32000, e))?;
-            Ok(json!({ "content": [{ "type": "text", "text": impact.to_string() }] }))
-        }
-        "rynix_precheck" => {
-            let path = args
-                .get("path")
-                .and_then(|p| p.as_str())
-                .unwrap_or("mcp.ryx");
-            let target = args.get("fn").and_then(|f| f.as_str());
-            let allow_write = args
-                .get("allow_write")
-                .and_then(|b| b.as_bool())
-                .unwrap_or(false);
-            let arena = AstArena::new();
-            let mut parsed = crate::agent_lib::parse_text(path, source, &arena);
-            if parsed.sink.error_count() > 0 {
-                return Err(rpc_error(-32000, "parse/sema errors"));
-            }
-            let impact = crate::agent_lib::impact_json(path, &mut parsed, target)
-                .map_err(|e| rpc_error(-32000, e))?;
-            let report = json!({
-                "schema": "rynix.precheck.v1",
-                "path": path,
-                "write_allowed": allow_write,
-                "fn": target,
-                "impact": impact,
-            });
-            Ok(json!({ "content": [{ "type": "text", "text": report.to_string() }] }))
         }
         "rynix_context" => {
             let path = args
@@ -579,6 +568,30 @@ fn ast_source(source: &str) -> Result<String, Value> {
 
 fn apply_fix_source(source: &str) -> String {
     crate::fix::apply_first_fix(source)
+}
+
+/// Path-first source resolution: disk read when only `path`; fail-closed on missing file.
+fn resolve_path_or_source<'a>(
+    path_arg: Option<&str>,
+    source_arg: Option<&str>,
+    arena: &'a AstArena,
+) -> Result<(String, crate::agent_lib::Parsed<'a>), Value> {
+    match (path_arg, source_arg) {
+        (Some(path), None) => {
+            let parsed = crate::agent_lib::parse_file(Path::new(path), arena)
+                .map_err(|e| rpc_error(-32000, e))?;
+            Ok((path.to_string(), parsed))
+        }
+        (Some(path), Some(source)) => {
+            let parsed = crate::agent_lib::parse_text(path, source, arena);
+            Ok((path.to_string(), parsed))
+        }
+        (None, Some(source)) => {
+            let parsed = crate::agent_lib::parse_text("mcp.ryx", source, arena);
+            Ok(("mcp.ryx".to_string(), parsed))
+        }
+        (None, None) => Err(rpc_error(-32602, "missing path or source")),
+    }
 }
 
 fn rpc_error(code: i64, message: impl AsRef<str>) -> Value {

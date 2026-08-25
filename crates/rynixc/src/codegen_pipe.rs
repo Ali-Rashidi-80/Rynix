@@ -373,6 +373,14 @@ fn is_soft_builtin_name(name: &str) -> bool {
             | "http_serve_once_json_i64"
             | "http_serve_once_echo_json_i64"
             | "http_serve_loop_json_i64"
+            | "http_serve_loop_2paths_json_i64"
+            | "http_serve_loop_3paths_json_i64"
+            | "http_serve_loop_path_param_json_i64"
+            | "http_serve_loop_header_json_i64"
+            | "http_serve_loop_post_echo_json_i64"
+            | "http_serve_loop_keepalive_json_i64"
+            | "http_tls_serve_once_json_i64"
+            | "http_tls_get_json_i64"
             | "frame_serve_once_echo"
             | "frame_client_echo"
             | "tls_serve_once_echo"
@@ -617,7 +625,10 @@ fn detect_const_print_i64(ll: &str) -> Option<i64> {
     let mut found = None;
     for line in ll.lines() {
         let line = line.trim();
-        let Some(rest) = line.strip_prefix("call void @rynix_rt_print_i64(i64 ") else {
+        let Some(rest) = line
+            .strip_prefix("call void @rynix_rt_print_i64(i64 ")
+            .or_else(|| line.strip_prefix("call void @print_i64(i64 "))
+        else {
             continue;
         };
         let arg = rest.strip_suffix(')')?;

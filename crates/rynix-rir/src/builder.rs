@@ -199,10 +199,15 @@ impl FunctionBuilder {
     pub fn load(&mut self, ptr: ValueId) -> ValueId {
         // Recover payload type from the Alloc inst if possible.
         let payload = self.payload_ty(ptr).unwrap_or(IrTy::I64);
+        self.load_as(ptr, payload)
+    }
+
+    /// Load from `ptr`, forcing the result SSA type (e.g. struct `str` field in an i64 slot).
+    pub fn load_as(&mut self, ptr: ValueId, ty: IrTy) -> ValueId {
         let id = InstId(self.func.insts.len() as u32);
         self.func.insts.push(Inst::Load(ptr));
         self.func.block_mut(self.current).insts.push(id);
-        self.alloc_value(payload, Some(id))
+        self.alloc_value(ty, Some(id))
     }
 
     fn payload_ty(&self, ptr: ValueId) -> Option<IrTy> {

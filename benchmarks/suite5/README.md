@@ -66,30 +66,28 @@ successful language in the run order. CI requires **C ↔ Rynix** match on all 1
 - JSON: `benchmarks/suite5/suite5_results.json` (`rynix.suite5.v2`)
 - With `--summary`: cross-language ms matrix + Rynix/C ratio
 
-### Latest head-to-head vs End (2026-08-25, Windows; warmup=3, runs=9)
+### Latest head-to-head vs End (2026-08-25 Phase 16-A, Windows; warmup=3, runs=9)
 
-Checksums OK on all 12 for C, Rynix, and End. Artifact:
-`suite5_summary_2026-08-25_vs_end_mulhu.txt` (post–`sum` mulhu closed form).
-Peer regressions + port notes: [END_INTEGRATION.md](END_INTEGRATION.md).
+Checksums OK on all 12 for C, Rust, Go, Zig, Rynix, and End. Artifact:
+`suite5_summary_2026-08-25_phase16.txt`. Peer still End@`cf5bef3`.
 
 | Challenge | c | rynix | end | Winner |
 |-----------|--:|------:|----:|--------|
-| alu | 8.7 | 6.1 | 8.5 | rynix |
-| nested | 6.9 | 5.9 | 5.7 | end |
-| fib | 8.1 | 5.5 | 8.0 | rynix |
-| hash | 28.3 | 5.7 | 14.8 | rynix |
-| prime | 11.6 | 8.6 | 59.3 | rynix |
-| sum | 12.5 | 7.3 | 7.0 | end |
-| bits | 454.0 | 90.0 | 375.3 | rynix |
-| matrix | 7.7 | 5.6 | 5.7 | rynix |
-| scan | 16.8 | 6.0 | 12.2 | rynix |
-| powmod | 15.5 | 6.8 | 13.3 | rynix |
-| gcd | 163.7 | 116.1 | 209.7 | rynix |
-| reduce | 13.1 | 5.4 | 15.2 | rynix |
+| alu | 8.0 | 7.4 | 8.6 | rynix |
+| nested | 6.8 | 5.4 | 5.7 | rynix |
+| fib | 8.0 | 7.0 | 7.2 | rynix |
+| hash | 19.1 | 6.8 | 15.7 | rynix |
+| prime | 11.7 | 8.0 | 60.7 | rynix |
+| sum | 6.7 | 5.6 | 5.7 | rynix |
+| bits | 497.5 | 90.5 | 374.5 | rynix |
+| matrix | 6.8 | 9.8 | 5.7 | end |
+| scan | 16.5 | 5.7 | 11.9 | rynix |
+| powmod | 16.4 | 5.6 | 16.4 | rynix |
+| gcd | 201.7 | 111.8 | 206.2 | rynix |
+| reduce | 12.8 | 5.6 | 14.7 | rynix |
 
-**Rynix 10 · End 2** (`nested`, `sum`). `sum` gap vs End closed from ~1.2× to
-~1.03× after reciprocal-mul closed form (same checksum). Strength reduction
-disclosed. Authoritative narrative: [docs/VERDICT.md](../../docs/VERDICT.md).
+**Rynix 11 · End 1** (`matrix`). Strength reduction disclosed. Narrative:
+[docs/VERDICT.md](../../docs/VERDICT.md).
 
 ### Prior multi-lang snapshot (2026-08-25, no End)
 

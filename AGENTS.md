@@ -17,7 +17,8 @@ ad-hoc scraping.
 - MCP: `rynixc mcp-serve` (18 tools: graph, impact, eval, arch, verify, precheck, context, security, scope, deps, dna, …)
 - Structure: `rynixc graph file.ryx` / `rynixc slice file.ryx`
 - Contracts: `rynixc verify --contract=docs/contracts/wave1.contract.toml`
-  (manifest build: `docs/contracts/wave12_manifest.contract.toml`)
+  (manifest build: `docs/contracts/wave12_manifest.contract.toml`;
+  Phase 19 path MCP: `docs/contracts/phase19_path_mcp.contract.toml`)
 - Agent write gate: `patch --write` denied unless `rynix.scope.toml` / `--force-write`
 - Path deps: `rynixc deps` → `rynix.deps.v1` (path + local `[registry]` index;
   dir-scan or sparse `index/config.json`; optional `rynix.lock.toml` via `--lock` /
@@ -26,12 +27,16 @@ ad-hoc scraping.
 - Package compile: unity + `pkg__fn` mangling; semver `^`/`>=`; `import std::mod`; workspace `{ workspace = true }`
 - Conventions: `rynixc dna` → `rynix.dna.v1` (heuristic; not “80 layers”)
 - Scaffold: `rynixc new <name>` → local package; next: `rynixc build` (cwd / entry)
-- Soft HTTP: one-shot + bounded loop; `import std::fs` / `std::crypto` (SHA)
+- Soft HTTP: one-shot + bounded loop (header / body / keep-alive / path_param) +
+  HTTP-over-TLS; `import std::fs` / `std::crypto` (SHA)
 - `eval`: arith/print-oriented; unsupported CallExt hard-fails (no zero-default)
 - Phase 12 complete: [docs/LEAD_AHEAD.md](docs/LEAD_AHEAD.md)
 - Phase 13: `emit-ll --target=wasm32-unknown-unknown`; `[build].optimize` + `--opt`/`--no-opt` ([docs/PHASE13.md](docs/PHASE13.md))
 - Phase 14: `emit-wasm` → real `.wasm` via clang (no WASI / no `rt/`); `deps --attest` → `rynix.attest.v1` local digest ([docs/PHASE14.md](docs/PHASE14.md))
 - Phase 15: Node runs `emit-wasm` `main` (no WASI) ([docs/PHASE15.md](docs/PHASE15.md))
+- Phase 16: honesty + `path_param` HTTP + MCP path-first ([docs/PHASE16.md](docs/PHASE16.md)); Niche-10 map ([docs/adr/0013-niche-10-scorecard.md](docs/adr/0013-niche-10-scorecard.md)); Raft deferred ([docs/adr/0012-deferred-consensus.md](docs/adr/0012-deferred-consensus.md))
+- Phase 20 complete: WASM host-import `env.print_i64` + package/INSTALL polish; Niche-10 certified ([docs/NICHE10.md](docs/NICHE10.md))
+- Install: one-path clang Win/Linux — [INSTALL.md](INSTALL.md)
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 
 ## Honesty rules

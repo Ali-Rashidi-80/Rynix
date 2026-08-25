@@ -1,0 +1,13 @@
+struct Pair
+  id: i64
+  name: str
+end
+
+def main() -> i64
+  let mut p = Pair { id: 7, name: "rynix" }
+  print_i64(p.id)
+  print(p.name)
+  p.name = "ok"
+  print(p.name)
+  return 0
+end

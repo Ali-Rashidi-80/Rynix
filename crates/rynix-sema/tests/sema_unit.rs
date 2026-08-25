@@ -203,7 +203,7 @@ end
 
 #[test]
 fn field_assign_rejected() {
-    // Index assign remains RYX2020; field store ships in Wave 3.
+    // Index assign on immutable binding still errors; mut index store is Phase 17-B.
     let (_, sink) = run("\
 def main() -> i64
   let a: [i64] = [1, 2]
@@ -211,7 +211,11 @@ def main() -> i64
   return 0
 end
 ");
-    assert!(codes(&sink).contains(&"RYX2020"), "{:?}", sink.diags);
+    assert!(
+        codes(&sink).contains(&"RYX2005"),
+        "expected immutable assign RYX2005: {:?}",
+        sink.diags
+    );
 }
 
 #[test]

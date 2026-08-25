@@ -730,7 +730,8 @@ Workflows: [`.github/workflows/ci.yml`](.github/workflows/ci.yml),
 | ---------------------------------------------------- | -------------------------------- |
 | [`LICENSE.md`](LICENSE.md)                       | MIT OR Apache-2.0                |
 | [`AGENTS.md`](AGENTS.md)                             | Guide for AI agents / MCP        |
-| [`INSTALL.md`](INSTALL.md)                           | Install, verify, troubleshooting |
+| [`INSTALL.md`](INSTALL.md)                           | Install, one-path clang (Win/Linux), verify |
+| [`docs/NICHE10.md`](docs/NICHE10.md)                 | Niche-10 certification scorecard |
 | [`docs/SPEC.md`](docs/SPEC.md)                       | Grammar & builtins               |
 | [`docs/abi.md`](docs/abi.md)                         | Runtime symbols                  |
 | [`docs/diagnostics.md`](docs/diagnostics.md)         | `RYX####` codes                  |

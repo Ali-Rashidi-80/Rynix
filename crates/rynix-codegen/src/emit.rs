@@ -34,6 +34,7 @@ pub fn emit_llvm_with_target(
     report: Option<&EscapeReport>,
     target_triple: Option<&str>,
 ) -> String {
+    let wasm_host = target_triple.is_some_and(|t| t.starts_with("wasm32"));
     let mut out = String::new();
     out.push_str("; ModuleID = 'rynix'\n");
     out.push_str("source_filename = \"rynix\"\n");
@@ -49,7 +50,12 @@ pub fn emit_llvm_with_target(
 
     // Runtime declarations.
     out.push_str("declare void @rynix_rt_print(ptr)\n");
-    out.push_str("declare void @rynix_rt_print_i64(i64)\n");
+    // Freestanding wasm: print_i64 is a host import (env.print_i64), not rt/.
+    if wasm_host {
+        out.push_str("declare void @print_i64(i64) #0\n");
+    } else {
+        out.push_str("declare void @rynix_rt_print_i64(i64)\n");
+    }
     out.push_str("declare i64 @rynix_rt_opaque_i64(i64)\n");
     out.push_str("declare ptr @rynix_rt_heap_alloc(i64)\n");
     out.push_str("declare void @rynix_rt_heap_free(ptr)\n");
@@ -94,6 +100,20 @@ pub fn emit_llvm_with_target(
     out.push_str(
         "declare i64 @rynix_rt_http_serve_loop_3paths_json_i64(i64, ptr, i64, ptr, i64, ptr, i64, i64)\n",
     );
+    out.push_str(
+        "declare i64 @rynix_rt_http_serve_loop_path_param_json_i64(i64, ptr, i64)\n",
+    );
+    out.push_str(
+        "declare i64 @rynix_rt_http_serve_loop_header_json_i64(i64, ptr, ptr, i64)\n",
+    );
+    out.push_str(
+        "declare i64 @rynix_rt_http_serve_loop_post_echo_json_i64(i64, ptr, ptr, i64, i64)\n",
+    );
+    out.push_str(
+        "declare i64 @rynix_rt_http_serve_loop_keepalive_json_i64(i64, ptr, i64, i64)\n",
+    );
+    out.push_str("declare i64 @rynix_rt_http_tls_serve_once_json_i64(i64, ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_http_tls_get_json_i64(ptr, i64, ptr, ptr)\n");
     out.push_str("declare i64 @rynix_rt_frame_serve_once_echo(i64)\n");
     out.push_str("declare i64 @rynix_rt_frame_client_echo(ptr, i64, ptr)\n");
     out.push_str("declare i64 @rynix_rt_tls_serve_once_echo(i64)\n");
@@ -148,6 +168,7 @@ pub fn emit_llvm_with_target(
             is_main,
             &strings,
             &placement,
+            wasm_host,
         );
         out.push('\n');
     }
@@ -172,6 +193,12 @@ pub fn emit_llvm_with_target(
         out.push_str("!3 = !{!\"llvm.loop.mustprogress\"}\n");
         // Bounded unroll for rem-heavy / nested-style latches (End `#pragma unroll`).
         out.push_str("!4 = !{!\"llvm.loop.unroll.count\", i32 4}\n");
+    }
+
+    if wasm_host {
+        out.push_str(
+            "attributes #0 = { \"wasm-import-module\"=\"env\" \"wasm-import-name\"=\"print_i64\" }\n",
+        );
     }
 
     out
@@ -268,6 +295,8 @@ struct EmitCtx<'a> {
     fid: FuncId,
     placement: &'a FxHashMap<(u32, u32), Placement>,
     next_tmp: u32,
+    /// Freestanding wasm32: call host-import `env.print_i64` instead of `rynix_rt_*`.
+    wasm_host: bool,
 }
 
 impl EmitCtx<'_> {
@@ -306,6 +335,7 @@ fn emit_function(
     is_main: bool,
     strings: &[String],
     placement: &FxHashMap<(u32, u32), Placement>,
+    wasm_host: bool,
 ) {
     let name = interner.resolve(func.name);
     let ret_ty = if is_main {
@@ -345,6 +375,7 @@ fn emit_function(
         fid,
         placement,
         next_tmp: 0,
+        wasm_host,
     };
 
     // Map entry params.
@@ -792,13 +823,18 @@ fn emit_inst(
             let name = ctx.tmp();
             // Payload type from alloc if possible.
             let lty = load_ty(func, *p);
+            let result_ty = result.map(|r| func.value(r).ty);
             let _ = writeln!(
                 out,
                 "  {name} = load {lty}, ptr {}, align 8",
                 ctx.val(*p)
             );
-            // If bool stored as i8, trunc to i1.
-            if lty == "i8" {
+            // Struct/array i64 slots may hold pointers (str fields): inttoptr.
+            if matches!(result_ty, Some(IrTy::Str) | Some(IrTy::Ptr)) && lty == "i64" {
+                let name2 = ctx.tmp();
+                let _ = writeln!(out, "  {name2} = inttoptr i64 {name} to ptr");
+                ctx.bind(result.unwrap(), name2);
+            } else if lty == "i8" {
                 let name2 = ctx.tmp();
                 let _ = writeln!(out, "  {name2} = trunc i8 {name} to i1");
                 ctx.bind(result.unwrap(), name2);
@@ -809,9 +845,14 @@ fn emit_inst(
         Inst::Store { ptr, value } => {
             let lty = load_ty(func, *ptr);
             let mut v = ctx.val(*value);
+            let vty = func.value(*value).ty;
             if lty == "i8" {
                 let name = ctx.tmp();
                 let _ = writeln!(out, "  {name} = zext i1 {v} to i8");
+                v = name;
+            } else if lty == "i64" && matches!(vty, IrTy::Str | IrTy::Ptr) {
+                let name = ctx.tmp();
+                let _ = writeln!(out, "  {name} = ptrtoint ptr {v} to i64");
                 v = name;
             }
             let _ = writeln!(
@@ -945,7 +986,12 @@ fn emit_inst(
                     .first()
                     .map(|a| ctx.val(*a))
                     .unwrap_or_else(|| "0".into());
-                let _ = writeln!(out, "  call void @rynix_rt_print_i64(i64 {arg})");
+                let callee = if ctx.wasm_host {
+                    "print_i64"
+                } else {
+                    "rynix_rt_print_i64"
+                };
+                let _ = writeln!(out, "  call void @{callee}(i64 {arg})");
                 if let Some(r) = result {
                     let t = ctx.tmp();
                     let _ = writeln!(out, "  {t} = add i64 0, 0");

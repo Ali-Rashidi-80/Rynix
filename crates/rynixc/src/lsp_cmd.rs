@@ -1,4 +1,5 @@
-//! Minimal LSP server on stdio: full-sync documents, diagnostics, go-to-definition.
+//! Minimal LSP server on stdio: full-sync documents, diagnostics, go-to-definition,
+//! hover, completion, and in-document rename.
 
 #![allow(
     clippy::collapsible_if,
@@ -20,7 +21,7 @@ use std::path::{Path, PathBuf};
 use rynix_ast::{Expr, Item, Module, Path as AstPath, Stmt};
 use rynix_ast::{AstArena, Ident};
 use rynix_diag::VecSink;
-use rynix_sema::{analyze, Analysis};
+use rynix_sema::{analyze, Analysis, DefKind};
 use rynix_span::{SourceMap, Span};
 use serde_json::{json, Value};
 
@@ -106,7 +107,11 @@ impl LanguageServer {
                             "save": { "includeText": false }
                         },
                         "definitionProvider": true,
-                        "hoverProvider": true
+                        "hoverProvider": true,
+                        "completionProvider": {
+                            "triggerCharacters": ["."]
+                        },
+                        "renameProvider": true
                     },
                     "serverInfo": {
                         "name": "rynixc-lsp",
@@ -127,6 +132,8 @@ impl LanguageServer {
             }
             "textDocument/definition" => Some(self.goto_definition(req)),
             "textDocument/hover" => Some(self.hover(req)),
+            "textDocument/completion" => Some(self.completion(req)),
+            "textDocument/rename" => Some(self.rename(req)),
             "textDocument/didClose" => {
                 if let Some(params) = &req.params {
                     if let Some(uri) = params["textDocument"]["uri"].as_str() {
@@ -306,6 +313,127 @@ impl LanguageServer {
         });
 
         json!({ "jsonrpc": "2.0", "id": req.id, "result": result })
+    }
+
+    fn completion(&self, req: &LspRequest) -> Value {
+        let empty = json!([]);
+        let Some(params) = &req.params else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let uri = params["textDocument"]["uri"].as_str().unwrap_or_default();
+        let line = params["position"]["line"].as_u64().unwrap_or(0) as u32 + 1;
+        let col = params["position"]["character"].as_u64().unwrap_or(0) as u32 + 1;
+        let Some(doc) = self.documents.get(uri) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+
+        let mut sources = SourceMap::new();
+        let label = doc.path.to_string_lossy();
+        sources.add_owned(label.as_ref(), doc.text.clone());
+        let file = sources.files().next().expect("one file");
+        let offset = pos_from_line_col(file, line, col);
+
+        let arena = AstArena::new();
+        let mut interner = rynix_span::Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(
+            &arena,
+            &mut interner,
+            file.text(),
+            file.start_pos(),
+            &mut sink,
+        );
+        let analysis = analyze(module, &mut interner, &mut sink);
+
+        let prefix = completion_prefix(&doc.text, file.start_pos(), offset);
+        let items = completion_items(&analysis, &interner, offset, prefix.as_deref());
+        json!({ "jsonrpc": "2.0", "id": req.id, "result": items })
+    }
+
+    fn rename(&self, req: &LspRequest) -> Value {
+        let empty = json!(null);
+        let Some(params) = &req.params else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let uri = params["textDocument"]["uri"].as_str().unwrap_or_default();
+        let new_name = params["newName"].as_str().unwrap_or_default();
+        if new_name.is_empty() || !is_ident(new_name) {
+            return json!({
+                "jsonrpc": "2.0",
+                "id": req.id,
+                "error": { "code": -32602, "message": "invalid newName" }
+            });
+        }
+        let line = params["position"]["line"].as_u64().unwrap_or(0) as u32 + 1;
+        let col = params["position"]["character"].as_u64().unwrap_or(0) as u32 + 1;
+        let Some(doc) = self.documents.get(uri) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+
+        let mut sources = SourceMap::new();
+        let label = doc.path.to_string_lossy();
+        sources.add_owned(label.as_ref(), doc.text.clone());
+        let file = sources.files().next().expect("one file");
+        let offset = pos_from_line_col(file, line, col);
+
+        let arena = AstArena::new();
+        let mut interner = rynix_span::Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(
+            &arena,
+            &mut interner,
+            file.text(),
+            file.start_pos(),
+            &mut sink,
+        );
+        let analysis = analyze(module, &mut interner, &mut sink);
+
+        let Some(def_idx) = def_index_at(module, &analysis, offset) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let spans = reference_spans(module, &analysis, def_idx);
+        if spans.is_empty() {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        }
+
+        let mut edits: Vec<Value> = spans
+            .into_iter()
+            .map(|span| {
+                let (_f, start) = sources.line_col(span.lo());
+                let (_, end) = sources.line_col(span.hi());
+                json!({
+                    "range": {
+                        "start": {
+                            "line": start.line.saturating_sub(1),
+                            "character": start.col.saturating_sub(1)
+                        },
+                        "end": {
+                            "line": end.line.saturating_sub(1),
+                            "character": end.col.saturating_sub(1)
+                        }
+                    },
+                    "newText": new_name
+                })
+            })
+            .collect();
+        // Stable order: later edits first so clients applying sequentially stay valid.
+        edits.sort_by(|a, b| {
+            let al = a["range"]["start"]["line"].as_u64().unwrap_or(0);
+            let bl = b["range"]["start"]["line"].as_u64().unwrap_or(0);
+            bl.cmp(&al).then_with(|| {
+                let ac = a["range"]["start"]["character"].as_u64().unwrap_or(0);
+                let bc = b["range"]["start"]["character"].as_u64().unwrap_or(0);
+                bc.cmp(&ac)
+            })
+        });
+
+        json!({
+            "jsonrpc": "2.0",
+            "id": req.id,
+            "result": {
+                "changes": { uri: edits }
+            }
+        })
     }
 }
 
@@ -538,6 +666,133 @@ fn hover_at(
     let ty = analysis.node_types.get(&node)?;
     let resolve = |d: rynix_sema::DefId| analysis.defs[d.index() as usize].name();
     Some(analysis.types.display(*ty, &resolve, interner))
+}
+
+/// Trailing identifier fragment before `offset` (for filtering completions).
+fn completion_prefix(text: &str, file_start: u32, offset: u32) -> Option<String> {
+    let local = offset.saturating_sub(file_start) as usize;
+    if local == 0 || local > text.len() {
+        return None;
+    }
+    let before = &text[..local];
+    let start = before
+        .rfind(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+        .map(|i| i + 1)
+        .unwrap_or(0);
+    let prefix = &before[start..];
+    if prefix.is_empty() {
+        None
+    } else {
+        Some(prefix.to_string())
+    }
+}
+
+fn is_ident(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {
+            chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+        }
+        _ => false,
+    }
+}
+
+/// Local/module function and let (and param) bindings visible near `offset`.
+fn completion_items(
+    analysis: &Analysis,
+    interner: &rynix_span::Interner,
+    offset: u32,
+    prefix: Option<&str>,
+) -> Vec<Value> {
+    let mut items = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for def in &analysis.defs {
+        let (kind, detail, near) = match def {
+            DefKind::Fn { .. } => (3u8, "fn", true), // CompletionItemKind.Function
+            DefKind::Local { span, .. } => (6u8, "let", span.lo() <= offset),
+            DefKind::Param { span, .. } => (6u8, "param", span.lo() <= offset),
+            _ => continue,
+        };
+        if !near {
+            continue;
+        }
+        let label = interner.resolve(def.name()).to_string();
+        if let Some(p) = prefix {
+            if !label.starts_with(p) {
+                continue;
+            }
+        }
+        if !seen.insert(label.clone()) {
+            continue;
+        }
+        items.push(json!({
+            "label": label,
+            "kind": kind,
+            "detail": detail,
+            "insertText": label,
+        }));
+    }
+    items.sort_by(|a, b| {
+        a["label"]
+            .as_str()
+            .unwrap_or("")
+            .cmp(b["label"].as_str().unwrap_or(""))
+    });
+    items
+}
+
+fn def_index_at(module: &Module<'_>, analysis: &Analysis, offset: u32) -> Option<usize> {
+    if let Some(path) = find_path_at(module, offset) {
+        if let Some(def_id) = analysis.path_resolution.get(&path.id) {
+            let idx = def_id.index() as usize;
+            if renameable_def(&analysis.defs[idx]) {
+                return Some(idx);
+            }
+        }
+    }
+    for (i, def) in analysis.defs.iter().enumerate() {
+        if !renameable_def(def) {
+            continue;
+        }
+        if let Some(span) = def.span() {
+            if span.contains(offset) {
+                return Some(i);
+            }
+        }
+    }
+    None
+}
+
+fn renameable_def(def: &DefKind) -> bool {
+    matches!(
+        def,
+        DefKind::Fn { .. } | DefKind::Local { .. } | DefKind::Param { .. }
+    )
+}
+
+fn reference_spans(module: &Module<'_>, analysis: &Analysis, def_idx: usize) -> Vec<Span> {
+    let mut spans = Vec::new();
+    if let Some(span) = analysis.defs.get(def_idx).and_then(|d| d.span()) {
+        spans.push(span);
+    }
+    for item in module.items {
+        walk_item(item, &mut |path: &AstPath| {
+            if analysis
+                .path_resolution
+                .get(&path.id)
+                .map(|d| d.index() as usize)
+                == Some(def_idx)
+            {
+                if let Some(seg) = path.segments.last() {
+                    if !spans.iter().any(|s| s.lo() == seg.span.lo() && s.hi() == seg.span.hi())
+                    {
+                        spans.push(seg.span);
+                    }
+                }
+            }
+        });
+    }
+    spans
 }
 
 fn find_expr_at(module: &Module<'_>, offset: u32) -> Option<rynix_ast::NodeId> {
@@ -1052,5 +1307,93 @@ mod tests {
         let lit = src.find("42").unwrap() as u32 + file.start_pos();
         let hover = hover_at(module, &analysis, &interner, lit);
         assert_eq!(hover.as_deref(), Some("i64"));
+    }
+
+    #[test]
+    fn completion_lists_fn_and_let() {
+        let src = "def helper() -> i64\n  return 1\nend\ndef main() -> i64\n  let answer = 42\n  return answer\nend\n";
+        let mut sources = SourceMap::new();
+        sources.add_owned("test.ryx", src.to_string());
+        let file = sources.files().next().unwrap();
+        let arena = AstArena::new();
+        let mut interner = Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(
+            &arena,
+            &mut interner,
+            file.text(),
+            file.start_pos(),
+            &mut sink,
+        );
+        let analysis = analyze(module, &mut interner, &mut sink);
+        let at_return = src.rfind("answer").unwrap() as u32 + file.start_pos();
+        let items = completion_items(&analysis, &interner, at_return, None);
+        let labels: Vec<&str> = items
+            .iter()
+            .filter_map(|i| i["label"].as_str())
+            .collect();
+        assert!(
+            labels.contains(&"helper"),
+            "expected module fn helper: {labels:?}"
+        );
+        assert!(
+            labels.contains(&"answer"),
+            "expected let binding answer: {labels:?}"
+        );
+        assert!(
+            labels.contains(&"main"),
+            "expected module fn main: {labels:?}"
+        );
+        let prefixed = completion_items(&analysis, &interner, at_return, Some("hel"));
+        let pref_labels: Vec<&str> = prefixed
+            .iter()
+            .filter_map(|i| i["label"].as_str())
+            .collect();
+        assert_eq!(pref_labels, vec!["helper"]);
+    }
+
+    #[test]
+    fn rename_local_updates_def_and_refs() {
+        let src = "def main() -> i64\n  let answer = 42\n  return answer\nend\n";
+        let mut sources = SourceMap::new();
+        sources.add_owned("test.ryx", src.to_string());
+        let file = sources.files().next().unwrap();
+        let arena = AstArena::new();
+        let mut interner = Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(
+            &arena,
+            &mut interner,
+            file.text(),
+            file.start_pos(),
+            &mut sink,
+        );
+        let analysis = analyze(module, &mut interner, &mut sink);
+        let use_off = src.rfind("answer").unwrap() as u32 + file.start_pos();
+        let def_idx = def_index_at(module, &analysis, use_off).expect("def at use");
+        let spans = reference_spans(module, &analysis, def_idx);
+        assert!(
+            spans.len() >= 2,
+            "expected def + use spans, got {}",
+            spans.len()
+        );
+        // Apply rename in source order to verify both sites.
+        let mut renamed = src.to_string();
+        let mut ordered = spans.clone();
+        ordered.sort_by_key(|s| std::cmp::Reverse(s.lo()));
+        for span in ordered {
+            let lo = span.lo().saturating_sub(file.start_pos()) as usize;
+            let hi = span.hi().saturating_sub(file.start_pos()) as usize;
+            renamed.replace_range(lo..hi, "result");
+        }
+        assert!(
+            renamed.contains("let result = 42"),
+            "def not renamed: {renamed}"
+        );
+        assert!(
+            renamed.contains("return result"),
+            "use not renamed: {renamed}"
+        );
+        assert!(!renamed.contains("answer"), "old name remains: {renamed}");
     }
 }
