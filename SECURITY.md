@@ -1,5 +1,7 @@
 # Security policy
 
+**Languages:** [English](SECURITY.md) (default) · [فارسی](SECURITY.fa.md)
+
 ## Supported versions
 
 | Version | Supported |

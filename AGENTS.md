@@ -1,5 +1,7 @@
 # Guide for AI agents working on Rynix
 
+**Languages:** [English](AGENTS.md) (default) · [فارسی](AGENTS.fa.md)
+
 Rynix is an AI-native systems language. Prefer machine-readable surfaces over
 ad-hoc scraping.
 

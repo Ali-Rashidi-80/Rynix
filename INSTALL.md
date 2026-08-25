@@ -1,5 +1,7 @@
 # Install Rynix
 
+**Languages:** [English](INSTALL.md) (default) · [فارسی](INSTALL.fa.md)
+
 Install **`rynixc`** from source or GitHub Release. Every step below has a matching
 verify command — same gates as CI where noted.
 

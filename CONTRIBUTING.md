@@ -1,7 +1,11 @@
 # Contributing
 
+**Languages:** [English](CONTRIBUTING.md) (default) · [فارسی](CONTRIBUTING.fa.md)
+
 1. Keep changes atomic and tested (`cargo test --workspace`, clippy `-D warnings`).
-2. Docs are English; do not invent language features in README without SPEC + tests.
+2. **English is the canonical docs language** (SPEC, ADRs, schemas). Persian
+   companions (`.fa.md`) must stay fact-aligned; do not invent language features
+   in any README without SPEC + tests.
 3. Prefer fixing the compiler over weakening a test.
 4. Runtime changes: exercise `rt/tests` / `size_echo_gates`.
 5. See [AGENTS.md](AGENTS.md) for AI-oriented workflows and [docs/COMPARE.md](docs/COMPARE.md)
