@@ -40,6 +40,36 @@ fn clang_with_wasm() -> Option<String> {
     None
 }
 
+/// Prefer a clang that can **link** a freestanding wasm32 module to `.wasm`.
+fn clang_with_wasm_link() -> Option<String> {
+    for c in ["clang", "clang.exe", "x86_64-w64-mingw32-clang"] {
+        let probe_ll = std::env::temp_dir().join("rynix_wasm_link_probe.ll");
+        let probe_wasm = std::env::temp_dir().join("rynix_wasm_link_probe.wasm");
+        let _ = std::fs::write(
+            &probe_ll,
+            "target triple = \"wasm32-unknown-unknown\"\ndefine i32 @main() {\nentry:\n  ret i32 0\n}\n",
+        );
+        let ok = Command::new(c)
+            .args([
+                "--target=wasm32-unknown-unknown",
+                "-nostdlib",
+                "-Wl,--no-entry",
+                "-Wl,--export-all",
+                "-o",
+                probe_wasm.to_str()?,
+                probe_ll.to_str()?,
+            ])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if ok {
+            let _ = std::fs::remove_file(&probe_wasm);
+            return Some(c.into());
+        }
+    }
+    None
+}
+
 #[test]
 fn hello_binary_under_300kb() {
     let Some(clang) = clang() else {
@@ -1193,6 +1223,38 @@ fn emit_ll_wasm32_clang_accepts() {
         .expect("clang wasm -c");
     assert!(status.success(), "clang --target=wasm32 -c rejected .ll");
     assert!(obj.is_file(), "wasm object missing");
+}
+
+#[test]
+fn emit_wasm_clang_produces_wasm() {
+    let Some(_clang) = clang_with_wasm_link() else {
+        eprintln!("skip: no clang that can link wasm32 freestanding .wasm");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("target")).ok();
+
+    let wasm = root.join("target/wasm_arith.wasm");
+    let _ = std::fs::remove_file(&wasm);
+    let status = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .current_dir(&root)
+        .args([
+            "emit-wasm",
+            "testdata/wasm_arith.ryx",
+            "-o",
+            wasm.to_str().unwrap(),
+        ])
+        .status()
+        .expect("emit-wasm");
+    assert!(status.success(), "emit-wasm failed");
+    assert!(wasm.is_file(), "emit-wasm did not write {}", wasm.display());
+    let bytes = std::fs::read(&wasm).expect("read wasm");
+    assert!(
+        bytes.len() >= 4 && bytes[0] == 0 && &bytes[1..4] == b"asm",
+        "missing \\0asm magic (got {} bytes)",
+        bytes.len()
+    );
 }
 
 #[test]

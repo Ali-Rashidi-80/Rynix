@@ -15,6 +15,7 @@ Commands:
   check <file.ryx>    Lex + parse + sema; report diagnostics
   dump-rir <file.ryx> Lower to RIR and print textual form
   emit-ll <file.ryx>  Emit textual LLVM IR (.ll)
+  emit-wasm <file.ryx> Emit a real .wasm via clang (wasm32; no WASI/rt)
   build [path]        Emit .ll and link with clang + rt/portable.c
   run [path]          Build then execute (path: .ryx, dir, rynix.toml, or cwd)
   test [paths...]     Run #^ directive tests (default: testdata/)
@@ -93,11 +94,12 @@ Options for `dump-rir`:
   --opt               Run DCE / const-fold / simplify-cfg before dump
   --escape            Run escape analysis and inject region/free markers
 
-Options for `emit-ll` / `build` / `run`:
-  -o <path>           Output path
-  --opt / --no-opt    RIR optimize pipeline (emit-ll defaults off; build defaults on
-                      unless [build].optimize / these flags say otherwise)
-  --target=TRIPLE     (emit-ll) v1: `wasm32-unknown-unknown` only (Phase 13)
+Options for `emit-ll` / `emit-wasm` / `build` / `run`:
+  -o <path>           Output path (emit-wasm defaults to <stem>.wasm)
+  --opt / --no-opt    RIR optimize pipeline (emit-ll/emit-wasm defaults off; build
+                      defaults on unless [build].optimize / these flags say otherwise)
+  --target=TRIPLE     (emit-ll) v1: `wasm32-unknown-unknown` only (Phase 13);
+                      emit-wasm always uses wasm32-unknown-unknown
   --keep-ll           (build) Keep the intermediate .ll next to the binary
   --runtime=KIND      `portable`, `uring` (Linux), or `iocp` (Windows);
                       if omitted, use [build].runtime then portable
@@ -176,6 +178,14 @@ pub struct EmitLlOptions {
     pub optimize: bool,
     /// Phase 13: `Some("wasm32-unknown-unknown")` when `--target=` set.
     pub target: Option<String>,
+    pub error_format: ErrorFormat,
+}
+
+#[derive(Debug)]
+pub struct EmitWasmOptions {
+    pub path: PathBuf,
+    pub output: Option<PathBuf>,
+    pub optimize: bool,
     pub error_format: ErrorFormat,
 }
 
@@ -336,6 +346,7 @@ pub enum Command {
     Check(CheckOptions),
     DumpRir(DumpRirOptions),
     EmitLl(EmitLlOptions),
+    EmitWasm(EmitWasmOptions),
     Build(BuildOptions),
     Run(RunOptions),
     Test(TestOptions),
@@ -371,6 +382,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         "check" => parse_check(&args[1..]),
         "dump-rir" => parse_dump_rir(&args[1..]),
         "emit-ll" => parse_emit_ll(&args[1..]),
+        "emit-wasm" => parse_emit_wasm(&args[1..]),
         "build" => parse_build(&args[1..]),
         "run" => parse_run(&args[1..]),
         "test" => parse_test(&args[1..]),
@@ -581,6 +593,60 @@ fn parse_emit_ll(args: &[String]) -> Result<Command, String> {
         output,
         optimize,
         target,
+        error_format,
+    }))
+}
+
+fn parse_emit_wasm(args: &[String]) -> Result<Command, String> {
+    let mut path = None;
+    let mut output = None;
+    let mut optimize = false;
+    let mut error_format = ErrorFormat::Human;
+    let mut expect_o = false;
+
+    for arg in args {
+        if expect_o {
+            output = Some(PathBuf::from(arg));
+            expect_o = false;
+            continue;
+        }
+        match arg.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--opt" => optimize = true,
+            "-o" => expect_o = true,
+            other if other.starts_with("-o=") => {
+                output = Some(PathBuf::from(&other[3..]));
+            }
+            other if other.starts_with("--target=") => {
+                let t = &other[9..];
+                if t != "wasm32-unknown-unknown" {
+                    return Err(format!(
+                        "unsupported `--target={t}` (emit-wasm is always wasm32-unknown-unknown)"
+                    ));
+                }
+                // Accepted for symmetry with emit-ll; always wasm32.
+            }
+            other if other.starts_with("--error-format") => {
+                error_format = parse_error_format(other)?;
+            }
+            other if other.starts_with('-') => {
+                return Err(format!("unknown option `{other}`"));
+            }
+            other if path.is_some() => {
+                return Err(format!("unexpected extra argument `{other}`"));
+            }
+            other => path = Some(PathBuf::from(other)),
+        }
+    }
+    if expect_o {
+        return Err("missing path after -o".into());
+    }
+
+    let path = path.ok_or_else(|| "missing input file".to_string())?;
+    Ok(Command::EmitWasm(EmitWasmOptions {
+        path,
+        output,
+        optimize,
         error_format,
     }))
 }

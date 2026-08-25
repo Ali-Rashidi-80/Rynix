@@ -22,7 +22,7 @@ independence; may ship same day with separate commits when possible.
 
 | ID | Lock |
 |----|------|
-| P13-L1 | Extend **`emit-ll --target=`**, not a fake `emit-wasm` until a `.wasm` file is produced by a gated path. |
+| P13-L1 | Extend **`emit-ll --target=`**, not a fake `emit-wasm` until a `.wasm` file is produced by a gated path. **Closed in Phase 14** via `emit-wasm` ([PHASE14.md](PHASE14.md)). |
 | P13-L2 | Allowed target v1: **`wasm32-unknown-unknown` only** (reject unknown `--target=`). |
 | P13-L3 | Smoke gate: emit-ll + `clang --target=wasm32-unknown-unknown -c` on arith-only fixture; **skip** if clang lacks wasm. |
 | P13-L4 | No `rt/` link for wasm v1 (no fibers/TCP/WASI). |

@@ -187,12 +187,22 @@ Plan: **[PHASE13.md](PHASE13.md)**. Order: A then B.
 | B | `[build].optimize` + `--opt`/`--no-opt` for build/run | ✅ `build_respects_manifest_optimize` |
 | C | Dual-path HTTP loop (`http_serve_loop_2paths_json_i64`) | ✅ `http_loop_2paths` |
 
-## Follow-on (post-13)
+## Phase 14 — Real `.wasm` (clang link, no WASI)
+
+Plan: **[PHASE14.md](PHASE14.md)**. Locked Wave A over Sigstore-lite / deeper I/O.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | `rynixc emit-wasm` → real `.wasm` (`\0asm`) via clang | ✅ `emit_wasm_clang_produces_wasm` |
+
+## Follow-on (post-13 / parallel)
 
 | Item | Status | Gate |
 |------|--------|------|
 | Local sparse package index (no CDN) | ✅ | `deps_resolves_sparse_local_index`, `build_pkg_sparse_app_resolves_index` |
 | Suite5 `sum` closed form without `sdiv`/IDIV | ✅ | `sum_opaque_closed_form_has_no_sdiv_or_loop` |
+| Sigstore-lite package attest | ⏳ | (not Phase 14 Wave A) |
+| HTTP ≥3 paths / extra fiber smokes | ⏳ | (not Phase 14 Wave A) |
 
 ## CI
 

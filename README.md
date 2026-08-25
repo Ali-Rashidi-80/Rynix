@@ -171,7 +171,7 @@ flowchart TB
 ### `rynixc` command surface
 
 ```text
-Core:     lex · parse · check · dump-rir [--opt] · emit-ll · build · run · test · fmt · new
+Core:     lex · parse · check · dump-rir [--opt] · emit-ll · emit-wasm · build · run · test · fmt · new
 Agent:    graph · slice · impact · eval · patch · arch check
           verify · precheck · context · security · scope · deps · dna
 Servers:  mcp-serve · lsp-serve
@@ -307,8 +307,9 @@ wins when present; otherwise `[build].runtime` from the root manifest; else
 portable. CLI `--opt` / `--no-opt` win when present; otherwise
 `[build].optimize`; else optimize defaults **on** for build/run
 ([PHASE13.md](docs/PHASE13.md)). Cross emit: `rynixc emit-ll file.ryx
---target=wasm32-unknown-unknown` (clang `-c` smoke gated; no WASI RT yet).
-Broken path deps fail the build gate. Resolve with
+--target=wasm32-unknown-unknown` (clang `-c` smoke); `rynixc emit-wasm file.ryx
+-o out.wasm` links a real `\0asm` binary via clang (no WASI / no `rt/` —
+[PHASE14.md](docs/PHASE14.md)). Broken path deps fail the build gate. Resolve with
 `rynixc deps [path] --error-format=json`
 (includes a `lock` object). Pin with `rynixc deps --lock` → `rynix.lock.toml` at package or workspace root;
 `--locked` requires a matching pin. Workspace members use `{ workspace = true }`

@@ -6,9 +6,9 @@ ad-hoc scraping.
 ## Canonical toolchain
 
 ```text
-.ryx → rynixc check | dump-rir | emit-ll | build | run | fmt | mcp-serve | lsp-serve
-     | arch check | graph | slice | impact | eval | patch | verify | precheck | context
-     | security | scope | deps | dna | new
+.ryx → rynixc check | dump-rir | emit-ll | emit-wasm | build | run | fmt | mcp-serve | lsp-serve
+ | arch check | graph | slice | impact | eval | patch | verify | precheck | context
+ | security | scope | deps | dna | new
 ```
 
 - Diagnostics: `--error-format=json` → NDJSON `rynix.diag.v1`
@@ -29,6 +29,7 @@ ad-hoc scraping.
 - `eval`: arith/print-oriented; unsupported CallExt hard-fails (no zero-default)
 - Phase 12 complete: [docs/LEAD_AHEAD.md](docs/LEAD_AHEAD.md)
 - Phase 13: `emit-ll --target=wasm32-unknown-unknown`; `[build].optimize` + `--opt`/`--no-opt` ([docs/PHASE13.md](docs/PHASE13.md))
+- Phase 14: `emit-wasm` → real `.wasm` via clang (no WASI / no `rt/`) ([docs/PHASE14.md](docs/PHASE14.md))
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 
 ## Honesty rules

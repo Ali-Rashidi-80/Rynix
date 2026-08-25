@@ -1,7 +1,7 @@
 //! The Rynix compiler driver.
 //!
 //! ```text
-//! rynixc lex | parse | check | dump-rir | emit-ll | build | run | test | fmt
+//! rynixc lex | parse | check | dump-rir | emit-ll | emit-wasm | build | run | test | fmt
 //!         | graph | slice | impact | eval | patch | verify | precheck | context
 //!         | security | scope | deps | dna | new | mcp-serve | lsp-serve | arch
 //! ```
@@ -21,6 +21,7 @@ mod dna_cmd;
 mod driver;
 mod dump_rir_cmd;
 mod emit_ll_cmd;
+mod emit_wasm_cmd;
 mod eval_cmd;
 mod fix;
 mod fmt_cmd;
@@ -58,6 +59,7 @@ fn main() -> ExitCode {
         Ok(cli::Command::Check(options)) => check_cmd::run(&options),
         Ok(cli::Command::DumpRir(options)) => dump_rir_cmd::run(&options),
         Ok(cli::Command::EmitLl(options)) => emit_ll_cmd::run(&options),
+        Ok(cli::Command::EmitWasm(options)) => emit_wasm_cmd::run(&options),
         Ok(cli::Command::Build(options)) => build_cmd::run(&options),
         Ok(cli::Command::Run(options)) => run_cmd::run(&options),
         Ok(cli::Command::Test(options)) => test_cmd::run(&options),
