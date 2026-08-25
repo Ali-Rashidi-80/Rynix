@@ -281,6 +281,10 @@ local registry index + **unity compile** + multifile/`rynix.lock.toml`/`fs_*`,
 IOCP, GPG smoke). UI/C11/network CDN stay ADR-deferred; suite12 #1/#5/#6 closed by
 [ADR-0011](adr/0011-suite12-divergent-benches.md).
 
+Phases **12–14** (product / wasm / attest / HTTP-3path) and Phase **15** Waves
+A–B (Node wasm execute + Skills-as-docs) are green
+([PHASE14.md](PHASE14.md), [PHASE15.md](PHASE15.md)).
+
 **Phase 12 (ahead on programs, not catalogs):** [LEAD_AHEAD.md](LEAD_AHEAD.md)
 (§8 = useful vs theatrical vs max-perf assurance).
 
