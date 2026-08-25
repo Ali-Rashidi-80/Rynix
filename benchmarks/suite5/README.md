@@ -55,12 +55,58 @@ successful language in the run order. CI requires **C ↔ Rynix** match on all 1
 - Opaque barriers block literal trip-count folding of Suite5 sources.
 - Strength reduction is allowed and should be named in result Notes / docs.
 - Do not claim Suite5 proves identical work across languages after reductions.
+- Phase 12 product waves (HTTP loop, structs, `std`, LSP) are **usefulness** gates —
+  not substitutes for this harness ([LEAD_AHEAD.md §8](../../docs/LEAD_AHEAD.md)).
 
 ## Output
 
 - Console table: challenge × lang × checksum × ms
 - JSON: `benchmarks/suite5/suite5_results.json` (`rynix.suite5.v2`)
 - With `--summary`: cross-language ms matrix + Rynix/C ratio
+
+### Latest head-to-head vs End (2026-08-25, Windows; warmup=3, runs=9)
+
+Checksums OK on all 12 for C, Rynix, and End. Artifact:
+`suite5_summary_2026-08-25_vs_end.txt`. Peer regressions + port notes:
+[END_INTEGRATION.md](END_INTEGRATION.md).
+
+| Challenge | c | rynix | end | Winner |
+|-----------|--:|------:|----:|--------|
+| alu | 11.4 | 5.8 | 7.9 | rynix |
+| nested | 6.9 | 5.3 | 5.3 | tie |
+| fib | 9.6 | 6.6 | 8.3 | rynix |
+| hash | 19.7 | 5.5 | 16.5 | rynix |
+| prime | 11.7 | 8.3 | 64.0 | rynix |
+| sum | 13.1 | 6.6 | 5.3 | end |
+| bits | 457.6 | 92.2 | 418.9 | rynix |
+| matrix | 11.2 | 5.5 | 6.5 | rynix |
+| scan | 17.2 | 5.8 | 13.6 | rynix |
+| powmod | 16.8 | 5.4 | 16.8 | rynix |
+| gcd | 178.9 | 113.4 | 243.2 | rynix |
+| reduce | 27.5 | 5.3 | 15.6 | rynix |
+
+**Rynix 10 · End 1 · tie 1.** Strength reduction disclosed for large Rynix/C gaps.
+Authoritative narrative: [docs/VERDICT.md](../../docs/VERDICT.md).
+
+### Prior multi-lang snapshot (2026-08-25, no End)
+
+| Challenge | c | rust | go | zig | rynix | Rynix/C |
+|-----------|--:|-----:|---:|----:|------:|--------:|
+| alu | 8.7 | 8.2 | 12.2 | 9.7 | 5.5 | 0.64 |
+| nested | 7.2 | 7.4 | 13.0 | 6.2 | 6.4 | 0.88 |
+| fib | 7.7 | 6.8 | 9.4 | 7.6 | 5.2 | 0.67 |
+| hash | 18.1 | 17.9 | 18.2 | 18.6 | 5.7 | 0.31 |
+| prime | 10.9 | 9.8 | 15.0 | 10.6 | 8.1 | 0.74 |
+| sum | 6.0 | 5.8 | 9.6 | 6.2 | 5.9 | 0.98 |
+| bits | 457.1 | 438.1 | 648.8 | 477.8 | 88.6 | 0.19 |
+| matrix | 6.9 | 8.2 | 68.8 | 7.6 | 5.4 | 0.77 |
+| scan | 16.6 | 15.4 | 14.8 | 17.5 | 6.3 | 0.38 |
+| powmod | 15.6 | 15.0 | 16.5 | 15.7 | 5.6 | 0.36 |
+| gcd | 168.9 | 170.9 | 220.0 | 167.5 | 119.8 | 0.71 |
+| reduce | 13.4 | 14.9 | 20.8 | 16.9 | 6.9 | 0.52 |
+
+Rynix fastest on **11/12** here (`nested`: Zig edged ahead). Big ratios on
+`bits`/`hash`/… reflect disclosed strength reduction, not “same asm as C.”
 
 ### One-shot PGO workflow
 

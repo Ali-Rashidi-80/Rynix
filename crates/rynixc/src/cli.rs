@@ -15,8 +15,8 @@ Commands:
   check <file.ryx>    Lex + parse + sema; report diagnostics
   dump-rir <file.ryx> Lower to RIR and print textual form
   emit-ll <file.ryx>  Emit textual LLVM IR (.ll)
-  build <file.ryx>    Emit .ll and link with clang + rt/portable.c
-  run <file.ryx>      Build then execute
+  build [path]        Emit .ll and link with clang + rt/portable.c
+  run [path]          Build then execute (path: .ryx, dir, rynix.toml, or cwd)
   test [paths...]     Run #^ directive tests (default: testdata/)
   fmt <file.ryx>      Canonical-format a source file
   graph <file.ryx>    Emit rynix.graph.v1 JSON (functions + call edges)
@@ -97,7 +97,8 @@ Options for `emit-ll` / `build` / `run`:
   -o <path>           Output path
   --opt               Run RIR optimization pipeline (emit-ll; build always opts)
   --keep-ll           (build) Keep the intermediate .ll next to the binary
-  --runtime=KIND      `portable` (default), `uring` (Linux), or `iocp` (Windows)
+  --runtime=KIND      `portable`, `uring` (Linux), or `iocp` (Windows);
+                      if omitted, use [build].runtime then portable
   --bench             (build) Define RYNIX_BENCH — print_i64 becomes a sink (Suite5 timing)
   --pgo-gen           (build) Clang `-fprofile-instr-generate` (training build)
   --pgo-use=PATH      (build) Clang `-fprofile-use=PATH` (optimized build)
@@ -190,10 +191,12 @@ pub enum PgoMode {
 
 #[derive(Debug)]
 pub struct BuildOptions {
-    pub path: PathBuf,
+    /// Source `.ryx`, package directory, `rynix.toml`, or `None` for cwd.
+    pub path: Option<PathBuf>,
     pub output: Option<PathBuf>,
     pub keep_ll: bool,
-    pub runtime: RuntimeKind,
+    /// `Some` only when `--runtime=` was present on the CLI (L4).
+    pub runtime: Option<RuntimeKind>,
     pub bench: bool,
     pub pgo: PgoMode,
     pub error_format: ErrorFormat,
@@ -201,9 +204,11 @@ pub struct BuildOptions {
 
 #[derive(Debug)]
 pub struct RunOptions {
-    pub path: PathBuf,
+    /// Source `.ryx`, package directory, `rynix.toml`, or `None` for cwd.
+    pub path: Option<PathBuf>,
     pub output: Option<PathBuf>,
-    pub runtime: RuntimeKind,
+    /// `Some` only when `--runtime=` was present on the CLI (L4).
+    pub runtime: Option<RuntimeKind>,
     pub bench: bool,
     pub pgo: PgoMode,
     pub error_format: ErrorFormat,
@@ -565,7 +570,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut output = None;
     let mut keep_ll = false;
-    let mut runtime = RuntimeKind::Portable;
+    let mut runtime = None;
     let mut bench = false;
     let mut pgo = PgoMode::None;
     let mut error_format = ErrorFormat::Human;
@@ -582,9 +587,9 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
             "--keep-ll" => keep_ll = true,
             "--bench" => bench = true,
             "--pgo-gen" => pgo = PgoMode::Generate,
-            "--runtime=portable" => runtime = RuntimeKind::Portable,
-            "--runtime=uring" => runtime = RuntimeKind::Uring,
-            "--runtime=iocp" => runtime = RuntimeKind::Iocp,
+            "--runtime=portable" => runtime = Some(RuntimeKind::Portable),
+            "--runtime=uring" => runtime = Some(RuntimeKind::Uring),
+            "--runtime=iocp" => runtime = Some(RuntimeKind::Iocp),
             other if other.starts_with("--pgo-use=") => {
                 pgo = PgoMode::Use(PathBuf::from(&other[10..]));
             }
@@ -613,7 +618,6 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
         return Err("missing path after -o".into());
     }
 
-    let path = path.ok_or_else(|| "missing input file".to_string())?;
     Ok(Command::Build(BuildOptions {
         path,
         output,
@@ -628,7 +632,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
 fn parse_run(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut output = None;
-    let mut runtime = RuntimeKind::Portable;
+    let mut runtime = None;
     let mut bench = false;
     let mut pgo = PgoMode::None;
     let mut error_format = ErrorFormat::Human;
@@ -644,9 +648,9 @@ fn parse_run(args: &[String]) -> Result<Command, String> {
             "-h" | "--help" => return Ok(Command::Help),
             "--bench" => bench = true,
             "--pgo-gen" => pgo = PgoMode::Generate,
-            "--runtime=portable" => runtime = RuntimeKind::Portable,
-            "--runtime=uring" => runtime = RuntimeKind::Uring,
-            "--runtime=iocp" => runtime = RuntimeKind::Iocp,
+            "--runtime=portable" => runtime = Some(RuntimeKind::Portable),
+            "--runtime=uring" => runtime = Some(RuntimeKind::Uring),
+            "--runtime=iocp" => runtime = Some(RuntimeKind::Iocp),
             other if other.starts_with("--pgo-use=") => {
                 pgo = PgoMode::Use(PathBuf::from(&other[10..]));
             }
@@ -674,7 +678,6 @@ fn parse_run(args: &[String]) -> Result<Command, String> {
     if expect_o {
         return Err("missing path after -o".into());
     }
-    let path = path.ok_or_else(|| "missing input file".to_string())?;
     Ok(Command::Run(RunOptions {
         path,
         output,
@@ -1256,6 +1259,32 @@ mod tests {
         assert_eq!(options.path.to_str(), Some("a.ryx"));
         assert!(options.explain_alloc);
         assert_eq!(options.error_format, ErrorFormat::Json);
+    }
+
+    #[test]
+    fn build_allows_omitted_path_and_tracks_runtime_flag() {
+        let Command::Build(options) = parse(&args(&["build"])).unwrap() else {
+            panic!("expected build");
+        };
+        assert!(options.path.is_none());
+        assert!(options.runtime.is_none());
+
+        let Command::Build(options) =
+            parse(&args(&["build", "pkg/", "--runtime=iocp"])).unwrap()
+        else {
+            panic!("expected build");
+        };
+        assert_eq!(options.path.as_deref().and_then(|p| p.to_str()), Some("pkg/"));
+        assert_eq!(options.runtime, Some(RuntimeKind::Iocp));
+    }
+
+    #[test]
+    fn run_allows_omitted_path() {
+        let Command::Run(options) = parse(&args(&["run", "--runtime=portable"])).unwrap() else {
+            panic!("expected run");
+        };
+        assert!(options.path.is_none());
+        assert_eq!(options.runtime, Some(RuntimeKind::Portable));
     }
 
     #[test]

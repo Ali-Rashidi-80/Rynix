@@ -1,0 +1,4 @@
+# Expect: RYX2012 (pure function has impure effects)
+def bad()  #^ effect: pure
+  print_i64(1)
+end

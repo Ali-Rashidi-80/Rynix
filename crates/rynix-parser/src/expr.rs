@@ -5,7 +5,7 @@
 
 use rynix_ast::{
     ArrayExpr, BinaryExpr, BinaryOp, CallExpr, CastExpr, Expr, FieldExpr, IndexExpr, LiteralExpr,
-    LiteralKind, MethodCallExpr, SpawnExpr, UnaryExpr, UnaryOp,
+    LiteralKind, MethodCallExpr, SpawnExpr, StructFieldInit, StructLitExpr, UnaryExpr, UnaryOp,
 };
 use rynix_lexer::TokenKind;
 use rynix_span::Span;
@@ -136,6 +136,10 @@ impl<'arena> Parser<'arena, '_, '_> {
             | TokenKind::Signal
             | TokenKind::Tensor => {
                 let path = self.parse_path_ext(true);
+                // `Name { field: expr, … }` — braces are not blocks (`end`-delimited).
+                if self.at(TokenKind::LBrace) {
+                    return self.parse_struct_lit(path);
+                }
                 self.arena.alloc(Expr::Path(path))
             }
             TokenKind::LParen => {
@@ -203,6 +207,48 @@ impl<'arena> Parser<'arena, '_, '_> {
             id: self.arena.next_id(),
             elems: self.arena.alloc_slice(elems),
             span: start.to(end),
+        }))
+    }
+
+    fn parse_struct_lit(&mut self, path: &'arena rynix_ast::Path<'arena>) -> &'arena Expr<'arena> {
+        let open = self.bump().span; // `{`
+        let mut fields = Vec::new();
+        if !self.at(TokenKind::RBrace) {
+            loop {
+                let name = self.expect_ident("field name");
+                if self.at(TokenKind::Colon) {
+                    self.bump();
+                } else {
+                    let tok = self.peek();
+                    self.sink.emit(parse_errors::expected_token(
+                        tok.span,
+                        ":",
+                        tok.kind,
+                        None,
+                    ));
+                }
+                let value = self.parse_expr();
+                let span = name.span.to(value.span());
+                fields.push(StructFieldInit { name, value, span });
+                if self.eat(TokenKind::Comma).is_none() {
+                    break;
+                }
+                if self.at(TokenKind::RBrace) {
+                    break;
+                }
+            }
+        }
+        let end = if self.at(TokenKind::RBrace) {
+            self.bump().span
+        } else {
+            self.sink.emit(parse_errors::unclosed_delimiter(open, "}"));
+            Span::empty(self.peek().span.lo())
+        };
+        self.arena.alloc(Expr::StructLit(StructLitExpr {
+            id: self.arena.next_id(),
+            path,
+            fields: self.arena.alloc_slice(fields),
+            span: path.span.to(end),
         }))
     }
 

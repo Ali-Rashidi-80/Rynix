@@ -202,13 +202,57 @@ end
 }
 
 #[test]
-fn vec_method_receiver_not_move() {
+fn field_assign_rejected() {
+    // Index assign remains RYX2020; field store ships in Wave 3.
     let (_, sink) = run("\
 def main() -> i64
-  let v: Vec[i64] = vec_new(0)
-  v.push(1)
-  return v.len()
+  let a: [i64] = [1, 2]
+  a[0] = 9
+  return 0
+end
+");
+    assert!(codes(&sink).contains(&"RYX2020"), "{:?}", sink.diags);
+}
+
+#[test]
+fn field_assign_immutable_rejected() {
+    let (_, sink) = run("\
+struct Point
+  x: i64
+  y: i64
+end
+def set_x(p: Point) -> i64
+  p.x = 1
+  return 0
+end
+");
+    assert!(codes(&sink).contains(&"RYX2005"), "{:?}", sink.diags);
+}
+
+#[test]
+fn struct_literal_and_field_store() {
+    let (dump, sink) = run("\
+struct Point
+  x: i64
+  y: i64
+end
+def main() -> i64
+  let mut p = Point { x: 1, y: 2 }
+  p.x = 10
+  return p.x + p.y
 end
 ");
     assert_eq!(sink.error_count(), 0, "{:?}", sink.diags);
+    assert!(dump.contains("fn main: fn() -> i64"), "{dump}");
+}
+
+#[test]
+fn stub_reserved_rejected() {
+    let (_, sink) = run("\
+def main() -> i64
+  signal(1)
+  return 0
+end
+");
+    assert!(codes(&sink).contains(&"RYX2013"), "{:?}", sink.diags);
 }

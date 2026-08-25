@@ -1,0 +1,28 @@
+## Loads real std/fs.ryx via import (SPEC §6.5 / Phase 12 Wave 4).
+import std::fs
+
+def main() -> i64
+  let path = "rynix_fs_std_import.tmp"
+  if fs.write_file(path, "rynix-fs-ok") != 0
+    print_i64(-1)
+    return 1
+  end
+  if fs.exists(path) != 1
+    print_i64(-2)
+    return 1
+  end
+  if fs.read_file_eq(path, "rynix-fs-ok") != 0
+    print_i64(-3)
+    return 1
+  end
+  if fs.remove_file(path) != 0
+    print_i64(-4)
+    return 1
+  end
+  if fs.exists(path) != 0
+    print_i64(-5)
+    return 1
+  end
+  print_i64(0)
+  return 0
+end

@@ -119,7 +119,7 @@ escape = "\n" | "\t" | "\r" | "\0" | "\\" | "\""
 ### 2.6 Punctuation and operators (30)
 
 ```
-( ) [ ] { }            grouping, indexing, struct literals
+( ) [ ] { }            grouping, indexing, struct literals (named fields)
 , . .. ..= : :: ->     separators, ranges, paths, return type
 = == != < <= > >=      assignment and comparison
 + - * / %              arithmetic
@@ -165,7 +165,11 @@ enum_def    = [ "pub" ] "enum" Ident Newline { Ident [ "(" type ")" ] Newline } 
 block       = { stmt }
 stmt        = let_stmt | return_stmt | break_stmt | continue_stmt
             | loop_stmt | for_stmt | if_stmt | match_stmt | expr_stmt
+            | assign_stmt
 let_stmt    = "let" [ "mut" ] Ident [ ":" type ] "=" expr Newline
+assign_stmt = place "=" expr Newline
+            | place ("+=" | "-=" | "*=" | "/=" | "%=") expr Newline
+place       = path | place "." Ident | place "[" expr "]"
 return_stmt = "return" [ expr ] Newline
 break_stmt  = "break" Newline
 continue_stmt = "continue" Newline
@@ -178,9 +182,20 @@ match_arm   = match_pat Newline block
 match_pat   = IntLit | "true" | "false" | "_"
 expr_stmt   = expr Newline
 
+expr        = … | struct_lit | …
+struct_lit  = path "{" [ field_init { "," field_init } [ "," ] ] "}"
+field_init  = Ident ":" expr
+
 type        = path [ "[" type { "," type } "]" ] | "[" type "]"
 path        = Ident { "::" Ident }
 ```
+
+**Struct literals (v1):** named fields only — `Point { x: 1, y: 2 }`.
+Field types in a literal are **i64 only**; other field types are rejected.
+Enum *values* (constructing variants as expressions) are deferred.
+
+Field assignment `p.x = …` is allowed when `p` is a `mut` binding.
+Index assignment (`a[i] = …`) remains unsupported (`RYX2020`).
 
 Reference types (`&T`) are not part of the shipping type grammar; ownership
 is inferred via escape analysis, not surface `&` syntax.
@@ -263,18 +278,25 @@ lower to `rynix_rt_*` symbols documented in [abi.md](abi.md):
 | `http_post_json_i64(host, port, path, body, field)` | HTTP POST JSON + response field |
 | `http_serve_once_json_i64(port, path, value)` | one-shot HTTP JSON server |
 | `http_serve_once_echo_json_i64(port, path, field)` | one-shot echo request JSON field |
+| `http_serve_loop_json_i64(port, path, value, max_reqs)` | bounded: exactly `max_reqs` matching GETs → `0` |
 | `frame_serve_once_echo` / `frame_client_echo` | length-prefixed binary frame echo |
+| `tls_serve_once_echo` / `tls_client_echo` | TLS echo (real SChannel/OpenSSL) |
 | `sha256_first_i64(data)` | SHA-256 → first 8 bytes as i64 |
+| `hmac_sha256_first_i64(key, data)` | HMAC-SHA256 → first 8 bytes as i64 |
+| `aes128_gcm_nist_empty_tag_first_i64()` | AES-GCM NIST KAT helper |
+| `ws_accept_key_eq` / `ws_accept_sha1_first_i64` / `ws_frame_roundtrip_ok` | WebSocket handshake/frame helpers |
 | `kv_new` / `kv_put` / `kv_get` / `kv_len` | arena string→i64 map |
 | `fs_write_file(path, data)` | write whole file (0 / -1) |
 | `fs_read_file(path)` | read whole file as `str` (or fail) |
 | `fs_read_file_eq(path, expect)` | compare file to string (0 / -1) |
 | `fs_exists(path)` | `1` if readable file, else `0` |
 | `fs_remove_file(path)` | unlink (`0`; missing path is ok) |
-| `tensor`, `signal`, `agent` | smart primitives (stubs / hooks) |
+
+Reserved keywords (not soft callables; calls → `RYX2013`): `tensor`, `signal`, `agent`.
 
 Notes in `std/*.ryx` that contain **no** `def` remain documentation for soft
-builtins. Modules with real `def`s (e.g. `std/math.ryx`) load via
+builtins (e.g. `std/http.ryx`, `std/tls.ryx`). Modules with real `def`s
+(`std/math.ryx`, `std/fs.ryx`, `std/crypto.ryx` SHA only) load via
 `import std::<module>` (SPEC §6.5).
 
 ## 6. Packages & local index (v0.1)
@@ -390,7 +412,12 @@ def main() -> i64
 end
 ```
 
-Evidence: `std/math.ryx`, `testdata/pkg_std_app`, `build_pkg_std_app_loads_math`.
+`import std::fs` / `import std::crypto` load thin `def` wrappers over soft
+`fs_*` / `sha256_first_i64` (HMAC/AES stay soft-only; no facade this phase).
+
+Evidence: `std/math.ryx`, `testdata/pkg_std_app`, `build_pkg_std_app_loads_math`;
+`std/fs.ryx`, `testdata/pkg_std_fs`, `build_fs_via_std_import`;
+`std/crypto.ryx`, `testdata/pkg_std_crypto`, `build_crypto_sha_via_std`.
 
 ### 6.6 Workspace monorepo
 

@@ -13,6 +13,7 @@
 )]
 
 use std::collections::HashMap;
+use std::fs;
 use std::io::{self, BufRead, Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -22,6 +23,8 @@ use rynix_diag::VecSink;
 use rynix_sema::{analyze, Analysis};
 use rynix_span::{SourceMap, Span};
 use serde_json::{json, Value};
+
+use crate::manifest::{find_workspace_root, load_manifest};
 
 struct LspRequest {
     id: Option<Value>,
@@ -231,18 +234,36 @@ impl LanguageServer {
         );
         let analysis = analyze(module, &mut interner, &mut sink);
 
-        let def_span = find_definition_span(module, &analysis, offset);
-        let result = def_span.map(|span| {
+        let result = if let Some(span) = find_definition_span(module, &analysis, offset) {
             let (_f, start) = sources.line_col(span.lo());
             let (_, end) = sources.line_col(span.hi());
-            json!({
+            Some(json!({
                 "uri": uri,
                 "range": {
                     "start": { "line": start.line.saturating_sub(1), "character": start.col.saturating_sub(1) },
                     "end": { "line": end.line.saturating_sub(1), "character": end.col.saturating_sub(1) }
                 }
+            }))
+        } else if let Some(name) = name_at_offset(module, &interner, offset) {
+            // L12: resolve from on-disk workspace member sources via manifest.
+            find_workspace_fn_def(&doc.path, &name).map(|(path, span)| {
+                let mut ws_sources = SourceMap::new();
+                let label = path.to_string_lossy();
+                let text = fs::read_to_string(&path).unwrap_or_default();
+                ws_sources.add_owned(label.as_ref(), text);
+                let (_f, start) = ws_sources.line_col(span.lo());
+                let (_, end) = ws_sources.line_col(span.hi());
+                json!({
+                    "uri": path_to_uri(&path),
+                    "range": {
+                        "start": { "line": start.line.saturating_sub(1), "character": start.col.saturating_sub(1) },
+                        "end": { "line": end.line.saturating_sub(1), "character": end.col.saturating_sub(1) }
+                    }
+                })
             })
-        });
+        } else {
+            None
+        };
 
         json!({ "jsonrpc": "2.0", "id": req.id, "result": result })
     }
@@ -317,6 +338,99 @@ fn uri_to_path(uri: &str) -> PathBuf {
     } else {
         PathBuf::from(uri)
     }
+}
+
+fn path_to_uri(path: &Path) -> String {
+    let abs = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let s = abs.to_string_lossy().replace('\\', "/");
+    if cfg!(windows) {
+        format!("file:///{s}")
+    } else {
+        format!("file://{s}")
+    }
+}
+
+/// Identifier / path segment name under `offset` (for workspace fallback).
+fn name_at_offset(
+    module: &Module<'_>,
+    interner: &rynix_span::Interner,
+    offset: u32,
+) -> Option<String> {
+    if let Some(path) = find_path_at(module, offset) {
+        if let Some(seg) = path
+            .segments
+            .iter()
+            .find(|s| s.span.contains(offset))
+            .or_else(|| path.segments.last())
+        {
+            return Some(interner.resolve(seg.name).to_string());
+        }
+    }
+    find_ident_at(module, offset).map(|id| interner.resolve(id.name).to_string())
+}
+
+/// On-disk workspace member sources: `[package].entry` then `files` for each member.
+fn workspace_member_sources(from: &Path) -> Vec<PathBuf> {
+    let Some(ws_root) = find_workspace_root(from) else {
+        return Vec::new();
+    };
+    let ws_toml = ws_root.join("rynix.toml");
+    let Ok(ws) = load_manifest(&ws_toml) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for rel in &ws.workspace_members {
+        let member_dir = ws_root.join(rel);
+        let member_toml = member_dir.join("rynix.toml");
+        let Ok(m) = load_manifest(&member_toml) else {
+            continue;
+        };
+        if let Some(entry) = &m.entry {
+            let p = member_dir.join(entry);
+            if p.is_file() {
+                out.push(p);
+            }
+        }
+        for f in &m.files {
+            let p = member_dir.join(f);
+            if p.is_file() && !out.iter().any(|e| e == &p) {
+                out.push(p);
+            }
+        }
+    }
+    out
+}
+
+/// Find `def <name>` in a source file; returns the name span (file-local SourceMap).
+fn find_fn_def_span_in_file(path: &Path, name: &str) -> Option<Span> {
+    let text = fs::read_to_string(path).ok()?;
+    let arena = AstArena::new();
+    let mut interner = rynix_span::Interner::new();
+    let mut sink = VecSink::new();
+    let module = rynix_parser::parse(&arena, &mut interner, &text, 0, &mut sink);
+    for item in module.items {
+        if let Item::Fn(f) = item {
+            if interner.resolve(f.name.name) == name {
+                return Some(f.name.span);
+            }
+        }
+    }
+    None
+}
+
+/// Resolve a function definition from workspace member sources on disk (L12).
+fn find_workspace_fn_def(doc_path: &Path, name: &str) -> Option<(PathBuf, Span)> {
+    let doc_canon = fs::canonicalize(doc_path).unwrap_or_else(|_| doc_path.to_path_buf());
+    for path in workspace_member_sources(doc_path) {
+        let path_canon = fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
+        if path_canon == doc_canon {
+            continue;
+        }
+        if let Some(span) = find_fn_def_span_in_file(&path, name) {
+            return Some((path, span));
+        }
+    }
+    None
 }
 
 fn pos_from_line_col(file: &rynix_span::SourceFile, line: u32, col: u32) -> u32 {
@@ -465,6 +579,11 @@ fn consider_expr(expr: &Expr<'_>, offset: u32, best: &mut Option<(u32, rynix_ast
             }
         }
         Expr::Field(f) => consider_expr(f.base, offset, best),
+        Expr::StructLit(s) => {
+            for init in s.fields {
+                consider_expr(init.value, offset, best);
+            }
+        }
         Expr::Index(i) => {
             consider_expr(i.base, offset, best);
             consider_expr(i.index, offset, best);
@@ -700,6 +819,19 @@ fn walk_expr_idents(expr: &Expr<'_>, offset: u32, found: &mut Option<Ident>) {
             }
         }
         Expr::Field(f) => walk_expr_idents(f.base, offset, found),
+        Expr::StructLit(s) => {
+            for seg in s.path.segments {
+                if seg.span.contains(offset) {
+                    *found = Some(*seg);
+                }
+            }
+            for init in s.fields {
+                if init.name.span.contains(offset) {
+                    *found = Some(init.name);
+                }
+                walk_expr_idents(init.value, offset, found);
+            }
+        }
         Expr::Index(i) => {
             walk_expr_idents(i.base, offset, found);
             walk_expr_idents(i.index, offset, found);
@@ -808,6 +940,12 @@ fn walk_expr<'a>(expr: &Expr<'a>, on_path: &mut dyn FnMut(&'a AstPath<'a>)) {
             }
         }
         Expr::Field(f) => walk_expr(f.base, on_path),
+        Expr::StructLit(s) => {
+            on_path(s.path);
+            for init in s.fields {
+                walk_expr(init.value, on_path);
+            }
+        }
         Expr::Index(i) => {
             walk_expr(i.base, on_path);
             walk_expr(i.index, on_path);
@@ -849,6 +987,49 @@ mod tests {
         let analysis = analyze(module, &mut interner, &mut sink);
         let foo_ref = src.rfind("foo").unwrap() as u32 + file.start_pos();
         assert!(find_definition_span(module, &analysis, foo_ref).is_some());
+    }
+
+    #[test]
+    fn lsp_workspace_def() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .expect("repo root");
+        let app = root.join("testdata/ws_monorepo/app/main.ryx");
+        let lib = root.join("testdata/ws_monorepo/lib/lib.ryx");
+        let text = fs::read_to_string(&app).expect("app main");
+        let mut sources = SourceMap::new();
+        sources.add_owned(app.to_string_lossy().as_ref(), text.clone());
+        let file = sources.files().next().unwrap();
+        let arena = AstArena::new();
+        let mut interner = Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(
+            &arena,
+            &mut interner,
+            file.text(),
+            file.start_pos(),
+            &mut sink,
+        );
+        let analysis = analyze(module, &mut interner, &mut sink);
+        let needle = text.find("util_answer").expect("util_answer call") as u32 + file.start_pos();
+        // Not defined in the open buffer alone.
+        assert!(
+            find_definition_span(module, &analysis, needle).is_none(),
+            "expected no local def for util_answer"
+        );
+        let name = name_at_offset(module, &interner, needle).expect("name at offset");
+        assert_eq!(name, "util_answer");
+        let (path, span) = find_workspace_fn_def(&app, &name).expect("workspace def");
+        let path_canon = fs::canonicalize(&path).unwrap();
+        let lib_canon = fs::canonicalize(&lib).unwrap();
+        assert_eq!(path_canon, lib_canon);
+        let lib_text = fs::read_to_string(&lib).unwrap();
+        let def_off = lib_text.find("util_answer").expect("def in lib") as u32;
+        assert!(
+            span.contains(def_off) || span.lo() == def_off,
+            "span should cover util_answer in lib.ryx"
+        );
     }
 
     #[test]

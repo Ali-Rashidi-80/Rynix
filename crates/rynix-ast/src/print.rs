@@ -303,6 +303,15 @@ impl Dumper<'_> {
                 self.expr(f.base);
                 self.close();
             }
+            Expr::StructLit(s) => {
+                self.open(&format!("struct_lit {}", self.path_str(s.path)));
+                for f in s.fields {
+                    self.open(&format!("field_init {}", self.name(f.name)));
+                    self.expr(f.value);
+                    self.close();
+                }
+                self.close();
+            }
             Expr::Array(a) => {
                 self.open("array");
                 for e in a.elems {

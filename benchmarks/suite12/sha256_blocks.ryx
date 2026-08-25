@@ -1,0 +1,195 @@
+## Suite12 #4 SHA-256 blocks — Rynix port (checksum-locked to C).
+## Compression rounds only (not padded digest); soft sha256_* is a different API.
+
+def bxor(a: i64, b: i64) -> i64
+  return a + b - 2 * (a & b)
+end
+
+def bor(a: i64, b: i64) -> i64
+  return a + b - (a & b)
+end
+
+def shl(a: i64, n: i64) -> i64
+  let mut r = a
+  let mut i = 0
+  loop
+    if i >= n
+      break
+    end
+    r = r + r
+    i += 1
+  end
+  return r
+end
+
+def mask32(x: i64) -> i64
+  return x & 4294967295
+end
+
+def rotr(x: i64, n: i64) -> i64
+  let v = mask32(x)
+  return mask32(bor(v >> n, shl(v, 32 - n)))
+end
+
+def splitmix64(state: i64) -> i64
+  # state += 0x9E3779B97F4A7C15
+  return state + -7046029254386353131
+end
+
+def splitmix64_out(state: i64) -> i64
+  let mut z = state
+  z = bxor(z, z >> 30) * -4658895280553007687
+  z = bxor(z, z >> 27) * -7723592293110705685
+  return bxor(z, z >> 31)
+end
+
+def bench_4_sha256() -> i64
+  let k = map_new(0)
+  k.insert(0, 0x428a2f98)
+  k.insert(1, 0x71374491)
+  k.insert(2, 0xb5c0fbcf)
+  k.insert(3, 0xe9b5dba5)
+  k.insert(4, 0x3956c25b)
+  k.insert(5, 0x59f111f1)
+  k.insert(6, 0x923f82a4)
+  k.insert(7, 0xab1c5ed5)
+  k.insert(8, 0xd807aa98)
+  k.insert(9, 0x12835b01)
+  k.insert(10, 0x243185be)
+  k.insert(11, 0x550c7dc3)
+  k.insert(12, 0x72be5d74)
+  k.insert(13, 0x80deb1fe)
+  k.insert(14, 0x9bdc06a7)
+  k.insert(15, 0xc19bf174)
+  k.insert(16, 0xe49b69c1)
+  k.insert(17, 0xefbe4786)
+  k.insert(18, 0x0fc19dc6)
+  k.insert(19, 0x240ca1cc)
+  k.insert(20, 0x2de92c6f)
+  k.insert(21, 0x4a7484aa)
+  k.insert(22, 0x5cb0a9dc)
+  k.insert(23, 0x76f988da)
+  k.insert(24, 0x983e5152)
+  k.insert(25, 0xa831c66d)
+  k.insert(26, 0xb00327c8)
+  k.insert(27, 0xbf597fc7)
+  k.insert(28, 0xc6e00bf3)
+  k.insert(29, 0xd5a79147)
+  k.insert(30, 0x06ca6351)
+  k.insert(31, 0x14292967)
+  k.insert(32, 0x27b70a85)
+  k.insert(33, 0x2e1b2138)
+  k.insert(34, 0x4d2c6dfc)
+  k.insert(35, 0x53380d13)
+  k.insert(36, 0x650a7354)
+  k.insert(37, 0x766a0abb)
+  k.insert(38, 0x81c2c92e)
+  k.insert(39, 0x92722c85)
+  k.insert(40, 0xa2bfe8a1)
+  k.insert(41, 0xa81a664b)
+  k.insert(42, 0xc24b8b70)
+  k.insert(43, 0xc76c51a3)
+  k.insert(44, 0xd192e819)
+  k.insert(45, 0xd6990624)
+  k.insert(46, 0xf40e3585)
+  k.insert(47, 0x106aa070)
+  k.insert(48, 0x19a4c116)
+  k.insert(49, 0x1e376c08)
+  k.insert(50, 0x2748774c)
+  k.insert(51, 0x34b0bcb5)
+  k.insert(52, 0x391c0cb3)
+  k.insert(53, 0x4ed8aa4a)
+  k.insert(54, 0x5b9cca4f)
+  k.insert(55, 0x682e6ff3)
+  k.insert(56, 0x748f82ee)
+  k.insert(57, 0x78a5636f)
+  k.insert(58, 0x84c87814)
+  k.insert(59, 0x8cc70208)
+  k.insert(60, 0x90befffa)
+  k.insert(61, 0xa4506ceb)
+  k.insert(62, 0x0bef9a3f)
+  k.insert(63, 0xc67178f2)
+  let w = map_new(0)
+  let mut s0 = 0x6a09e667
+  let mut s1 = 0xbb67ae85
+  let mut s2 = 0x3c6ef372
+  let mut s3 = 0xa54ff53a
+  let mut s4 = 0x510e527f
+  let mut s5 = 0x9b05688c
+  let mut s6 = 0x1f83d9ab
+  let mut s7 = 0x5be0cd19
+  let mut prng = -3819410108451629448
+  let mut block = 0
+  loop
+    if block >= 500000
+      break
+    end
+    let mut i = 0
+    loop
+      if i >= 16
+        break
+      end
+      prng = splitmix64(prng)
+      w.insert(i, mask32(splitmix64_out(prng)))
+      i += 1
+    end
+    i = 16
+    loop
+      if i >= 64
+        break
+      end
+      let wi15 = w.get(i - 15)
+      let wi2 = w.get(i - 2)
+      let s0w = bxor(bxor(rotr(wi15, 7), rotr(wi15, 18)), wi15 >> 3)
+      let s1w = bxor(bxor(rotr(wi2, 17), rotr(wi2, 19)), wi2 >> 10)
+      let wi = mask32(w.get(i - 16) + s0w + w.get(i - 7) + s1w)
+      w.insert(i, wi)
+      i += 1
+    end
+    let mut a = s0
+    let mut b = s1
+    let mut c = s2
+    let mut d = s3
+    let mut e = s4
+    let mut f = s5
+    let mut g = s6
+    let mut h = s7
+    i = 0
+    loop
+      if i >= 64
+        break
+      end
+      let S1 = bxor(bxor(rotr(e, 6), rotr(e, 11)), rotr(e, 25))
+      let ch = bxor(e & f, bxor(e, 4294967295) & g)
+      let temp1 = mask32(h + S1 + ch + k.get(i) + w.get(i))
+      let S0 = bxor(bxor(rotr(a, 2), rotr(a, 13)), rotr(a, 22))
+      let maj = bxor(bxor(a & b, a & c), b & c)
+      let temp2 = mask32(S0 + maj)
+      h = g
+      g = f
+      f = e
+      e = mask32(d + temp1)
+      d = c
+      c = b
+      b = a
+      a = mask32(temp1 + temp2)
+      i += 1
+    end
+    s0 = mask32(s0 + a)
+    s1 = mask32(s1 + b)
+    s2 = mask32(s2 + c)
+    s3 = mask32(s3 + d)
+    s4 = mask32(s4 + e)
+    s5 = mask32(s5 + f)
+    s6 = mask32(s6 + g)
+    s7 = mask32(s7 + h)
+    block += 1
+  end
+  return bor(shl(s0, 32), s7)
+end
+
+def main() -> i64
+  let check = bench_4_sha256()
+  print_i64(check)
+  return 0
+end

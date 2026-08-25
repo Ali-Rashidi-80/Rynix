@@ -1,7 +1,10 @@
 # Surpass End — ordered development plan
 
-**Status (2026-08-23):** Phases A→E complete in-tree. Deferred items (C11, UI/canvas,
+**Status (2026-08-24):** Phases A→E complete in-tree. Deferred items (C11, UI/canvas,
 network registry CDN) stay ADR-gated — see [ROADMAP.md](ROADMAP.md) Phase 11.
+
+**Next:** [LEAD_AHEAD.md](LEAD_AHEAD.md) — Phase 12, valuable lead (manifest build,
+HTTP loop, struct values, `std` imports, Suite12 `.ryx` MATCH). Not End syntax volume.
 
 Reference peer: local `D:\0\End-peer` ↔ [IrMaho/End](https://github.com/IrMaho/End)
 (`endc` 2.0.0 crate / marketed as `0.4.0-alpha`).
@@ -200,4 +203,5 @@ After Wave 2, re-score [END_PEER_GAP.md](END_PEER_GAP.md) §3 (“more valuable?
 - Phase 11 items with in-tree tests are ✅ in [ROADMAP.md](ROADMAP.md).
 - Follow-on gates landed: `build_pkg_*` unity compile, `ws_large_echo_smoke_c`,
   ADR-0011 (suite12 divergent), ADR-0007/0008/0010 reaffirmation (no stubs).
+- Phase 12: [LEAD_AHEAD.md](LEAD_AHEAD.md) (manifest build first).
 - Do not widen language surface without SPEC + tests.

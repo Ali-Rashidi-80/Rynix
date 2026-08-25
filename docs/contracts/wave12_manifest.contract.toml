@@ -1,0 +1,34 @@
+# Wave-12 manifest build evidence (ADR-0009 — toolchain contracts, not language keywords)
+
+[contract]
+name = "wave12-manifest-build"
+
+[[evidence]]
+id = "build-from-manifest-gate"
+kind = "cargo_test"
+package = "rynixc"
+filter = "build_from_manifest_entry"
+
+[[evidence]]
+id = "run-from-manifest-gate"
+kind = "cargo_test"
+package = "rynixc"
+filter = "run_from_manifest_entry"
+
+[[evidence]]
+id = "manifest-primary-resolve"
+kind = "file"
+path = "crates/rynixc/src/manifest.rs"
+contains = "primary_from_manifest"
+
+[[evidence]]
+id = "lead-ahead-manifest-gate"
+kind = "file"
+path = "docs/LEAD_AHEAD.md"
+contains = "build_from_manifest_entry"
+
+[[evidence]]
+id = "adr-0009-no-keywords"
+kind = "file"
+path = "docs/adr/0009-agent-contracts-toolchain.md"
+contains = "`feature`/`skill`/`task`"

@@ -544,6 +544,109 @@ pub fn resolve_for_source(source: &Path) -> Result<Option<DepsReport>, String> {
     Ok(Some(resolve_deps(&m)))
 }
 
+/// Primary `.ryx` paths + optional `[build].runtime` for `build` / `run` (L2–L4).
+#[derive(Debug, Clone)]
+pub struct ProjectSources {
+    /// `[package].entry` then `files`, or a single direct `.ryx` path.
+    pub primary: Vec<PathBuf>,
+    /// Absolute path to the root `rynix.toml` when one was found.
+    #[allow(dead_code)]
+    pub manifest_path: Option<PathBuf>,
+    #[allow(dead_code)]
+    pub package_name: Option<String>,
+    /// Raw `[build].runtime` string from the root manifest, if any.
+    pub runtime: Option<String>,
+}
+
+/// Resolve primary sources for `build` / `run`.
+///
+/// - Direct `.ryx` → that file alone (deps still via `resolve_for_source`).
+/// - Omitted path / directory / `rynix.toml` → `find_manifest`, then
+///   `[package].entry` + `files` as primary (errors if `entry` is missing).
+pub fn resolve_project_sources(path: Option<&Path>) -> Result<ProjectSources, String> {
+    let start = path.map_or_else(|| PathBuf::from("."), Path::to_path_buf);
+
+    if start.is_file() {
+        let name = start.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name == "rynix.toml" {
+            return primary_from_manifest(&start);
+        }
+        let is_ryx = start
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("ryx"));
+        if is_ryx {
+            let abs = fs::canonicalize(&start).unwrap_or_else(|_| start.clone());
+            let (manifest_path, package_name, runtime) = match find_manifest(&abs) {
+                Some(m_path) => match load_manifest(&m_path) {
+                    Ok(m) => (Some(m_path), Some(m.name), m.runtime),
+                    Err(_) => (Some(m_path), None, None),
+                },
+                None => (None, None, None),
+            };
+            return Ok(ProjectSources {
+                primary: vec![abs],
+                manifest_path,
+                package_name,
+                runtime,
+            });
+        }
+        return Err(format!(
+            "expected a .ryx file, directory, or rynix.toml, got {}",
+            start.display()
+        ));
+    }
+
+    let Some(m_path) = find_manifest(&start) else {
+        return Err(format!("no rynix.toml found from {}", start.display()));
+    };
+    primary_from_manifest(&m_path)
+}
+
+fn primary_from_manifest(m_path: &Path) -> Result<ProjectSources, String> {
+    let m = load_manifest(m_path)?;
+    let Some(entry_rel) = &m.entry else {
+        return Err(format!(
+            "package `{}` missing [package].entry in {}",
+            m.name,
+            m_path.display()
+        ));
+    };
+    let entry = {
+        let p = m.dir.join(entry_rel);
+        fs::canonicalize(&p).unwrap_or(p)
+    };
+    if !entry.is_file() {
+        return Err(format!(
+            "package `{}` entry missing: {}",
+            m.name,
+            entry.display()
+        ));
+    }
+    let mut primary = vec![entry];
+    for rel in &m.files {
+        let p = m.dir.join(rel);
+        let p = fs::canonicalize(&p).unwrap_or(p);
+        if primary.iter().any(|e| e == &p) {
+            continue;
+        }
+        if !p.is_file() {
+            return Err(format!(
+                "package `{}` source missing: {}",
+                m.name,
+                p.display()
+            ));
+        }
+        primary.push(p);
+    }
+    Ok(ProjectSources {
+        primary,
+        manifest_path: Some(m_path.to_path_buf()),
+        package_name: Some(m.name),
+        runtime: m.runtime,
+    })
+}
+
 fn parse_manifest_toml(content: &str) -> Manifest {
     let mut m = Manifest::default();
     let mut section = "";

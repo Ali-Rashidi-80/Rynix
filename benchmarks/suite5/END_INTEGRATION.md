@@ -42,7 +42,8 @@ source into `target/suite5/` before building so it **never overwrites**
 
 ## Prerequisites
 
-1. Build [End](https://github.com/IrMaho/End) and put `end` / `endc` on PATH.
+1. Build [End](https://github.com/IrMaho/End) and put `end` / `endc` on PATH
+   (or set `ENDC_PATH` to the `endc.exe`). **Do not edit End sources** for Suite5.
 2. From Rynix repo root:
 
 ```sh
@@ -51,9 +52,24 @@ python benchmarks/suite5/run_suite5.py --langs c,rynix,end --summary
 python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary
 ```
 
-## Port notes
+### End@cf5bef3 parser note (2026-08-25)
 
-- Syntax follows End suite12 style (`pub fn`, `val`/`mut`, `for i in N`, `@import_c`).
-- If End’s CLI flags differ (`--strip` vs `--release`), adjust `build_end()` in `run_suite5.py`.
-- `bits.end` uses a software popcount loop (End `>>` quirks); Rynix may lower the
-  same source shape to `@llvm.ctpop` — a disclosed compiler win, not a harness cheat.
+Upstream `endc` at peer HEAD (read-only clone; **no End source edits**):
+
+| Regression | Evidence |
+|------------|----------|
+| Statement `if cond { … }` | Own `benchmarks/suite12/suite12_end.end` → `Expected token Else, found LBrace` |
+| Expression `a if cond else b` | Probed binaries always print `0` for both branches |
+| Pointer `!= null` | Unreliable vs `env as i64` after `getenv` |
+
+Rynix-owned Suite5 `.end` ports therefore use only forms that still compile and
+print correct checksums: `for` / `while` / `getenv as i64` sinks. Regenerate:
+
+```sh
+python benchmarks/suite5/regen_end_ports.py
+# Never: endc build benchmarks/suite5/foo.end  (clobbers foo.c beside it)
+# Always build via run_suite5.py (copies into target/suite5/ first)
+```
+
+This is a **peer compiler regression**, not a Rynix harness cheat. Algorithms and
+checksums still match C/Rynix when End builds succeed.

@@ -77,6 +77,10 @@ int64_t rynix_rt_http_serve_once_json_i64(int64_t port, const char *path, int64_
 /* Parse request JSON `field`, echo as `{"value":N}`; returns N or -1 / 1. */
 int64_t rynix_rt_http_serve_once_echo_json_i64(int64_t port, const char *path,
                                                const char *field);
+/* Bounded HTTP/1.1 JSON server: listen once, serve exactly `max_reqs` matching
+ * GETs with `{"value":N}`, then return 0. `max_reqs <= 0` → -1. */
+int64_t rynix_rt_http_serve_loop_json_i64(int64_t port, const char *path,
+                                          int64_t value, int64_t max_reqs);
 
 /* ---- binary framing (length-prefixed) --------------------------------- */
 int64_t rynix_rt_frame_send(int64_t fd, const char *data, int64_t n);

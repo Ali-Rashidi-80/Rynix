@@ -1,0 +1,12 @@
+## Loads real std/crypto.ryx SHA wrapper (SPEC 6.5 / Phase 12 Wave 4 L10).
+import std::crypto
+
+def main() -> i64
+  let h = crypto.sha256_first_i64("abc")
+  if h != -5010229573455851542
+    print_i64(h)
+    return 1
+  end
+  print_i64(0)
+  return 0
+end

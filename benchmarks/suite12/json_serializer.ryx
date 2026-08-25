@@ -1,0 +1,345 @@
+## Suite12 #8 JSON serializer hash — Rynix port (checksum-locked to C).
+## Mid-byte via segment tables (loop dispatch; avoids if/mut SSA hole).
+
+def shl(a: i64, n: i64) -> i64
+  let mut r = a
+  let mut i = 0
+  loop
+    if i >= n
+      break
+    end
+    r = r + r
+    i += 1
+  end
+  return r
+end
+
+def abs_i64(n: i64) -> i64
+  let mut x = n
+  loop
+    if x >= 0
+      break
+    end
+    x = 0 - x
+    break
+  end
+  return x
+end
+
+def decimal_digits(n: i64) -> i64
+  let x = abs_i64(n)
+  let mut d = 1
+  let mut p = 10
+  loop
+    if x < p
+      break
+    end
+    d += 1
+    if d >= 10
+      break
+    end
+    p = p * 10
+  end
+  return d
+end
+
+def decimal_digit_char(n: i64, idx: i64, nd: i64) -> i64
+  let mut p = 1
+  let mut k = 0
+  let last = nd - 1 - idx
+  loop
+    if k >= last
+      break
+    end
+    p = p * 10
+    k += 1
+  end
+  return 48 + ((n / p) % 10)
+end
+
+## Pack 4 ASCII bytes little-endian (avoids large hex literals).
+def pack4(a: i64, b: i64, c: i64, d: i64) -> i64
+  return a + shl(b, 8) + shl(c, 16) + shl(d, 24)
+end
+
+def byte_of(pack: i64, idx: i64) -> i64
+  let mut x = pack
+  let mut i = 0
+  loop
+    if i >= idx
+      break
+    end
+    x = x >> 8
+    i += 1
+  end
+  return x & 255
+end
+
+## `{"id":` — 6 chars
+def id_prefix_char(pos: i64) -> i64
+  let p0 = pack4(123, 34, 105, 100)
+  let p1 = pack4(34, 58, 0, 0)
+  let mut r = 0
+  loop
+    if pos < 4
+      r = byte_of(p0, pos)
+      break
+    end
+    r = byte_of(p1, pos - 4)
+    break
+  end
+  return r
+end
+
+## `,"status":"active","latency_us":` — 32 chars
+def mid_a_char(pos: i64) -> i64
+  let p0 = pack4(44, 34, 115, 116)
+  let p1 = pack4(97, 116, 117, 115)
+  let p2 = pack4(34, 58, 34, 97)
+  let p3 = pack4(99, 116, 105, 118)
+  let p4 = pack4(101, 34, 44, 34)
+  let p5 = pack4(108, 97, 116, 101)
+  let p6 = pack4(110, 99, 121, 95)
+  let p7 = pack4(117, 115, 34, 58)
+  let mut r = 0
+  let mut q = pos / 4
+  let rem = pos % 4
+  loop
+    if q == 0
+      r = byte_of(p0, rem)
+      break
+    end
+    if q == 1
+      r = byte_of(p1, rem)
+      break
+    end
+    if q == 2
+      r = byte_of(p2, rem)
+      break
+    end
+    if q == 3
+      r = byte_of(p3, rem)
+      break
+    end
+    if q == 4
+      r = byte_of(p4, rem)
+      break
+    end
+    if q == 5
+      r = byte_of(p5, rem)
+      break
+    end
+    if q == 6
+      r = byte_of(p6, rem)
+      break
+    end
+    r = byte_of(p7, rem)
+    break
+  end
+  return r
+end
+
+## `,"tags":["prod","edge","v2"],"metrics":{"cpu":` — 46 chars
+def mid_b_char(pos: i64) -> i64
+  let p0 = pack4(44, 34, 116, 97)
+  let p1 = pack4(103, 115, 34, 58)
+  let p2 = pack4(91, 34, 112, 114)
+  let p3 = pack4(111, 100, 34, 44)
+  let p4 = pack4(34, 101, 100, 103)
+  let p5 = pack4(101, 34, 44, 34)
+  let p6 = pack4(118, 50, 34, 93)
+  let p7 = pack4(44, 34, 109, 101)
+  let p8 = pack4(116, 114, 105, 99)
+  let p9 = pack4(115, 34, 58, 123)
+  let p10 = pack4(34, 99, 112, 117)
+  let p11 = pack4(34, 58, 0, 0)
+  let mut r = 0
+  let mut q = pos / 4
+  let rem = pos % 4
+  loop
+    if q == 0
+      r = byte_of(p0, rem)
+      break
+    end
+    if q == 1
+      r = byte_of(p1, rem)
+      break
+    end
+    if q == 2
+      r = byte_of(p2, rem)
+      break
+    end
+    if q == 3
+      r = byte_of(p3, rem)
+      break
+    end
+    if q == 4
+      r = byte_of(p4, rem)
+      break
+    end
+    if q == 5
+      r = byte_of(p5, rem)
+      break
+    end
+    if q == 6
+      r = byte_of(p6, rem)
+      break
+    end
+    if q == 7
+      r = byte_of(p7, rem)
+      break
+    end
+    if q == 8
+      r = byte_of(p8, rem)
+      break
+    end
+    if q == 9
+      r = byte_of(p9, rem)
+      break
+    end
+    if q == 10
+      r = byte_of(p10, rem)
+      break
+    end
+    r = byte_of(p11, rem)
+    break
+  end
+  return r
+end
+
+## `,"mem":` — 7 chars
+def mem_key_char(pos: i64) -> i64
+  let p0 = pack4(44, 34, 109, 101)
+  let p1 = pack4(109, 34, 58, 0)
+  let mut r = 0
+  loop
+    if pos < 4
+      r = byte_of(p0, pos)
+      break
+    end
+    r = byte_of(p1, pos - 4)
+    break
+  end
+  return r
+end
+
+def cpu_float_char(i: i64, idx: i64) -> i64
+  let t = 425 + (i % 10) * 10
+  let whole = t / 10
+  let frac = t % 10
+  let mut r = 48 + frac
+  loop
+    if idx == 0
+      r = 48 + whole / 10
+      break
+    end
+    if idx == 1
+      r = 48 + whole % 10
+      break
+    end
+    if idx == 2
+      r = 46
+      break
+    end
+    break
+  end
+  return r
+end
+
+def mem_float_char(i: i64, idx: i64) -> i64
+  let t = 1284 + (i % 50) * 10
+  let whole = t / 10
+  let frac = t % 10
+  let mut r = 48 + frac
+  loop
+    if idx == 0
+      r = 48 + whole / 100
+      break
+    end
+    if idx == 1
+      r = 48 + (whole / 10) % 10
+      break
+    end
+    if idx == 2
+      r = 48 + whole % 10
+      break
+    end
+    if idx == 3
+      r = 46
+      break
+    end
+    break
+  end
+  return r
+end
+
+def json_char_at(i: i64, pos: i64, id_nd: i64, lat: i64, lat_nd: i64) -> i64
+  let s0 = 6
+  let s1 = s0 + id_nd
+  let s2 = s1 + 32
+  let s3 = s2 + lat_nd
+  let s4 = s3 + 46
+  let s5 = s4 + 4
+  let s6 = s5 + 7
+  let mut r = 125
+  loop
+    if pos < s0
+      r = id_prefix_char(pos)
+      break
+    end
+    if pos < s1
+      r = decimal_digit_char(i, pos - s0, id_nd)
+      break
+    end
+    if pos < s2
+      r = mid_a_char(pos - s1)
+      break
+    end
+    if pos < s3
+      r = decimal_digit_char(lat, pos - s2, lat_nd)
+      break
+    end
+    if pos < s4
+      r = mid_b_char(pos - s3)
+      break
+    end
+    if pos < s5
+      r = cpu_float_char(i, pos - s4)
+      break
+    end
+    if pos < s6
+      r = mem_key_char(pos - s5)
+      break
+    end
+    if pos < s6 + 5
+      r = mem_float_char(i, pos - s6)
+      break
+    end
+    break
+  end
+  return r
+end
+
+def bench_8_json_serializer() -> i64
+  let mut hash = 0
+  let mut i = 0
+  loop
+    if i >= 100000
+      break
+    end
+    let lat = (i * 37) % 500
+    let id_nd = decimal_digits(i)
+    let lat_nd = decimal_digits(lat)
+    let len = 102 + id_nd + lat_nd
+    let mid = json_char_at(i, len / 2, id_nd, lat, lat_nd)
+    hash = hash * 31 + len + mid
+    i += 1
+  end
+  return hash
+end
+
+def main() -> i64
+  let check = bench_8_json_serializer()
+  print_i64(check)
+  return 0
+end

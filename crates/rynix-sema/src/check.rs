@@ -3,8 +3,10 @@
 #![allow(clippy::too_many_lines)] // single structured checker pass
 #![allow(clippy::match_same_arms)] // place-expr stubs share empty bodies
 
-use rustc_hash::FxHashMap;
-use rynix_ast::{AssignOp, BinaryOp, Expr, Item, LiteralKind, Module, Path, Stmt, Type, UnaryOp};
+use rustc_hash::{FxHashMap, FxHashSet};
+use rynix_ast::{
+    AssignOp, BinaryOp, Expr, Item, LiteralKind, Module, Path, Stmt, StructLitExpr, Type, UnaryOp,
+};
 use rynix_diag::DiagSink;
 use rynix_span::{Interner, Span, Symbol};
 
@@ -177,12 +179,7 @@ impl<'a> Checker<'a> {
         self.soft_fn("yield", vec![], self.types.ty_unit);
         self.soft_fn("now_ms", vec![], self.types.ty_int);
         self.soft_fn("fiber_run", vec![], self.types.ty_unit);
-        // Smart-primitive experiments: shape-checked tensor + opaque signal/agent.
-        let slice_i64 = self.types.slice(self.types.ty_int);
-        let ty_int = self.types.ty_int;
-        self.soft_fn("tensor", vec![ty_int, slice_i64], slice_i64);
-        self.soft_fn("signal", vec![self.types.ty_int], self.types.ty_unit);
-        self.soft_fn("agent", vec![self.types.ty_str], self.types.ty_unit);
+        // `tensor` / `signal` / `agent` are reserved keywords — not soft callables (RYX2013).
 
         // Region Vec/Map (i64 monomorphized) — soft std surface.
         let unit = self.types.ty_unit;
@@ -224,6 +221,7 @@ impl<'a> Checker<'a> {
         self.soft_fn("http_post_json_i64", vec![s, i, s, s, s], i);
         self.soft_fn("http_serve_once_json_i64", vec![i, s, i], i);
         self.soft_fn("http_serve_once_echo_json_i64", vec![i, s, s], i);
+        self.soft_fn("http_serve_loop_json_i64", vec![i, s, i, i], i);
         self.soft_fn("frame_serve_once_echo", vec![i], i);
         self.soft_fn("frame_client_echo", vec![s, i, s], i);
         self.soft_fn("tls_serve_once_echo", vec![i], i);
@@ -774,9 +772,46 @@ impl<'a> Checker<'a> {
                     }
                 }
             }
-            Expr::Field(_) | Expr::Index(_) => {
-                // Place expressions — mutability of the base is checked lightly.
+            Expr::Field(f) => {
+                // Field store (Wave 3): require a mut root binding.
+                self.check_field_assign_mut(f.base, scope);
             }
+            Expr::Index(_) => {
+                // Index stores remain unsupported (RYX2020).
+                self.sink.emit(errors::field_assign_unsupported(expr.span()));
+            }
+            _ => {}
+        }
+    }
+
+    fn check_field_assign_mut(&mut self, expr: &Expr<'_>, scope: ScopeId) {
+        match expr {
+            Expr::Path(p) => {
+                if let Some(&def) = self.path_resolution.get(&p.id) {
+                    let kind = &self.defs[def.index() as usize];
+                    if matches!(kind, DefKind::Local { .. } | DefKind::Param { .. })
+                        && !kind.is_mutable()
+                    {
+                        self.sink.emit(errors::immutable_assign(
+                            p.span,
+                            self.interner.resolve(kind.name()),
+                        ));
+                    }
+                } else if let Some(seg) = p.segments.last() {
+                    if let Some(def) = self.scopes.lookup(scope, seg.name) {
+                        let kind = &self.defs[def.index() as usize];
+                        if matches!(kind, DefKind::Local { .. } | DefKind::Param { .. })
+                            && !kind.is_mutable()
+                        {
+                            self.sink.emit(errors::immutable_assign(
+                                p.span,
+                                self.interner.resolve(seg.name),
+                            ));
+                        }
+                    }
+                }
+            }
+            Expr::Field(f) => self.check_field_assign_mut(f.base, scope),
             _ => {}
         }
     }
@@ -849,16 +884,21 @@ impl<'a> Checker<'a> {
                 ty
             }
             Expr::Call(c) => {
-                let callee = self.check_expr(c.callee, scope, None);
-                let ty = self.check_call(callee, c.args, c.span, scope);
                 if let Expr::Path(p) = c.callee
                     && p.segments.len() == 1
                 {
                     let name = self.interner.resolve(p.segments[0].name);
-                    if name == "tensor" {
-                        self.check_tensor_shape(c.args, c.span);
+                    if matches!(name, "tensor" | "signal" | "agent") {
+                        self.sink.emit(errors::stub_reserved(c.span, name));
+                        for arg in c.args {
+                            let _ = self.check_expr(arg, scope, None);
+                        }
+                        self.node_types.insert(c.id, self.types.ty_error);
+                        return self.types.ty_error;
                     }
                 }
+                let callee = self.check_expr(c.callee, scope, None);
+                let ty = self.check_call(callee, c.args, c.span, scope);
                 self.node_types.insert(c.id, ty);
                 ty
             }
@@ -986,6 +1026,11 @@ impl<'a> Checker<'a> {
                 self.node_types.insert(f.id, ty);
                 ty
             }
+            Expr::StructLit(s) => {
+                let ty = self.check_struct_lit(s, scope, expected);
+                self.node_types.insert(s.id, ty);
+                ty
+            }
             Expr::Array(a) => {
                 let mut elem_ty = expected.and_then(|e| match self.types.kind(e) {
                     TypeKind::Slice(inner) => Some(*inner),
@@ -1018,6 +1063,95 @@ impl<'a> Checker<'a> {
         }
     }
 
+    fn check_struct_lit(
+        &mut self,
+        lit: &StructLitExpr<'_>,
+        scope: ScopeId,
+        _expected: Option<TypeId>,
+    ) -> TypeId {
+        if lit.path.segments.is_empty() {
+            return self.types.ty_error;
+        }
+        let first = &lit.path.segments[0];
+        let Some(def) = self.scopes.lookup(scope, first.name) else {
+            self.sink.emit(errors::unresolved_name(
+                first.span,
+                self.interner.resolve(first.name),
+            ));
+            return self.types.ty_error;
+        };
+        self.path_resolution.insert(lit.path.id, def);
+        if !matches!(self.defs[def.index() as usize], DefKind::Struct { .. }) {
+            self.sink.emit(errors::type_mismatch(
+                lit.path.span,
+                "struct type",
+                self.interner.resolve(first.name),
+            ));
+            return self.types.ty_error;
+        }
+        let struct_ty = self
+            .def_types
+            .get(&def)
+            .copied()
+            .unwrap_or(self.types.ty_error);
+        let Some(fields) = self.struct_fields.get(&def).cloned() else {
+            return self.types.ty_error;
+        };
+
+        // v1: struct literal fields are i64 only (LEAD_AHEAD L9).
+        for (name, &fty) in &fields {
+            if !self.types.compatible(fty, self.types.ty_int) {
+                self.sink.emit(errors::type_mismatch(
+                    lit.span,
+                    "i64",
+                    &format!(
+                        "field `{}` has type `{}` (struct literals are i64-only)",
+                        self.interner.resolve(*name),
+                        self.display_ty(fty)
+                    ),
+                ));
+            }
+        }
+
+        let mut seen = FxHashSet::default();
+        for init in lit.fields {
+            if !seen.insert(init.name.name) {
+                self.sink.emit(errors::type_mismatch(
+                    init.name.span,
+                    "unique field",
+                    &format!("duplicate `{}`", self.interner.resolve(init.name.name)),
+                ));
+            }
+            let Some(&fty) = fields.get(&init.name.name) else {
+                self.sink.emit(errors::unknown_field(
+                    init.name.span,
+                    &self.display_ty(struct_ty),
+                    self.interner.resolve(init.name.name),
+                ));
+                let _ = self.check_expr(init.value, scope, None);
+                continue;
+            };
+            let vty = self.check_expr(init.value, scope, Some(fty));
+            if !self.types.compatible(fty, vty) {
+                self.sink.emit(errors::type_mismatch(
+                    init.value.span(),
+                    &self.display_ty(fty),
+                    &self.display_ty(vty),
+                ));
+            }
+        }
+        for (name, _) in &fields {
+            if !seen.contains(name) {
+                self.sink.emit(errors::type_mismatch(
+                    lit.span,
+                    &format!("field `{}`", self.interner.resolve(*name)),
+                    "missing in struct literal",
+                ));
+            }
+        }
+        struct_ty
+    }
+
     fn check_path(&mut self, path: &Path<'_>, scope: ScopeId) -> TypeId {
         // Only single-segment value paths are resolved in v0.1; `a::b` is treated
         // as module path: resolve `a`, then opaque.
@@ -1035,7 +1169,7 @@ impl<'a> Checker<'a> {
         self.path_resolution.insert(path.id, def);
         let kind = &self.defs[def.index() as usize];
         if kind.is_type() && !matches!(kind, DefKind::Variant { .. }) {
-            // Types are not values (no struct literals in v0.1).
+            // Types are not bare values; use `Name { … }` struct literals.
             self.sink.emit(errors::unresolved_name(
                 first.span,
                 &format!("{} (type used as value)", self.interner.resolve(first.name)),
@@ -1243,36 +1377,6 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// `tensor(len, […])` — compile-time shape check: `len` literal must equal array length.
-    fn check_tensor_shape(&mut self, args: &[&Expr<'_>], span: Span) {
-        if args.len() != 2 {
-            return;
-        }
-        let Some(len) = literal_i64(args[0]) else {
-            self.sink.emit(errors::type_mismatch(
-                args[0].span(),
-                "integer literal (tensor length)",
-                "non-literal",
-            ));
-            return;
-        };
-        let Expr::Array(a) = args[1] else {
-            self.sink.emit(errors::type_mismatch(
-                args[1].span(),
-                "array literal",
-                "non-array",
-            ));
-            return;
-        };
-        if Some(len) != i64::try_from(a.elems.len()).ok() {
-            self.sink.emit(errors::type_mismatch(
-                span,
-                &format!("tensor length {len}"),
-                &format!("array of length {}", a.elems.len()),
-            ));
-        }
-    }
-
     fn is_linear(&self, ty: TypeId) -> bool {
         matches!(
             self.types.kind(ty),
@@ -1359,9 +1463,4 @@ impl<'a> Checker<'a> {
     }
 }
 
-fn literal_i64(expr: &Expr<'_>) -> Option<i64> {
-    match expr {
-        Expr::Literal(l) if l.kind == LiteralKind::Int => l.int_value,
-        _ => None,
-    }
-}
+// literal helpers removed with reserved `tensor` shape check (RYX2013).

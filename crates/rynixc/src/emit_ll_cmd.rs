@@ -16,7 +16,7 @@ pub fn run(options: &EmitLlOptions) -> ExitCode {
         }
     };
     let result = match codegen_pipe::compile_to_llvm_with_units(
-        &options.path,
+        std::slice::from_ref(&options.path),
         &dep_units,
         options.optimize,
         options.error_format,

@@ -1,0 +1,6 @@
+# Expect: RYX2011 (use of moved value)
+def main() -> i64
+  let v: Vec[i64] = vec_new(0)
+  let w = v
+  return v.len()
+end

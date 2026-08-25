@@ -2,6 +2,10 @@
 
 Honest, reproducible harnesses — **checksum gates** before speed claims.
 
+Product waves (manifest / HTTP / `std` / LSP) are usefulness evidence, not Suite5
+substitutes — [docs/LEAD_AHEAD.md](../docs/LEAD_AHEAD.md) §8.
+Cross-lang timings + End methodology: [docs/END_PEER_GAP.md](../docs/END_PEER_GAP.md).
+
 ```text
 benchmarks/
 ├── suite5/          # 12 integer microbenches × 5 languages (see below)

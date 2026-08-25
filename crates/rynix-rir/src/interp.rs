@@ -352,7 +352,7 @@ fn eval_func(
                         vals.insert(r, ret);
                     }
                 }
-                Inst::CallExt { name, args, ret } => {
+                Inst::CallExt { name, args, ret: _ } => {
                     let n = interner.resolve(*name);
                     if n == "print" || n == "rynix_rt_print_i64" || n == "print_i64" {
                         for a in args {
@@ -361,8 +361,10 @@ fn eval_func(
                                 *printed = Some(x);
                             }
                         }
-                    }
-                    if n == "rynix_rt_heap_alloc" {
+                        if let Some(r) = result_vid {
+                            vals.insert(r, InterpValue::Unit);
+                        }
+                    } else if n == "rynix_rt_heap_alloc" {
                         let size = match args.first().map(|a| get(&vals, *a)).transpose()? {
                             Some(InterpValue::I64(s)) => s,
                             _ => 0,
@@ -373,16 +375,11 @@ fn eval_func(
                         if let Some(r) = result_vid {
                             vals.insert(r, InterpValue::Arr(id));
                         }
-                    } else if let Some(r) = result_vid {
-                        vals.insert(
-                            r,
-                            match ret {
-                                IrTy::I64 => InterpValue::I64(0),
-                                IrTy::Bool => InterpValue::Bool(false),
-                                IrTy::Unit => InterpValue::Unit,
-                                _ => InterpValue::Unit,
-                            },
-                        );
+                    } else {
+                        // Wave 6 / L7: no zero-default for unsupported externals.
+                        return Err(InterpError::Trap(format!(
+                            "unsupported CallExt `{n}`"
+                        )));
                     }
                 }
                 Inst::Ret(None) => return Ok(InterpValue::Unit),
@@ -461,4 +458,35 @@ fn iop(
         return Err(InterpError::Trap("expected i64".into()));
     };
     Ok(InterpValue::I64(f(x, y)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{FunctionBuilder, Module};
+    use rynix_span::Interner;
+
+    #[test]
+    fn eval_call_ext_hard_fail() {
+        let mut interner = Interner::new();
+        let main = interner.intern("main");
+        let ext = interner.intern("tcp_connect");
+        let mut b = FunctionBuilder::new(main, IrTy::I64);
+        let v = b.call_ext(ext, vec![], IrTy::I64);
+        b.ret(Some(v));
+        let mut module = Module::new();
+        module.func_names.push(main);
+        module.funcs.push(b.finish());
+
+        let err = interpret_module(&module, &interner).expect_err("must hard-fail");
+        match err {
+            InterpError::Trap(msg) => {
+                assert!(
+                    msg.contains("unsupported CallExt") && msg.contains("tcp_connect"),
+                    "unexpected trap: {msg}"
+                );
+            }
+            other => panic!("expected Trap, got {other:?}"),
+        }
+    }
 }

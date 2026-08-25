@@ -372,6 +372,7 @@ pub enum Expr<'a> {
     MethodCall(MethodCallExpr<'a>),
     Index(IndexExpr<'a>),
     Field(FieldExpr<'a>),
+    StructLit(StructLitExpr<'a>),
     Array(ArrayExpr<'a>),
     Spawn(SpawnExpr<'a>),
     Error(ErrorNode),
@@ -389,6 +390,7 @@ impl Expr<'_> {
             Expr::MethodCall(n) => n.span,
             Expr::Index(n) => n.span,
             Expr::Field(n) => n.span,
+            Expr::StructLit(n) => n.span,
             Expr::Array(n) => n.span,
             Expr::Spawn(n) => n.span,
             Expr::Error(n) => n.span,
@@ -406,6 +408,7 @@ impl Expr<'_> {
             Expr::MethodCall(n) => n.id,
             Expr::Index(n) => n.id,
             Expr::Field(n) => n.id,
+            Expr::StructLit(n) => n.id,
             Expr::Array(n) => n.id,
             Expr::Spawn(n) => n.id,
             Expr::Error(n) => n.id,
@@ -563,6 +566,22 @@ pub struct FieldExpr<'a> {
     pub id: NodeId,
     pub base: &'a Expr<'a>,
     pub field: Ident,
+    pub span: Span,
+}
+
+/// `Point { x: 1, y: 2 }` — named-field struct literal (i64 fields in v1).
+#[derive(Debug)]
+pub struct StructLitExpr<'a> {
+    pub id: NodeId,
+    pub path: &'a Path<'a>,
+    pub fields: &'a [StructFieldInit<'a>],
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct StructFieldInit<'a> {
+    pub name: Ident,
+    pub value: &'a Expr<'a>,
     pub span: Span,
 }
 

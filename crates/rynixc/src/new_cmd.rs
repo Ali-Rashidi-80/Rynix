@@ -61,6 +61,6 @@ end
     println!("created {}", root.display());
     println!("  rynix.toml");
     println!("  src/main.ryx");
-    println!("next: rynixc check {}/src/main.ryx", root.display());
+    println!("next: rynixc build");
     ExitCode::SUCCESS
 }

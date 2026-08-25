@@ -1,0 +1,62 @@
+## Suite12 #12 ALU reduction — Rynix port (checksum-locked to C).
+## Bitwise xor/shl via identities on wrapping i64 (same mod-2^64 bits as uint64).
+
+def bxor(a: i64, b: i64) -> i64
+  return a + b - 2 * (a & b)
+end
+
+def shl(a: i64, n: i64) -> i64
+  let mut r = a
+  let mut i = 0
+  loop
+    if i >= n
+      break
+    end
+    r = r + r
+    i += 1
+  end
+  return r
+end
+
+## 0x9E3779B97F4A7C15 and 0xBF58476D1CE4E5B9 as signed i64 bit patterns.
+def process_checksum(id: i64) -> i64
+  let mut hash = bxor(id, -7046029254386353131)
+  let mut j = 0
+  loop
+    if j >= 50
+      break
+    end
+    hash = bxor(hash, shl(hash, 13))
+    hash = bxor(hash, hash >> 7)
+    hash = bxor(hash, shl(hash, 17))
+    hash = hash + j + -4658895280553007687
+    j += 1
+  end
+  return hash
+end
+
+def bench_12_reduction() -> i64
+  let iterations = 10000000
+  let mut sum0 = 0
+  let mut sum1 = 0
+  let mut sum2 = 0
+  let mut sum3 = 0
+  let mut i = 0
+  loop
+    if i >= iterations
+      break
+    end
+    sum0 += process_checksum(i)
+    sum1 += process_checksum(i + 1)
+    sum2 += process_checksum(i + 2)
+    sum3 += process_checksum(i + 3)
+    i += 4
+  end
+  return sum0 + sum1 + sum2 + sum3
+end
+
+def main() -> i64
+  let check = bench_12_reduction()
+  print_i64(check)
+  return 0
+end

@@ -1,0 +1,4 @@
+[package]
+name = "pkg_std_fs"
+version = "0.1.0"
+entry = "main.ryx"

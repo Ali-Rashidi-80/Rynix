@@ -1,38 +1,40 @@
 @import_c("<stdio.h>")
 @import_c("<stdlib.h>")
 
+// End@cf5bef3 regressions (do not edit End): statement `if { }` fails to parse
+// (suite12_end.end broken); expression `a if c else b` always yields 0.
+// Ports use for/while + getenv-as-i64 only.
 pub fn suite5_print_i64(n: i64) void {
   val env: *u8 = getenv("SUITE5_BENCH")
-  if env != (0 as *u8) {
-    mut sink: i64 = 0
-    sink = n
-    ret
+  mut has: i64 = env as i64
+  while has == 0 {
+    printf("%lld\n", n)
+    has = 1
   }
-  printf("%lld\n", n)
+  val sink: i64 = n
   ret
+}
+
+pub fn opaque_i64(x: i64) i64 {
+  val env: *u8 = getenv("SUITE5_OPAQUE")
+  val touch: i64 = env as i64
+  ret x + touch - touch
 }
 
 pub fn popcount(x: i64) i64 {
   mut v: i64 = x
   mut c: i64 = 0
-  for bit in 64 {
-    if v == 0 { break }
-    c = c + (v & 1)
-    // End's `>>` is operation-compose on some types; use /2 for nonneg shift.
+  for _bit in 64 {
+    mut bit: i64 = v & 1
+    mut live: i64 = v
+    // add bit only while v still nonzero (same as early-break popcount)
+    while live != 0 {
+      c = c + bit
+      live = 0
+    }
     v = v / 2
   }
   ret c
-}
-
-
-pub fn opaque_i64(x: i64) i64 {
-  // Side-effecting getenv keeps x from being treated as a pure literal by endc/LTO.
-  val env: *u8 = getenv("SUITE5_OPAQUE")
-  mut v: i64 = x
-  if env != (0 as *u8) {
-    v = v + 1
-  }
-  ret v
 }
 
 pub fn main() i32 {

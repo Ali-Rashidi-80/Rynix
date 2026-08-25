@@ -8,7 +8,8 @@
 #![allow(clippy::cast_possible_truncation)]
 
 use rynix_ast::{
-    AssignOp, BinaryOp, Expr, FnDef, Item, LiteralKind, Module as AstModule, Stmt, UnaryOp,
+    AssignOp, BinaryOp, Expr, FieldExpr, FnDef, Item, LiteralKind, Module as AstModule, Stmt,
+    UnaryOp,
 };
 use rynix_sema::{Analysis, TypeId, TypeKind};
 use rynix_span::{Interner, Symbol};
@@ -113,6 +114,16 @@ fn map_ty(analysis: &Analysis, ty: TypeId) -> IrTy {
 }
 
 const INLINE_STMT_LIMIT: usize = 48;
+
+fn if_stmt_updates_mut(i: &rynix_ast::IfStmt<'_>) -> bool {
+    i.arms.iter().any(|a| if_updates_carried(&a.body))
+        || i.else_body.is_some_and(|b| if_updates_carried(b))
+}
+
+fn match_stmt_updates_mut(m: &rynix_ast::MatchStmt<'_>) -> bool {
+    m.arms.iter().any(|a| if_updates_carried(&a.body))
+        || m.else_body.is_some_and(|b| if_updates_carried(b))
+}
 
 fn if_updates_carried(body: &[Stmt<'_>]) -> bool {
     for stmt in body {
@@ -281,6 +292,10 @@ fn expr_calls_user_fn(expr: &Expr<'_>, fn_map: &FxHashMap<Symbol, FuncId>, _self
                 || expr_calls_user_fn(i.index, fn_map, _self_name)
         }
         Expr::Field(f) => expr_calls_user_fn(f.base, fn_map, _self_name),
+        Expr::StructLit(s) => s
+            .fields
+            .iter()
+            .any(|init| expr_calls_user_fn(init.value, fn_map, _self_name)),
         Expr::Array(a) => a.elems.iter().any(|e| expr_calls_user_fn(e, fn_map, _self_name)),
         Expr::Spawn(s) => expr_calls_user_fn(s.callee, fn_map, _self_name),
         _ => false,
@@ -1819,6 +1834,31 @@ impl LowerCtx<'_, '_> {
             c.strictly_positive = self.mut_positive_syms.contains(&sym);
             c.excl_bound = self.mut_excl_bound.get(&sym).copied();
         }
+    }
+
+    /// GEP to an i64 field slot of a struct value (pointer to consecutive i64s).
+    fn lower_field_slot(&mut self, f: &FieldExpr<'_>) -> ValueId {
+        let base = self.expr(f.base);
+        let offset = self
+            .analysis
+            .node_types
+            .get(&f.base.id())
+            .and_then(|&ty| match self.analysis.types.kind(ty) {
+                TypeKind::Struct(def) => Some(*def),
+                _ => None,
+            })
+            .and_then(|def| {
+                self.analysis
+                    .field_offsets
+                    .get(&(def, f.field.name))
+                    .copied()
+            })
+            .unwrap_or(0);
+        let idx = self.b.iconst(i64::from(offset));
+        self.b.push_value(Inst::GepI64 {
+            base,
+            index: idx,
+        })
     }
 
     fn load_sym(&mut self, sym: Symbol) -> ValueId {
@@ -3699,6 +3739,33 @@ impl LowerCtx<'_, '_> {
                         self.update_positive_sym(sym, a.op, val);
                         self.store_sym(sym, val);
                     }
+                } else if let Expr::Field(f) = a.target {
+                    let rhs = self.expr(a.value);
+                    let slot = self.lower_field_slot(f);
+                    let val = match a.op {
+                        AssignOp::Eq => rhs,
+                        AssignOp::PlusEq => {
+                            let cur = self.b.load(slot);
+                            self.b.push_value(Inst::IAdd(cur, rhs))
+                        }
+                        AssignOp::MinusEq => {
+                            let cur = self.b.load(slot);
+                            self.b.push_value(Inst::ISub(cur, rhs))
+                        }
+                        AssignOp::StarEq => {
+                            let cur = self.b.load(slot);
+                            self.lower_int_mul(cur, rhs)
+                        }
+                        AssignOp::SlashEq => {
+                            let cur = self.b.load(slot);
+                            self.lower_int_div(cur, rhs)
+                        }
+                        AssignOp::PercentEq => {
+                            let cur = self.b.load(slot);
+                            self.lower_int_rem(cur, rhs)
+                        }
+                    };
+                    self.b.store(slot, val);
                 } else {
                     let _ = self.expr(a.value);
                 }
@@ -3706,9 +3773,11 @@ impl LowerCtx<'_, '_> {
             Stmt::Return(r) => {
                 let v = r.value.map(|e| self.expr(e));
                 if self.inlining {
-                    self.inline_ret = Some(v.unwrap_or_else(|| self.b.iconst(0)));
+                    let ret_v = v.unwrap_or_else(|| self.b.iconst(0));
                     if let Some(merge) = self.inline_merge {
-                        self.b.jump(merge, vec![]);
+                        // Pass return value as merge block arg (SSA-correct across preds).
+                        self.b.jump(merge, vec![ret_v]);
+                        self.inline_ret = Some(ret_v); // marker: at least one return seen
                     } else if !self.is_terminated() {
                         let _ = self.b.push(Inst::Unreachable);
                     }
@@ -3931,6 +4000,11 @@ impl LowerCtx<'_, '_> {
     }
 
     fn lower_if(&mut self, i: &rynix_ast::IfStmt<'_>) {
+        // MutSsa is invalid across CFG joins (then/else). Promote to alloca like
+        // non-linear loops so stores/loads stay well-defined at `join`.
+        if if_stmt_updates_mut(i) {
+            self.materialize_all_mut_ssa(i.span);
+        }
         // Flatten to nested br for the first arm; elif/else chain.
         let join = self.b.create_block();
         self.lower_if_arms(&i.arms, i.else_body, join);
@@ -3976,6 +4050,9 @@ impl LowerCtx<'_, '_> {
     }
 
     fn lower_match(&mut self, m: &rynix_ast::MatchStmt<'_>) {
+        if match_stmt_updates_mut(m) {
+            self.materialize_all_mut_ssa(m.span);
+        }
         let join = self.b.create_block();
         let scrut = self.expr(m.scrutinee);
         self.lower_match_arms(scrut, m.arms, m.else_body, join);
@@ -4144,29 +4221,56 @@ impl LowerCtx<'_, '_> {
                 self.b.push_value(Inst::LoadIndex { base, index })
             }
             Expr::Field(f) => {
-                let base = self.expr(f.base);
-                // Resolve struct DefId from the base expression's type.
-                let offset = self
+                let slot = self.lower_field_slot(f);
+                self.b.load(slot)
+            }
+            Expr::StructLit(s) => {
+                let def = self
                     .analysis
-                    .node_types
-                    .get(&f.base.id())
-                    .and_then(|&ty| match self.analysis.types.kind(ty) {
-                        TypeKind::Struct(def) => Some(*def),
-                        _ => None,
-                    })
-                    .and_then(|def| {
+                    .path_resolution
+                    .get(&s.path.id)
+                    .copied()
+                    .or_else(|| {
+                        self.analysis.node_types.get(&s.id).and_then(|&ty| {
+                            match self.analysis.types.kind(ty) {
+                                TypeKind::Struct(d) => Some(*d),
+                                _ => None,
+                            }
+                        })
+                    });
+                let nslots = def
+                    .map(|d| {
                         self.analysis
                             .field_offsets
-                            .get(&(def, f.field.name))
-                            .copied()
+                            .iter()
+                            .filter(|((sd, _), _)| *sd == d)
+                            .map(|(_, off)| *off + 1)
+                            .max()
+                            .unwrap_or(0)
                     })
                     .unwrap_or(0);
-                let idx = self.b.iconst(i64::from(offset));
-                let slot = self.b.push_value(Inst::GepI64 {
-                    base,
-                    index: idx,
-                });
-                self.b.load(slot)
+                let n = i64::from(nslots);
+                let bytes = self.b.iconst(n * 8);
+                let alloc_name = self.interner.intern("rynix_rt_heap_alloc");
+                let base = self.b.call_ext(alloc_name, vec![bytes], IrTy::Ptr);
+                for init in s.fields {
+                    let offset = def
+                        .and_then(|d| {
+                            self.analysis
+                                .field_offsets
+                                .get(&(d, init.name.name))
+                                .copied()
+                        })
+                        .unwrap_or(0);
+                    let val = self.expr(init.value);
+                    let idx = self.b.iconst(i64::from(offset));
+                    let slot = self.b.push_value(Inst::GepI64 {
+                        base,
+                        index: idx,
+                    });
+                    self.b.store(slot, val);
+                }
+                base
             }
             Expr::Array(a) => {
                 // Layout: [len | e0 | e1 | …] as contiguous i64 slots via heap_alloc.
@@ -4410,7 +4514,7 @@ impl LowerCtx<'_, '_> {
     }
 
     /// Expand a small leaf callee in-place (early `return` joins at `inline_merge`).
-    fn inline_call(&mut self, f: &FnDef<'_>, args: &[ValueId], _ret: IrTy) -> ValueId {
+    fn inline_call(&mut self, f: &FnDef<'_>, args: &[ValueId], ret: IrTy) -> ValueId {
         let snapshot = self.locals.clone();
         let nonneg_snapshot = self.mut_nonneg_syms.clone();
         let positive_snapshot = self.mut_positive_syms.clone();
@@ -4434,21 +4538,28 @@ impl LowerCtx<'_, '_> {
         }
 
         let merge = self.b.create_block();
+        let ret_param = if ret == IrTy::Unit {
+            None
+        } else {
+            Some(self.b.append_block_param(merge, ret))
+        };
         self.inlining = true;
         self.inline_ret = None;
         self.inline_merge = Some(merge);
         for stmt in f.body {
             self.stmt(stmt);
-            if self.inline_ret.is_some() {
-                break;
-            }
         }
         if !self.is_terminated() {
-            self.b.jump(merge, vec![]);
+            if ret_param.is_some() {
+                let z = self.b.iconst(0);
+                self.b.jump(merge, vec![z]);
+            } else {
+                self.b.jump(merge, vec![]);
+            }
         }
         self.inlining = false;
         self.inline_merge = None;
-        let ret_val = self.inline_ret.take().unwrap_or_else(|| self.b.iconst(0));
+        let _ = self.inline_ret.take();
 
         self.b.switch_to(merge);
         self.b.seal_block(merge);
@@ -4461,7 +4572,7 @@ impl LowerCtx<'_, '_> {
         self.loops.truncate(loop_depth);
         self.loop_carried.truncate(carried_depth);
         self.loop_carried_linear.truncate(carried_linear_depth);
-        ret_val
+        ret_param.unwrap_or_else(|| self.b.iconst(0))
     }
 
     fn lower_call(&mut self, c: &rynix_ast::CallExpr<'_>) -> ValueId {
@@ -4610,6 +4721,9 @@ impl LowerCtx<'_, '_> {
             }
             "http_serve_once_echo_json_i64" => {
                 (self.interner.intern("rynix_rt_http_serve_once_echo_json_i64"), IrTy::I64)
+            }
+            "http_serve_loop_json_i64" => {
+                (self.interner.intern("rynix_rt_http_serve_loop_json_i64"), IrTy::I64)
             }
             "frame_serve_once_echo" => {
                 (self.interner.intern("rynix_rt_frame_serve_once_echo"), IrTy::I64)

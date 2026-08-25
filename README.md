@@ -14,7 +14,7 @@ fibers, machine-readable diagnostics, textual LLVM backend, **honest** benchmark
 ![Memory](https://img.shields.io/badge/memory-Zero--GC%20escape-0B3D4A.svg)
 ![AI](https://img.shields.io/badge/AI-MCP%20+%20LSP%20+%20JSON-3ECFB2.svg)
 
-[What is Rynix?](#what-is-rynix) · [Why Rynix](#why-rynix) · [What Rynix is NOT](#what-rynix-is-not) · [vs End](#vs-end-irmahoend) · [Quick start](#quick-start) · [Pipeline](#compiler-pipeline) · [Runtime](#runtime--fibers) · [Memory](#memory-model) · [Tooling](#tooling-surface) · [Benchmarks](#benchmarks) · [FAQ](#faq-quick-fixes) · [Install](INSTALL.md) · [Compare](docs/COMPARE.md) · [End gap analysis](docs/END_PEER_GAP.md) · [License](LICENSE.md)
+[What is Rynix?](#what-is-rynix) · [Why Rynix](#why-rynix) · [What Rynix is NOT](#what-rynix-is-not) · [vs End](#vs-end-irmahoend) · [Quick start](#quick-start) · [Pipeline](#compiler-pipeline) · [Runtime](#runtime--fibers) · [Memory](#memory-model) · [Tooling](#tooling-surface) · [Benchmarks](#benchmarks) · [FAQ](#faq-quick-fixes) · [Install](INSTALL.md) · [Verdict](docs/VERDICT.md) · [Compare](docs/COMPARE.md) · [End gap analysis](docs/END_PEER_GAP.md) · [License](LICENSE.md)
 
 ---
 
@@ -49,7 +49,7 @@ Zig/Go/C/Rust in [`benchmarks/suite5/`](benchmarks/suite5/) are **peer workload 
 |--------|---------|
 | ❌ Only a benchmark stunt | ✅ Full compiler pipeline + runtime + LSP/MCP (phases 0–10 gated) |
 | ❌ A Rust or Zig clone | ✅ Own syntax (`.ryx`), RIR, escape model, fiber runtime |
-| ❌ Beating [End](https://github.com/IrMaho/End) on every product axis today | ✅ Stronger correctness gates on what ships; End still leads **frameworks / editor breadth** — [`docs/END_PEER_GAP.md`](docs/END_PEER_GAP.md) |
+| ❌ Losing to [End](https://github.com/IrMaho/End) on real shipping systems/agent depth | ✅ **Ahead on shipping core** (LLVM, fibers+IOCP/uring, real TLS/crypto, HTTP loop, MCP-18, Suite5 CI, real VS Code LanguageClient). End leads **spectacle only** (domain wallpaper, C11/UI narrative) — [`docs/VERDICT.md`](docs/VERDICT.md) |
 | ❌ Same programs as End suite12 | ✅ Suite5 uses **different**, lighter integer kernels; End #12 ≠ our `reduce.ryx` |
 | ❌ “Best repo in history” | ✅ **Auditable** claims: test or CI before ✅ |
 
@@ -57,16 +57,19 @@ Zig/Go/C/Rust in [`benchmarks/suite5/`](benchmarks/suite5/) are **peer workload 
 
 ## vs End ([IrMaho/End](https://github.com/IrMaho/End))
 
-Same thesis (AI-native, Zero-GC, systems backend). Different maturity shape:
+Same thesis (AI-native, Zero-GC, systems backend). **Audit verdict (2026-08-25,
+peer `@cf5bef3`):** Rynix leads the **shipping** core; End leads **brochure**
+spectacle we refuse to fake.
 
 | | End | Rynix |
 |--|-----|-------|
-| Benchmarks | suite12: SDF, HFT, SHA, N-body, … | Suite5: 12 integer microkernels + **CI checksum gate** |
-| Languages in matrix | End, C, Rust, Go, Zig | Rynix, C, Rust, Go, Zig, **End** (when `endc` present) |
-| Agent contracts / UI / EndHyper | Broad (per End docs) | Deferred / narrow std — see gap doc |
-| Proof style | Checksum per bench | **C↔Rynix CI** + LLVM↔interp + escape explain |
+| Benchmarks | suite12 marketing (different programs) | Suite5: 12 kernels + **CI checksum** + optional End slot |
+| Agent surface | Broad CLI names; **no MCP** | CLI + **MCP 18** + verify/contracts |
+| Network / crypto | TCP real; **TLS plaintext theater** | Real TLS + HTTP loop + WS + KATs |
+| Editor | LSP binary; VS Code **without** LanguageClient | LSP + **LanguageClient** + CodeLens |
+| UI / C11 / CDN | Marketed; mostly stubs or C11-only path | Deferred by ADR (honesty, not gap panic) |
 
-Full gap backlog (P0–P3): **[docs/END_PEER_GAP.md](docs/END_PEER_GAP.md)**.
+**Full judgment:** [`docs/VERDICT.md`](docs/VERDICT.md) · gap log: [`docs/END_PEER_GAP.md`](docs/END_PEER_GAP.md).
 
 ---
 
@@ -82,9 +85,10 @@ Where End markets “every domain,” Rynix statuses are **evidence-gated** (tes
 | Editor (VS Code + LSP) | 🟢 Shipping | `editors/vscode/`, CodeLens (check/alloc/impact) |
 | Memory / Zero-GC | 🟢 Shipping | escape → stack/region/heap, `--explain-alloc` |
 | Microbench matrix | 🟢 Shipping | Suite5 × 5–6 langs, C↔Rynix CI gate |
-| suite12 MATCH ports | 🟢 Shipping | `benchmarks/suite12/` checksum gates (9 ids) |
-| HTTP / JSON / TLS / WS / crypto / KV | 🟢 Shipping | `size_echo_gates`, `std/*` |
+| suite12 MATCH ports | 🟢 Shipping | C + `.ryx` (#12/#4/#8) checksum gates; skip #1/#5/#6 ([ADR-0011](docs/adr/0011-suite12-divergent-benches.md)) |
+| HTTP / JSON / TLS / WS / crypto / KV / fs | 🟢 Shipping | soft builtins + `size_echo_gates` / smokes ([SPEC §5](docs/SPEC.md)) |
 | Packages (path + local index) | 🟢 Shipping | unity compile SPEC §6.3; ADR-0010 |
+| Reserved stubs (`tensor`/`signal`/`agent`) | ⚪ Rejected | `RYX2013` — not product |
 | Web frameworks / UI canvas | ⚪ Deferred | [ADR-0007](docs/adr/0007-deferred-ui-frameworks.md) |
 | C11 backend | ⚪ Deferred | [ADR-0008](docs/adr/0008-deferred-c11-backend.md) |
 | Agent contract DSL | ⚪ Design only | [ADR-0009](docs/adr/0009-agent-contracts-toolchain.md) — toolchain evidence, not End syntax |
@@ -167,12 +171,15 @@ flowchart TB
 ### `rynixc` command surface
 
 ```text
-Core:     lex · parse · check · dump-rir [--opt] · emit-ll · build · run · test · fmt
+Core:     lex · parse · check · dump-rir [--opt] · emit-ll · build · run · test · fmt · new
 Agent:    graph · slice · impact · eval · patch · arch check
+          verify · precheck · context · security · scope · deps · dna
 Servers:  mcp-serve · lsp-serve
 Config:   rynix.toml (optional project file)
 ```
 
+`eval` is arith/print-oriented; unsupported CallExt hard-fails (no zero-default)
+([AGENTS.md](AGENTS.md)).
 ---
 
 ## Runtime & fibers
@@ -259,6 +266,7 @@ Linux: optional `--runtime=uring` when built with `RYNIX_RT_URING`. Details: [IN
 ```sh
 cargo test --workspace
 
+rynixc new myapp && cd myapp && rynixc build
 rynixc run examples/01_hello.ryx
 rynixc check examples/03_vec.ryx --explain-alloc --error-format=json
 rynixc graph examples/02_match_loop.ryx
@@ -292,8 +300,13 @@ optimize = true
 # path = "vendor"
 ```
 
-`rynixc build` / `run` pick up `[build]` when a `rynix.toml` is present; broken path
-deps fail the build gate. Resolve with `rynixc deps [path] --error-format=json`
+`rynixc build` / `run` accept a `.ryx` path, a package directory, `rynix.toml`,
+or omit the path to use cwd (`find_manifest`). Root packages compile
+`[package].entry` then `files` as one primary unity unit. CLI `--runtime=`
+wins when present; otherwise `[build].runtime` from the root manifest; else
+portable. `[build].optimize` is parsed but not yet applied (build still
+hardcodes optimize). Broken path deps fail the build gate. Resolve with
+`rynixc deps [path] --error-format=json`
 (includes a `lock` object). Pin with `rynixc deps --lock` → `rynix.lock.toml` at package or workspace root;
 `--locked` requires a matching pin. Workspace members use `{ workspace = true }`
 (SPEC §6.6). Soft `fs_*` builtins cover whole-file I/O
@@ -353,17 +366,41 @@ end
 ### Soft builtins (v0.1)
 
 
-| Area        | API                                                                            | Limits                                                                                    |
-| ----------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| I/O         | `print`, `print_i64`                                                           | Host write                                                                                |
-| Fibers      | `spawn` (stmt), `yield`, `sleep_ms`, `now_ms`, `fiber_run`                     | Colorless concurrency; PARKED in `rt/` ([SPEC](docs/SPEC.md))                             |
-| Collections | `vec_new`, `map_new`, methods                                                  | Mono `Vec[i64]` / `Map[i64,i64]` ([ADR-0006](docs/adr/0006-monomorphized-collections.md)) |
-| TCP         | `tcp_listen`, `tcp_accept`, `tcp_connect`, `tcp_recv`, `tcp_send`, `tcp_close` | Fiber-safe `rt/` loops                                                                    |
-| JSON / HTTP | `json_get_i64`, `http_get_json_i64`                                            | Int fields only; CI tests json + connect-fail                                             |
-| Reserved    | `tensor`, `signal`, `agent`                                                    | Keywords — stubs, not full std                                                            |
+| Area        | API | Evidence |
+| ----------- | --- | -------- |
+| I/O         | `print`, `print_i64` | host write |
+| Fibers      | `spawn` (stmt), `yield`, `sleep_ms`, `now_ms`, `fiber_run` | `rt/`; ASan CI |
+| Collections | `vec_*`, `map_*` | [ADR-0006](docs/adr/0006-monomorphized-collections.md) |
+| TCP         | `tcp_listen`…`tcp_close` | fiber-safe `rt/` |
+| JSON / HTTP | `json_*`, `http_get/post_json_i64`, `http_serve_once_*` | `size_echo_gates` |
+| Frames      | `frame_serve_once_echo`, `frame_client_echo` | `size_echo_gates` |
+| TLS         | `tls_serve_once_echo`, `tls_client_echo` | `tls_*_smoke` |
+| WebSocket   | `ws_accept_*`, `ws_frame_roundtrip_ok` | `ws_*_smoke` |
+| Crypto      | soft `sha256_first_i64` / HMAC / AES-GCM; `import std::crypto` → `crypto.sha256_first_i64` (SHA only) | NIST/KAT + `build_crypto_sha_via_std` |
+| KV          | `kv_new` / `kv_put` / `kv_get` / `kv_len` | arena map |
+| Filesystem  | soft `fs_*`; `import std::fs` → `fs.write_file` / `exists` / … | `build_fs_roundtrip` + `build_fs_via_std_import` |
+| Reserved    | `tensor`, `signal`, `agent` | **not callable** (`RYX2013`) |
 
 
-Grammar: [`docs/SPEC.md`](docs/SPEC.md)
+Grammar: [`docs/SPEC.md`](docs/SPEC.md). Soft table must match `crates/rynix-sema/src/check.rs`.
+
+### Language teaser (beyond hello)
+
+- Pipeline: `x |> f` ([SPEC §3](docs/SPEC.md))
+- Explicit `region … end` + Zero-GC escape (`--explain-alloc`)
+- `#^ effect: pure` → `RYX2012` on impure soft calls
+- Linear move of `Vec`/`Map`/struct → `RYX2011`
+- Struct literals `Point { x: 1, y: 2 }` (i64 fields) + field store on `mut`
+- Index *assign* → `RYX2020` (field assign cleared in Wave 3)
+
+### Packages (local only)
+
+Path + optional filesystem `[registry]` index; unity compile + `pkg__fn` mangling;
+`rynix.lock.toml` via `rynixc deps --lock`; workspaces `{ workspace = true }`;
+`rynixc new <name>` scaffold; next step is `rynixc build` in the package dir.
+`import std::math` / `std::fs` / `std::crypto` load real `std/*.ryx` defs (docs-only
+modules stay soft-only). **No CDN** ([ADR-0010](docs/adr/0010-local-package-index.md)).
+Measured hello binary ~under 300 KiB gate; see [END_PEER_GAP](docs/END_PEER_GAP.md) size notes.
 
 ---
 
@@ -513,12 +550,12 @@ Every ✅ in [`docs/ROADMAP.md`](docs/ROADMAP.md) maps to a test or CI job.
 | Hello under 300 KiB        | `size_echo_gates` (skipped if clang absent)           |
 | Fiber / TCP / load / uring / IOCP | `rt/tests/`                                           |
 | JSON / HTTP / TLS / WS / crypto / KV | `size_echo_gates` smokes (incl. `ws_large_echo_smoke_c`) |
-| suite12 MATCH checksum ports | `benchmarks/suite12/` + `suite12_*_checksum`          |
+| suite12 MATCH checksum ports | `benchmarks/suite12/` + `suite12_*_checksum` / `suite12_*_ryx_checksum` |
 | Local package deps           | `agent_cli` (`build_pkg_reg_app_resolves_registry_deps`) |
 | LLVM ↔ interpreter         | `diff_llvm_vs_interp`                                 |
 | Phase 10 surface           | `phase10_gates` (arch, Suite5×12, http LLVM, VS Code) |
 | RIR lowering patterns      | `binary_gcd`, `matrix_unroll`, `reduce_nonneg`, `scan_hash_lower`, … |
-| LSP hover + goto-def       | `lsp_cmd` unit tests                                  |
+| LSP hover + goto-def (workspace) | `lsp_cmd` (`lsp_workspace_def`)                       |
 | AI CLI JSON                | `agent_cli`                                           |
 | ASan runtime               | CI Ubuntu sanitizer job                               |
 | Clippy `-D warnings`       | CI clippy job                                         |
@@ -538,7 +575,7 @@ cd editors/vscode && npm install && npm run compile
                          │
                          ├── diagnostics (check pipeline)
                          ├── hover (types)
-                         ├── go-to-definition
+                         ├── go-to-definition (workspace members on disk)
                          └── CodeLens (check / alloc / impact)
 ```
 
@@ -563,10 +600,18 @@ cd editors/vscode && npm install && npm run compile
 | `check --error-format=json`      | `rynix.diag.v1`   | Structured diagnostics   |
 | `graph`                          | `rynix.graph.v1`  | Call graph + edges       |
 | `impact --fn=name`               | `rynix.impact.v1` | Callers / callees        |
-| `eval --json`                    | `rynix.eval.v1`   | Constant expression eval |
+| `eval --json`                    | `rynix.eval.v1`   | Constant / arith eval (not full CallExt) |
 | `arch check --error-format=json` | `rynix.arch.v1`   | Layer violations         |
+| `verify --contract=…`            | `rynix.verify.v1` | Contract evidence        |
+| `precheck`                       | `rynix.precheck.v1` | Blast-radius precheck  |
+| `context`                        | `rynix.context.v1` | Context pack           |
+| `security`                       | `rynix.security.v1` | AST security scan      |
+| `scope`                          | `rynix.scope.v1`  | Agent write scope        |
+| `deps`                           | `rynix.deps.v1`   | Path/index deps + lock   |
+| `dna`                            | `rynix.dna.v1`    | Heuristic conventions    |
 | `slice`                          | —                 | Human outline            |
 | `patch --write`                  | —                 | Apply compiler fixes     |
+| `new <name>`                     | —                 | Local package scaffold   |
 
 
 ```sh
@@ -595,6 +640,13 @@ Start: `rynixc mcp-serve` (stdio JSON-RPC).
 | 9   | `rynix_impact`        | Impact analysis       |
 | 10  | `rynix_eval`          | Eval expressions      |
 | 11  | `rynix_arch`          | Architecture check    |
+| 12  | `rynix_verify`        | Contract verify       |
+| 13  | `rynix_precheck`      | Precheck              |
+| 14  | `rynix_context`       | Context pack          |
+| 15  | `rynix_security`      | Security scan         |
+| 16  | `rynix_scope`         | Write scope           |
+| 17  | `rynix_deps`          | Deps report           |
+| 18  | `rynix_dna`           | DNA / conventions     |
 
 
 ### Release

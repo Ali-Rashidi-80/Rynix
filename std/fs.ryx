@@ -1,1 +1,21 @@
-## Soft builtins `fs_*` → `rynix_rt_fs_*` (write/read/eq/exists/remove).
+## std.fs — thin wrappers over soft `fs_*` (SPEC §6.5).
+
+def write_file(path: str, data: str) -> i64
+  return fs_write_file(path, data)
+end
+
+def read_file(path: str) -> str
+  return fs_read_file(path)
+end
+
+def read_file_eq(path: str, expect: str) -> i64
+  return fs_read_file_eq(path, expect)
+end
+
+def exists(path: str) -> i64
+  return fs_exists(path)
+end
+
+def remove_file(path: str) -> i64
+  return fs_remove_file(path)
+end

@@ -65,6 +65,7 @@ pub fn emit_llvm(
     out.push_str("declare i64 @rynix_rt_http_post_json_i64(ptr, i64, ptr, ptr, ptr)\n");
     out.push_str("declare i64 @rynix_rt_http_serve_once_json_i64(i64, ptr, i64)\n");
     out.push_str("declare i64 @rynix_rt_http_serve_once_echo_json_i64(i64, ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_http_serve_loop_json_i64(i64, ptr, i64, i64)\n");
     out.push_str("declare i64 @rynix_rt_frame_serve_once_echo(i64)\n");
     out.push_str("declare i64 @rynix_rt_frame_client_echo(ptr, i64, ptr)\n");
     out.push_str("declare i64 @rynix_rt_tls_serve_once_echo(i64)\n");

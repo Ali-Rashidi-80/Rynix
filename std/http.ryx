@@ -27,7 +27,14 @@ Same listen/accept shape, but parses integer `field` from the request JSON body
 and echoes `{"value": N}`. Returns `N` on success, `1` on path mismatch, `-1`
 on error.
 
-Pair with a fiber client (see `rt/tests/http_post_echo_smoke.c`) or an
-external HTTP client.
+### Server (bounded loop)
+`http_serve_loop_json_i64(port, path, value, max_reqs) -> i64`
+
+Listens once and serves until exactly `max_reqs` matching GETs for `path` have
+been answered with `{"value": <value>}`. Returns `0` on success, `-1` if
+`max_reqs <= 0` or on I/O error. Non-matching requests get 404 and do not count.
+
+Pair with a fiber client (see `rt/tests/http_post_echo_smoke.c` /
+`rt/tests/http_loop_three_gets_smoke.c`) or an external HTTP client.
 
 Low-level TCP remains in `std/net.ryx` (`tcp_listen`, `tcp_connect`, …).

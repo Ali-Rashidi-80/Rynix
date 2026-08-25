@@ -83,6 +83,8 @@ pub mod codes {
         NOT_CALLABLE        = ("RYX2010", "value is not callable");
         USE_AFTER_MOVE      = ("RYX2011", "use of moved value");
         PURITY_VIOLATION    = ("RYX2012", "pure function has impure effects");
+        STUB_RESERVED       = ("RYX2013", "reserved stub is not callable");
+        FIELD_ASSIGN_UNSUPPORTED = ("RYX2020", "index assign unsupported");
     }
 }
 

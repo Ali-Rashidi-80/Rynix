@@ -3,13 +3,19 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use crate::cli::{BuildOptions, PgoMode, RuntimeKind};
+use crate::cli::{BuildOptions, ErrorFormat, PgoMode, RuntimeKind};
 use crate::codegen_pipe;
 use crate::lockfile;
-use crate::manifest::{resolve_for_source, DepsReport};
+use crate::manifest::{resolve_for_source, resolve_project_sources, DepsReport, ProjectSources};
 
 pub fn run(options: &BuildOptions) -> ExitCode {
-    let dep_units = match gate_and_collect_compile_units(&options.path) {
+    let project = match resolve_project_sources(options.path.as_deref()) {
+        Ok(p) => p,
+        Err(e) => return emit_resolve_error(&e, options.error_format),
+    };
+    let runtime = effective_runtime(options.runtime, project.runtime.as_deref());
+
+    let dep_units = match gate_and_collect_compile_units(&project) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("error: {e}");
@@ -30,36 +36,16 @@ pub fn run(options: &BuildOptions) -> ExitCode {
         return ExitCode::from(1);
     };
 
-    let rt_c = if options.bench {
-        let minimal = rt_root.join("minimal.c");
-        if minimal.is_file() {
-            minimal
-        } else {
-            rt_root.join("portable.c")
-        }
-    } else {
-        rt_root.join("portable.c")
-    };
+    let rt_c = select_runtime_c(&rt_root, options.bench);
     if !rt_c.is_file() {
         eprintln!("error: missing {}", rt_c.display());
         return ExitCode::from(3);
     }
 
-    if options.runtime == RuntimeKind::Uring && !cfg!(target_os = "linux") {
-        eprintln!(
-            "warning: --runtime=uring is only fully supported on Linux; \
-             building portable fiber runtime with RYNIX_RT_URING stubs"
-        );
-    }
-    if options.runtime == RuntimeKind::Iocp && !cfg!(windows) {
-        eprintln!(
-            "warning: --runtime=iocp is only fully supported on Windows; \
-             building with RYNIX_RT_IOCP stubs"
-        );
-    }
+    warn_runtime_host(runtime);
 
     let result = match codegen_pipe::compile_to_llvm_with_units(
-        &options.path,
+        &project.primary,
         &dep_units,
         true,
         options.error_format,
@@ -69,9 +55,10 @@ pub fn run(options: &BuildOptions) -> ExitCode {
     };
 
     let out_bin = options.output.clone().unwrap_or_else(|| {
-        options
-            .path
-            .file_stem()
+        project
+            .primary
+            .first()
+            .and_then(|p| p.file_stem())
             .map_or_else(|| PathBuf::from("a.out"), PathBuf::from)
     });
 
@@ -81,47 +68,16 @@ pub fn run(options: &BuildOptions) -> ExitCode {
         return ExitCode::from(3);
     }
 
-    let include = rt_root.join("include");
-
-    // Folded Suite5 kernels: emit a tiny C main (same CRT path as End) for spawn.
-    if options.bench
-        && let Some(n) = result.const_print_i64
-        && let Some(gcc) = find_msvcrt_gcc()
-    {
-        let linked = link_bench_const_print_c(&gcc, n, &out_bin);
-        if !options.keep_ll {
-            let _ = std::fs::remove_file(&ll_path);
-        }
-        return linked;
-    }
-
-    // Windows Suite5: prefer MSVCRT `gcc` link (same CRT as End). UCRT clang
-    // pulls many api-ms-win-crt-* DLLs and loses ~1 ms of process spawn.
-    let linked = if options.bench {
-        if let Some(gcc) = find_msvcrt_gcc() {
-            link_bench_msvcrt_gcc(&clang, &gcc, &ll_path, &rt_c, &include, &out_bin, options)
-        } else {
-            link_clang(
-                &clang,
-                &ll_path,
-                &rt_c,
-                &include,
-                &out_bin,
-                options,
-                &rt_root,
-            )
-        }
-    } else {
-        link_clang(
-            &clang,
-            &ll_path,
-            &rt_c,
-            &include,
-            &out_bin,
-            options,
-            &rt_root,
-        )
-    };
+    let linked = link_artifacts(
+        &clang,
+        &ll_path,
+        &rt_c,
+        &rt_root,
+        &out_bin,
+        options,
+        runtime,
+        result.const_print_i64,
+    );
 
     if !options.keep_ll {
         let _ = std::fs::remove_file(&ll_path);
@@ -129,6 +85,97 @@ pub fn run(options: &BuildOptions) -> ExitCode {
     }
 
     linked
+}
+
+fn select_runtime_c(rt_root: &Path, bench: bool) -> PathBuf {
+    if bench {
+        let minimal = rt_root.join("minimal.c");
+        if minimal.is_file() {
+            return minimal;
+        }
+    }
+    rt_root.join("portable.c")
+}
+
+fn warn_runtime_host(runtime: RuntimeKind) {
+    if runtime == RuntimeKind::Uring && !cfg!(target_os = "linux") {
+        eprintln!(
+            "warning: --runtime=uring is only fully supported on Linux; \
+             building portable fiber runtime with RYNIX_RT_URING stubs"
+        );
+    }
+    if runtime == RuntimeKind::Iocp && !cfg!(windows) {
+        eprintln!(
+            "warning: --runtime=iocp is only fully supported on Windows; \
+             building with RYNIX_RT_IOCP stubs"
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn link_artifacts(
+    clang: &Path,
+    ll_path: &Path,
+    rt_c: &Path,
+    rt_root: &Path,
+    out_bin: &Path,
+    options: &BuildOptions,
+    runtime: RuntimeKind,
+    const_print_i64: Option<i64>,
+) -> ExitCode {
+    let include = rt_root.join("include");
+
+    // Folded Suite5 kernels: emit a tiny C main (same CRT path as End) for spawn.
+    if options.bench
+        && let Some(n) = const_print_i64
+        && let Some(gcc) = find_msvcrt_gcc()
+    {
+        return link_bench_const_print_c(&gcc, n, out_bin);
+    }
+
+    // Windows Suite5: prefer MSVCRT `gcc` link (same CRT as End). UCRT clang
+    // pulls many api-ms-win-crt-* DLLs and loses ~1 ms of process spawn.
+    if options.bench {
+        if let Some(gcc) = find_msvcrt_gcc() {
+            return link_bench_msvcrt_gcc(clang, &gcc, ll_path, rt_c, &include, out_bin, options);
+        }
+    }
+    link_clang(clang, ll_path, rt_c, &include, out_bin, options, runtime, rt_root)
+}
+
+/// CLI `--runtime` wins when present; else `[build].runtime`; else portable (L4).
+fn effective_runtime(cli: Option<RuntimeKind>, manifest: Option<&str>) -> RuntimeKind {
+    if let Some(r) = cli {
+        return r;
+    }
+    match manifest {
+        Some("uring") => RuntimeKind::Uring,
+        Some("iocp") => RuntimeKind::Iocp,
+        Some("portable") | None => RuntimeKind::Portable,
+        Some(other) => {
+            eprintln!(
+                "warning: unknown [build].runtime = {other:?}; using portable"
+            );
+            RuntimeKind::Portable
+        }
+    }
+}
+
+fn emit_resolve_error(message: &str, error_format: ErrorFormat) -> ExitCode {
+    match error_format {
+        ErrorFormat::Json => {
+            // JSON-friendly resolve failure (not a registered RYX#### yet).
+            let payload = serde_json::json!({
+                "error": message,
+                "stage": "resolve",
+            });
+            eprintln!("{payload}");
+        }
+        ErrorFormat::Human => {
+            eprintln!("error: {message}");
+        }
+    }
+    ExitCode::from(1)
 }
 
 fn link_bench_const_print_c(gcc: &Path, n: i64, out_bin: &Path) -> ExitCode {
@@ -246,6 +293,7 @@ fn link_bench_msvcrt_gcc(
     ExitCode::SUCCESS
 }
 
+#[allow(clippy::too_many_arguments)]
 fn link_clang(
     clang: &Path,
     ll_path: &Path,
@@ -253,6 +301,7 @@ fn link_clang(
     include: &Path,
     out_bin: &Path,
     options: &BuildOptions,
+    runtime: RuntimeKind,
     rt_root: &Path,
 ) -> ExitCode {
     let mut cmd = Command::new(clang);
@@ -295,10 +344,10 @@ fn link_clang(
         }
     }
 
-    if options.runtime == RuntimeKind::Uring {
+    if runtime == RuntimeKind::Uring {
         cmd.arg("-DRYNIX_RT_URING");
     }
-    if options.runtime == RuntimeKind::Iocp {
+    if runtime == RuntimeKind::Iocp {
         if !cfg!(windows) {
             eprintln!(
                 "warning: --runtime=iocp is Windows-only; \
@@ -412,9 +461,12 @@ fn find_msvcrt_gcc() -> Option<PathBuf> {
 }
 
 fn gate_and_collect_compile_units(
-    source: &Path,
+    project: &ProjectSources,
 ) -> Result<Vec<codegen_pipe::CompileUnit>, String> {
-    match resolve_for_source(source) {
+    let Some(anchor) = project.primary.first() else {
+        return Ok(Vec::new());
+    };
+    match resolve_for_source(anchor) {
         Ok(None) => Ok(Vec::new()),
         Ok(Some(report)) => compile_units_from_report(&report),
         Err(e) => Err(e),

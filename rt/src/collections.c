@@ -85,10 +85,39 @@ static int64_t map_probe(rynix_map_i64 *m, int64_t key) {
   return -1;
 }
 
+static void map_grow(rynix_map_i64 *m) {
+  int64_t old_cap = m->cap;
+  rynix_map_slot *old = m->slots;
+  int64_t ncap = old_cap * 2;
+  if (ncap < 16) ncap = 16;
+  rynix_map_slot *ns = (rynix_map_slot *)reg_alloc(m->region, (size_t)ncap * sizeof(rynix_map_slot));
+  if (!ns) rynix_rt_panic("map grow");
+  memset(ns, 0, (size_t)ncap * sizeof(rynix_map_slot));
+  m->slots = ns;
+  m->cap = ncap;
+  m->len = 0;
+  for (int64_t i = 0; i < old_cap; i++) {
+    if (!old[i].used) continue;
+    int64_t j = map_probe(m, old[i].key);
+    if (j < 0) rynix_rt_panic("map grow full");
+    m->slots[j].used = 1;
+    m->slots[j].key = old[i].key;
+    m->slots[j].val = old[i].val;
+    m->len++;
+  }
+}
+
 void rynix_rt_map_i64_insert(void *map, int64_t key, int64_t val) {
   rynix_map_i64 *m = (rynix_map_i64 *)map;
   if (!m) return;
+  if (m->len * 2 >= m->cap) {
+    map_grow(m);
+  }
   int64_t j = map_probe(m, key);
+  if (j < 0) {
+    map_grow(m);
+    j = map_probe(m, key);
+  }
   if (j < 0) rynix_rt_panic("map full");
   if (!m->slots[j].used) {
     m->slots[j].used = 1;

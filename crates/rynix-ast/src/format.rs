@@ -320,6 +320,23 @@ impl Formatter<'_> {
             }
             Expr::Index(i) => format!("{}[{}]", self.expr_str(i.base), self.expr_str(i.index)),
             Expr::Field(f) => format!("{}.{}", self.expr_str(f.base), self.name(f.field)),
+            Expr::StructLit(s) => {
+                let mut out = format!("{} {{", self.path_str(s.path));
+                for (i, f) in s.fields.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    out.push(' ');
+                    out.push_str(self.name(f.name));
+                    out.push_str(": ");
+                    out.push_str(&self.expr_str(f.value));
+                }
+                if !s.fields.is_empty() {
+                    out.push(' ');
+                }
+                out.push('}');
+                out
+            }
             Expr::Array(a) => {
                 let mut s = String::from("[");
                 for (i, e) in a.elems.iter().enumerate() {

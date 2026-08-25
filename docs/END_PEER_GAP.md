@@ -1,6 +1,21 @@
 # Rynix vs End — honest peer gap analysis
 
+**Authoritative who-ahead judgment:** [VERDICT.md](VERDICT.md).
+
 Reference: [IrMaho/End](https://github.com/IrMaho/End) (v0.4.x positioning, 2026).
+
+## Peer snapshot (audit refresh 2026-08-25)
+
+| Field | Value |
+|-------|--------|
+| Repo | [IrMaho/End](https://github.com/IrMaho/End) `main` |
+| Local clone | `D:\0\End-peer` @ **`cf5bef3`** (2026-08-24) — `git fetch` + `pull --ff-only`; **no peer source edits** |
+| `endc` for Suite5 | Built release-only: `cargo build --release --manifest-path endc/Cargo.toml` → `endc/target/release/endc.exe` (`ENDC_PATH`) |
+| Docs | ~62 `docs/*.md` hub |
+| MCP | **none** |
+| Still simulated | TLS (plaintext + cipher label), Cranelift (no crate / fake addr), registry/PubGrub theater, GGUF/Raft/HTTP2 stubs |
+| VS Code | Extension present; **no** `vscode-languageclient` wiring |
+| Rynix note | Do not copy End green-domain wallpaper; see [LEAD_AHEAD.md](LEAD_AHEAD.md) + [research/PHASE12_RESEARCH_INVENTORY.md](research/PHASE12_RESEARCH_INVENTORY.md) |
 
 This document is **not marketing**. It lists what End ships, what Rynix ships, what is
 comparable, and what would be required to lead **without copying End’s prose or
@@ -58,29 +73,58 @@ Cross-repo speed claims must name the **exact harness and source file**.
 4. Literal-bound host-fold outside Suite5 remains a normal compiler feature
    (unit-tested under `crates/rynix-rir/tests/fold_fixtures/`).
 
-### Latest local Suite5 (2026-08-23, Windows) — Rynix vs End
+### Latest local Suite5 (2026-08-25, Windows) — vs C / Rynix / End
 
-Fair opaque trip counts. Head-to-head `rynix,end` (warmup=2, runs=5). Numbers vary ±5–15%.
+Fair opaque trip counts. Peer `endc` from untouched End@`cf5bef3` release build
+(`ENDC_PATH`). Warmup=3, runs=9, trimmed median ms. **All 12 checksums OK**
+(C ↔ Rynix ↔ End). End ports regenerated for peer parser regressions
+(`regen_end_ports.py`; statement-`if` and expression-`if` broken upstream — see
+[END_INTEGRATION.md](../benchmarks/suite5/END_INTEGRATION.md)).
 
-| Workload | Best | Rynix | Rank | vs best |
-|----------|------|------:|-----:|--------:|
-| alu | rynix 5.1 | 5.1 | **1** | 0% |
-| nested | rynix 5.6 | 5.6 | **1** | 0% |
-| fib | rynix 6.0 | 6.0 | **1** | 0% |
-| hash | rynix 5.7 | 5.7 | **1** | 0% |
-| prime | rynix 8.4 | 8.4 | **1** | 0% |
-| sum | rynix 5.8 | 5.8 | **1** | 0% |
-| bits | rynix 87 | 87 | **1** | 0% |
-| matrix | rynix 5.5 | 5.5 | **1** | 0% |
-| scan | rynix 5.5 | 5.5 | **1** | 0% |
-| powmod | rynix 5.4 | 5.4 | **1** | 0% |
-| gcd | rynix 122 | 122 | **1** | 0% |
-| reduce | rynix 6.2 | 6.2 | **1** | 0% |
+| Challenge | c | rynix | end | Best | Rynix/End |
+|-----------|--:|------:|----:|------|----------:|
+| alu | 11.4 | 5.8 | 7.9 | **rynix** | 0.74 |
+| nested | 6.9 | 5.3 | 5.3 | tie | 1.00 |
+| fib | 9.6 | 6.6 | 8.3 | **rynix** | 0.80 |
+| hash | 19.7 | 5.5 | 16.5 | **rynix** | 0.33 |
+| prime | 11.7 | 8.3 | 64.0 | **rynix** | 0.13 |
+| sum | 13.1 | 6.6 | 5.3 | **end** | 1.24 |
+| bits | 457.6 | 92.2 | 418.9 | **rynix** | 0.22 |
+| matrix | 11.2 | 5.5 | 6.5 | **rynix** | 0.85 |
+| scan | 17.2 | 5.8 | 13.6 | **rynix** | 0.43 |
+| powmod | 16.8 | 5.4 | 16.8 | **rynix** | 0.32 |
+| gcd | 178.9 | 113.4 | 243.2 | **rynix** | 0.47 |
+| reduce | 27.5 | 5.3 | 15.6 | **rynix** | 0.34 |
 
-Rynix leads **12/12** vs End (checksums OK on all rows). Matrix closed after DCE
-stripped dead `add 0,0` noise (`dce_matrix_noise`).
+**Score this run:** Rynix **10** · End **1** (`sum`) · tie **1** (`nested`).
+Large Rynix wins remain **strength-reduction-aware** (same checksum). Artifact:
+`benchmarks/suite5/suite5_summary_2026-08-25_vs_end.txt`.
+
+### Prior multi-lang snapshot (2026-08-25, no End) — vs C / Rust / Go / Zig
+
+Earlier same-day run without End (`endc` not yet on PATH). Rynix fastest on
+**11/12** (Zig edged `nested`). See [benchmarks/suite5/README.md](../benchmarks/suite5/README.md).
+
+| Challenge | c | rust | go | zig | rynix | Rynix/C |
+|-----------|--:|-----:|---:|----:|------:|--------:|
+| alu | 8.7 | 8.2 | 12.2 | 9.7 | 5.5 | 0.64 |
+| nested | 7.2 | 7.4 | 13.0 | 6.2 | 6.4 | 0.88 |
+| fib | 7.7 | 6.8 | 9.4 | 7.6 | 5.2 | 0.67 |
+| hash | 18.1 | 17.9 | 18.2 | 18.6 | 5.7 | 0.31 |
+| prime | 10.9 | 9.8 | 15.0 | 10.6 | 8.1 | 0.74 |
+| sum | 6.0 | 5.8 | 9.6 | 6.2 | 5.9 | 0.98 |
+| bits | 457.1 | 438.1 | 648.8 | 477.8 | 88.6 | 0.19 |
+| matrix | 6.9 | 8.2 | 68.8 | 7.6 | 5.4 | 0.77 |
+| scan | 16.6 | 15.4 | 14.8 | 17.5 | 6.3 | 0.38 |
+| powmod | 15.6 | 15.0 | 16.5 | 15.7 | 5.6 | 0.36 |
+| gcd | 168.9 | 170.9 | 220.0 | 167.5 | 119.8 | 0.71 |
+| reduce | 13.4 | 14.9 | 20.8 | 16.9 | 6.9 | 0.52 |
 
 Refresh: `python benchmarks/suite5/run_suite5.py --langs c,rust,go,zig,rynix,end --summary`
+
+**Phase 12 product waves** (manifest / HTTP loop / struct / `std` / LSP) are
+**usefulness gates**, not Suite5 replacements — see [LEAD_AHEAD.md](LEAD_AHEAD.md) §8
+and [VERDICT.md](VERDICT.md).
 
 ---
 
@@ -104,29 +148,33 @@ simulated** surfaces we refuse to copy.
 | `@llvm.ctpop` / bits workload | Suite5 `bits` + RIR tests |
 | Fiber + io_uring tests | `rt/tests/`, Linux CI |
 | Agent verify stack + MCP (18 tools) | `verify`/`precheck`/`context`/`security`/`scope`/`deps`/`dna` |
+| Manifest build + contract evidence | `build_from_manifest_entry`, `verify_manifest_build_evidence` |
+| Workspace LSP go-to-def | `lsp_workspace_def` |
+| Eval CallExt hard-fail | `eval_call_ext_hard_fail` |
 | Real HTTP / JSON / frame / TLS / SHA-256 / KV / WS | `size_echo_gates` + `std/*` |
 | Local path + index packages | `rynixc deps` + `testdata/pkg_reg_app` + ADR-0010 |
 | Suite12 checksum-locked ports | `benchmarks/suite12/` + `suite12_*_checksum` gates |
 | VS Code CodeLens | check / alloc / impact |
 | Honest docs / no fake ✅ | `AGENTS.md`, this document |
 
-### Where End still leads (spectacle / deferred)
+### Where End still leads (spectacle / deferred / narrow)
 
 | Area | End claim / surface |
 |------|---------------------|
-| suite12 heavy-sim marketing | Different harness; Rynix has 9 MATCH C ports (skip divergent ids) |
-| C11-first backend | Rynix: LLVM + ADR-0008 |
+| suite12 heavy-sim marketing | Different harness; End’s own `.end` suite12 **fails to parse** at `cf5bef3` |
+| C11-first backend | Rynix: LLVM + ADR-0008 (choice, not inability) |
 | UI canvas / hot-reload | Deferred ADR-0007 |
 | Network package registry CDN | Local path + filesystem index only ([ADR-0010](adr/0010-local-package-index.md)) |
-| denser `std/` naming / `dna` heuristics | Optional polish |
+| Suite5 `sum` row (this machine) | End edged Rynix once; Rynix leads **10/12** elsewhere |
+| denser CLI *names* | Volume ≠ depth; many cmds are theater |
 
 ### Overlap (both ship)
 
 - AI CLI: graph / slice / impact / eval / patch / arch / verify-class tools
-- Structured diagnostics (Rynix: MCP + NDJSON)
-- VS Code + LSP + CodeLens
+- Structured diagnostics (Rynix: **MCP** + NDJSON; End: CLI JSON only)
+- VS Code extension packaging (Rynix: real **LanguageClient**; End: no LanguageClient)
 - Zero-GC / region-style memory narrative
-- 12 × 5-lang benchmark *shape* (different workloads)
+- 12 × N-lang benchmark *shape* (different workloads: Suite5 vs suite12)
 
 ---
 
@@ -177,19 +225,19 @@ Priority is **evidence-first** (test or CI before README ✅).
 
 Ordered backlog: [SURPASS_END_PLAN.md](SURPASS_END_PLAN.md).
 
-### Binary size (Windows gnu, local 2026-08-22)
+### Binary size (Windows)
 
-| Binary | Size |
-|--------|-----:|
-| `examples/01_hello.ryx` → rynix (full RT) | **87.5 KiB** |
-| Suite5 `reduce` C (`clang -O3`) | ~86 KiB |
-| Suite5 `reduce` Rynix **`--bench`** + sink RT | **~18 KiB** (MSVCRT) |
-| Suite5 `reduce` End (`endc --strip`) | ~45.5 KiB |
-| Suite5 `reduce` Zig | ~192 KiB |
-| Suite5 `reduce` Go | ~1636 KiB |
+| Binary | Size | When |
+|--------|-----:|------|
+| `examples/01_hello.ryx` full RT (`hello_binary_under_300kb`) | **~13 KiB** | 2026-08-25 gate |
+| Suite5 `reduce` C (`clang -O3`) | ~86 KiB | 2026-08-22 |
+| Suite5 `reduce` Rynix **`--bench`** + sink RT | **~18 KiB** (MSVCRT) | 2026-08-22 |
+| Suite5 `reduce` End (`endc --strip`) | ~45.5 KiB | 2026-08-22 |
+| Suite5 `reduce` Zig | ~192 KiB | 2026-08-22 |
+| Suite5 `reduce` Go | ~1636 KiB | 2026-08-22 |
 
 With `--bench`, Rynix Suite5 bins were **smaller than End strip** on that machine.
-Full-runtime hello gate remains **&lt;300 KiB**.
+Full-runtime hello gate remains **&lt;300 KiB** (measured ~13 KiB on 2026-08-25).
 
 ### P2 — frameworks & domains
 
@@ -222,13 +270,19 @@ Full-runtime hello gate remains **&lt;300 KiB**.
 
 ## 6. One-line verdict
 
-**Rynix now leads on auditable systems + agent toolchain depth for features End
+**Rynix leads on auditable systems + agent toolchain depth for features End
 actually ships in working code** (HTTP/crypto/KV/TLS, region/pipe/effects, verify
-stack, MCP/fibers/LLVM). End still leads on **spectacle and deferred UI/C11**.
+stack, MCP/fibers/LLVM), and on **Suite5 head-to-head vs End@cf5bef3** this audit
+(**10–1–1** with checksum parity). End still leads on **spectacle and deferred UI/C11**.
+Full judgment: [VERDICT.md](VERDICT.md).
+
 Phase 11 backlog is closed in-tree (suite12 MATCH ports, WS 64-bit + large wire,
 local registry index + **unity compile** + multifile/`rynix.lock.toml`/`fs_*`,
 IOCP, GPG smoke). UI/C11/network CDN stay ADR-deferred; suite12 #1/#5/#6 closed by
 [ADR-0011](adr/0011-suite12-divergent-benches.md).
+
+**Phase 12 (ahead on programs, not catalogs):** [LEAD_AHEAD.md](LEAD_AHEAD.md)
+(§8 = useful vs theatrical vs max-perf assurance).
 
 See also: [COMPARE.md](COMPARE.md), [ROADMAP.md](ROADMAP.md),
 [benchmarks/README.md](../benchmarks/README.md).

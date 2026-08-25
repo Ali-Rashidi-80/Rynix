@@ -393,6 +393,76 @@ fn http_serve_once_smoke_c() {
 }
 
 #[test]
+fn http_loop_three_gets() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+
+    // Soft builtin: sema + lower + LLVM decl (Wave 2.2).
+    let ryx = root.join("target/http_loop_check.ryx");
+    std::fs::write(
+        &ryx,
+        r#"def main() -> i64
+  let rc = http_serve_loop_json_i64(0, "/api", 7, 3)
+  return rc
+end
+"#,
+    )
+    .unwrap();
+    let check = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["check", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "http_serve_loop_json_i64 check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["emit-ll", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(ll.status.success(), "emit-ll failed");
+    let text = String::from_utf8_lossy(&ll.stdout);
+    assert!(
+        text.contains("rynix_rt_http_serve_loop_json_i64"),
+        "missing serve_loop runtime call in IR"
+    );
+
+    let out = std::env::temp_dir().join("rynix_http_loop_three_gets_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/http_loop_three_gets_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32").arg("-lsecur32").arg("-lcrypt32").arg("-lbcrypt");
+    }
+    assert!(
+        cmd.status().unwrap().success(),
+        "http_loop_three_gets smoke compile failed"
+    );
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(
+        Command::new(exe).status().unwrap().success(),
+        "http_loop_three_gets smoke failed"
+    );
+}
+
+#[test]
 fn http_post_echo_smoke_c() {
     let Some(clang) = clang() else {
         eprintln!("skip: no clang on PATH");
@@ -705,6 +775,67 @@ fn suite12_sha256_blocks_checksum() {
         "benchmarks/suite12/sha256_blocks.c",
         "rynix_suite12_sha256",
         "checksum=-4721506799343634759",
+    );
+}
+
+fn suite12_ryx_checksum_gate(src: &str, out_name: &str, want: &str) {
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let out = std::env::temp_dir().join(out_name);
+    let status = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .current_dir(&root)
+        .args([
+            "build",
+            src,
+            "-o",
+            out.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .status()
+        .expect("rynixc build");
+    assert!(status.success(), "suite12 ryx {src} build failed");
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    let output = Command::new(exe).output().expect("run");
+    assert!(
+        output.status.success(),
+        "{src} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        text.contains(want),
+        "{src}: unexpected checksum: {text} (want {want})"
+    );
+}
+
+#[test]
+fn suite12_alu_ryx_checksum() {
+    suite12_ryx_checksum_gate(
+        "benchmarks/suite12/alu_reduction.ryx",
+        "rynix_suite12_alu_ryx",
+        "3370198876750320971",
+    );
+}
+
+#[test]
+fn suite12_json_ryx_checksum() {
+    suite12_ryx_checksum_gate(
+        "benchmarks/suite12/json_serializer.ryx",
+        "rynix_suite12_json_ryx",
+        "5588438541400559045",
+    );
+}
+
+#[test]
+fn suite12_sha256_ryx_checksum() {
+    suite12_ryx_checksum_gate(
+        "benchmarks/suite12/sha256_blocks.ryx",
+        "rynix_suite12_sha256_ryx",
+        "-4721506799343634759",
     );
 }
 

@@ -264,6 +264,11 @@ fn walk_expr(expr: &Expr<'_>, f: &mut dyn FnMut(&Expr<'_>)) {
             walk_expr(i.index, f);
         }
         Expr::Field(fl) => walk_expr(fl.base, f),
+        Expr::StructLit(s) => {
+            for init in s.fields {
+                walk_expr(init.value, f);
+            }
+        }
         Expr::Cast(c) => walk_expr(c.expr, f),
         Expr::Array(a) => {
             for e in a.elems {

@@ -39,7 +39,8 @@ pub fn compile_to_llvm(
     optimize: bool,
     error_format: ErrorFormat,
 ) -> Result<CodegenResult, ExitCode> {
-    compile_to_llvm_with_units(path, &[], optimize, error_format)
+    let primary = path.to_path_buf();
+    compile_to_llvm_with_units(std::slice::from_ref(&primary), &[], optimize, error_format)
 }
 
 /// Unity-compile primary + dependency/std units (SPEC §6.3–6.5).
@@ -59,11 +60,12 @@ pub fn compile_to_llvm_with_deps(
             paths: vec![p.clone()],
         })
         .collect();
-    compile_to_llvm_with_units(primary, &units, optimize, error_format)
+    let primary = primary.to_path_buf();
+    compile_to_llvm_with_units(std::slice::from_ref(&primary), &units, optimize, error_format)
 }
 
 pub fn compile_to_llvm_with_units(
-    primary: &Path,
+    primary: &[PathBuf],
     dep_units: &[CompileUnit],
     optimize: bool,
     error_format: ErrorFormat,
@@ -133,11 +135,14 @@ fn package_name_from_entry(entry: &Path) -> String {
         .unwrap_or_else(|| "dep".into())
 }
 
-/// Concatenate mangled dependency units, std imports, then primary.
+/// Concatenate mangled dependency units, std imports, then primary paths.
 fn build_unity_source(
-    primary: &Path,
+    primary: &[PathBuf],
     dep_units: &[CompileUnit],
 ) -> Result<(String, String), String> {
+    if primary.is_empty() {
+        return Err("no primary source paths".into());
+    }
     let mut unity = String::new();
     let mut exports: HashMap<String, String> = HashMap::new();
     let mut pkg_prefixes: HashMap<String, String> = HashMap::new();
@@ -179,8 +184,21 @@ fn build_unity_source(
         unity.push('\n');
     }
 
-    let primary_text = std::fs::read_to_string(primary)
-        .map_err(|e| format!("cannot read {}: {e}", primary.display()))?;
+    let mut primary_text = String::new();
+    for (i, path) in primary.iter().enumerate() {
+        let part = std::fs::read_to_string(path)
+            .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+        if i > 0 {
+            primary_text.push_str(&format!("## file: {}\n", path.display()));
+        }
+        primary_text.push_str(&part);
+        if !part.ends_with('\n') {
+            primary_text.push('\n');
+        }
+        if i + 1 < primary.len() {
+            primary_text.push('\n');
+        }
+    }
 
     // `import std.math` → load std/math.ryx (real defs only; soft builtins stay in sema).
     let std_units = collect_std_imports(&primary_text)?;
@@ -213,17 +231,21 @@ fn build_unity_source(
         app = rewrite_qualified_calls(&app, pkg, prefix);
     }
 
-    if !dep_units.is_empty() || !std_units.is_empty() {
-        unity.push_str(&format!("## package unit: {}\n", primary.display()));
+    let primary_label = primary
+        .first()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "primary".into());
+    if !dep_units.is_empty() || !std_units.is_empty() || primary.len() > 1 {
+        unity.push_str(&format!("## package unit: {primary_label}\n"));
     }
     unity.push_str(&app);
     if !app.ends_with('\n') {
         unity.push('\n');
     }
-    let name = if dep_units.is_empty() && std_units.is_empty() {
-        primary.display().to_string()
+    let name = if dep_units.is_empty() && std_units.is_empty() && primary.len() == 1 {
+        primary_label
     } else {
-        format!("unity:{}", primary.display())
+        format!("unity:{primary_label}")
     };
     Ok((name, unity))
 }
@@ -296,9 +318,70 @@ fn mangle_unit(
     for name in defs_sorted {
         let mangled = format!("{prefix}__{name}");
         out = rewrite_def_name(&out, &name, &mangled);
+        // Thin std wrappers may share a soft builtin name (`sha256_first_i64`);
+        // leave those call sites unmangled so they still hit sema soft ABI.
+        if is_soft_builtin_name(&name) {
+            continue;
+        }
         out = rewrite_call_name(&out, &name, &mangled);
     }
     Ok(out)
+}
+
+/// Soft callables registered in sema — used so package/std defs with the same
+/// name can forward to the soft ABI without becoming recursive after mangling.
+fn is_soft_builtin_name(name: &str) -> bool {
+    matches!(
+        name,
+        "print"
+            | "print_i64"
+            | "sleep_ms"
+            | "yield"
+            | "now_ms"
+            | "fiber_run"
+            | "vec_new"
+            | "vec_push"
+            | "vec_get"
+            | "vec_len"
+            | "map_new"
+            | "map_insert"
+            | "map_get"
+            | "map_len"
+            | "tcp_listen"
+            | "tcp_accept"
+            | "tcp_connect"
+            | "tcp_recv"
+            | "tcp_send"
+            | "tcp_close"
+            | "json_get_i64"
+            | "json_has_i64"
+            | "http_get_json_i64"
+            | "http_post_json_i64"
+            | "http_serve_once_json_i64"
+            | "http_serve_once_echo_json_i64"
+            | "http_serve_loop_json_i64"
+            | "frame_serve_once_echo"
+            | "frame_client_echo"
+            | "tls_serve_once_echo"
+            | "tls_client_echo"
+            | "sha256_first_i64"
+            | "hmac_sha256_first_i64"
+            | "aes128_gcm_nist_empty_tag_first_i64"
+            | "ws_accept_key_eq"
+            | "ws_accept_sha1_first_i64"
+            | "ws_frame_roundtrip_ok"
+            | "ws_serve_once_echo"
+            | "ws_client_echo"
+            | "kv_new"
+            | "kv_put"
+            | "kv_get"
+            | "kv_len"
+            | "fs_write_file"
+            | "fs_read_file"
+            | "fs_read_file_eq"
+            | "fs_exists"
+            | "fs_remove_file"
+    )
 }
 
 fn rewrite_def_name(text: &str, from: &str, to: &str) -> String {

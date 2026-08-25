@@ -125,3 +125,21 @@ pub(crate) fn purity_violation(span: Span, name: &str, effects: &str) -> Diagnos
         span,
     )
 }
+
+pub(crate) fn stub_reserved(span: Span, name: &str) -> Diagnostic {
+    Diagnostic::error(
+        codes::STUB_RESERVED,
+        Stage::Sema,
+        format!("`{name}` is reserved and not callable in v0.1 (no runtime)"),
+        span,
+    )
+}
+
+pub(crate) fn field_assign_unsupported(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        codes::FIELD_ASSIGN_UNSUPPORTED,
+        Stage::Sema,
+        "assignment to index is unsupported",
+        span,
+    )
+}

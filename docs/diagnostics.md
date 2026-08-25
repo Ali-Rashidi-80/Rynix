@@ -164,3 +164,15 @@ A function marked `#^ effect: pure` (or `#^ effects: pure`) transitively
 performs `io` and/or `network` (soft builtins such as `print`, `http_*`,
 `tcp_*`, `kv_*`, or a call to another impure function). Remove the pure
 marker or isolate the side effect.
+
+### RYX2013 — reserved stub is not callable
+
+`tensor`, `signal`, and `agent` are reserved keywords / names. They are not
+product soft builtins and have no runtime. Calls are rejected until a future
+ADR ships a real implementation.
+
+### RYX2020 — index assign unsupported
+
+Assignment to an index place (`a[i] = …`) is rejected. Field stores
+(`p.x = …`) are supported for `mut` bindings with i64 struct fields
+(Phase 12 Wave 3). Assign only to bare bindings or struct fields.

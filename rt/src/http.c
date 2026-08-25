@@ -193,6 +193,101 @@ int64_t rynix_rt_http_serve_once_json_i64(int64_t port, const char *path, int64_
   return path_ok ? 0 : 1;
 }
 
+/* Respond to one accepted client. Returns 1 if a matching GET was served
+ * (200), 0 if a non-matching request got a 404, -1 on I/O error. */
+static int64_t http_serve_one_matching_get_json_i64(int64_t client, const char *path,
+                                                    int64_t value) {
+  char req[2048];
+  if (http_recv_message(client, req, (int64_t)sizeof(req)) <= 0) {
+    return -1;
+  }
+
+  char *line_end = strstr(req, "\r\n");
+  if (!line_end) {
+    return -1;
+  }
+  *line_end = '\0';
+  char *method = req;
+  char *sp1 = strchr(req, ' ');
+  char *req_path = sp1 ? sp1 + 1 : NULL;
+  if (sp1) {
+    *sp1 = '\0';
+  }
+  char *sp2 = req_path ? strchr(req_path, ' ') : NULL;
+  if (sp2) {
+    *sp2 = '\0';
+  }
+  int match = req_path && strcmp(method, "GET") == 0 && strcmp(req_path, path) == 0;
+
+  char body[128];
+  int body_n = snprintf(body, sizeof(body), "{\"value\": %lld}", (long long)value);
+  if (body_n <= 0 || body_n >= (int)sizeof(body)) {
+    return -1;
+  }
+
+  char resp[512];
+  int resp_n;
+  if (match) {
+    resp_n = snprintf(resp, sizeof(resp),
+                      "HTTP/1.1 200 OK\r\n"
+                      "Content-Type: application/json\r\n"
+                      "Content-Length: %d\r\n"
+                      "Connection: close\r\n"
+                      "\r\n"
+                      "%s",
+                      body_n, body);
+  } else {
+    static const char not_found[] = "{\"error\":\"not_found\"}";
+    resp_n = snprintf(resp, sizeof(resp),
+                      "HTTP/1.1 404 Not Found\r\n"
+                      "Content-Type: application/json\r\n"
+                      "Content-Length: %d\r\n"
+                      "Connection: close\r\n"
+                      "\r\n"
+                      "%s",
+                      (int)(sizeof(not_found) - 1), not_found);
+  }
+  if (resp_n <= 0 || resp_n >= (int)sizeof(resp)) {
+    return -1;
+  }
+  if (rynix_rt_tcp_send(client, resp, (int64_t)resp_n) != (int64_t)resp_n) {
+    return -1;
+  }
+  return match ? 1 : 0;
+}
+
+int64_t rynix_rt_http_serve_loop_json_i64(int64_t port, const char *path, int64_t value,
+                                          int64_t max_reqs) {
+  if (!path || port <= 0 || max_reqs <= 0) {
+    return -1;
+  }
+  int64_t listen_fd = rynix_rt_tcp_listen(port);
+  if (listen_fd < 0) {
+    return -1;
+  }
+
+  int64_t served = 0;
+  while (served < max_reqs) {
+    int64_t client = rynix_rt_tcp_accept(listen_fd);
+    if (client < 0) {
+      rynix_rt_tcp_close(listen_fd);
+      return -1;
+    }
+    int64_t rc = http_serve_one_matching_get_json_i64(client, path, value);
+    rynix_rt_tcp_close(client);
+    if (rc < 0) {
+      rynix_rt_tcp_close(listen_fd);
+      return -1;
+    }
+    if (rc == 1) {
+      served++;
+    }
+  }
+
+  rynix_rt_tcp_close(listen_fd);
+  return 0;
+}
+
 int64_t rynix_rt_http_serve_once_echo_json_i64(int64_t port, const char *path,
                                                const char *field) {
   if (!path || !field || port <= 0) {

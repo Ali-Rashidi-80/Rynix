@@ -1,0 +1,5 @@
+# Expect: RYX2013 (reserved stub is not callable)
+def main() -> i64
+  signal(1)
+  return 0
+end

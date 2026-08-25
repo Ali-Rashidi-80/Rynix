@@ -159,6 +159,24 @@ Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
 | UI / canvas | 🔄 deferred | ADR-0007 — no stub studio |
 | Network package registry | 🔄 deferred | ADR-0010 — local index + unity + `rynix.lock.toml` only |
 
+## Phase 12 — Lead ahead (valuable, not theatrical)
+
+Ordered plan (build-ready locks): **[LEAD_AHEAD.md](LEAD_AHEAD.md)**.
+Research archive (peer + web): **[research/PHASE12_RESEARCH_INVENTORY.md](research/PHASE12_RESEARCH_INVENTORY.md)**.
+Peer End `main` @ `cf5bef3` (2026-08-24) still simulates TLS/JIT/registry;
+Rynix does not copy that surface. Order: `0 → 1 → (1b ∥ 2) → 3 → 4 → (5 ∥ 6)`.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| 0 | Honesty freeze + field-assign reject (`RYX2020`) + README truth (shipped domains) | ✅ |
+| 1 | `rynixc build`/`run` from `[package].entry`+`files` | ✅ |
+| 1b | Memory `compile_fail` corpus (∥ Wave 2) | ✅ |
+| 2 | Bounded looping HTTP (`max_reqs`) (∥ Wave 1b) | ✅ |
+| 3 | Struct literals (i64 fields v1) + field store | ✅ |
+| 4 | `import std::fs` / thin crypto SHA | ✅ |
+| 5 | Suite12 MATCH as `.ryx` checksums (∥ Wave 6) | ✅ |
+| 6 | LSP workspace go-to-def + eval honesty (∥ Wave 5) | ✅ |
+
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): `cargo test` on
