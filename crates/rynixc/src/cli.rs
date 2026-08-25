@@ -95,7 +95,9 @@ Options for `dump-rir`:
 
 Options for `emit-ll` / `build` / `run`:
   -o <path>           Output path
-  --opt               Run RIR optimization pipeline (emit-ll; build always opts)
+  --opt / --no-opt    RIR optimize pipeline (emit-ll defaults off; build defaults on
+                      unless [build].optimize / these flags say otherwise)
+  --target=TRIPLE     (emit-ll) v1: `wasm32-unknown-unknown` only (Phase 13)
   --keep-ll           (build) Keep the intermediate .ll next to the binary
   --runtime=KIND      `portable`, `uring` (Linux), or `iocp` (Windows);
                       if omitted, use [build].runtime then portable
@@ -172,6 +174,8 @@ pub struct EmitLlOptions {
     pub path: PathBuf,
     pub output: Option<PathBuf>,
     pub optimize: bool,
+    /// Phase 13: `Some("wasm32-unknown-unknown")` when `--target=` set.
+    pub target: Option<String>,
     pub error_format: ErrorFormat,
 }
 
@@ -197,6 +201,8 @@ pub struct BuildOptions {
     pub keep_ll: bool,
     /// `Some` only when `--runtime=` was present on the CLI (L4).
     pub runtime: Option<RuntimeKind>,
+    /// `Some` only when `--opt` / `--no-opt` was present (P13-L5).
+    pub optimize: Option<bool>,
     pub bench: bool,
     pub pgo: PgoMode,
     pub error_format: ErrorFormat,
@@ -209,6 +215,8 @@ pub struct RunOptions {
     pub output: Option<PathBuf>,
     /// `Some` only when `--runtime=` was present on the CLI (L4).
     pub runtime: Option<RuntimeKind>,
+    /// `Some` only when `--opt` / `--no-opt` was present (P13-L5).
+    pub optimize: Option<bool>,
     pub bench: bool,
     pub pgo: PgoMode,
     pub error_format: ErrorFormat,
@@ -525,6 +533,7 @@ fn parse_emit_ll(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut output = None;
     let mut optimize = false;
+    let mut target = None;
     let mut error_format = ErrorFormat::Human;
     let mut expect_o = false;
 
@@ -540,6 +549,15 @@ fn parse_emit_ll(args: &[String]) -> Result<Command, String> {
             "-o" => expect_o = true,
             other if other.starts_with("-o=") => {
                 output = Some(PathBuf::from(&other[3..]));
+            }
+            other if other.starts_with("--target=") => {
+                let t = &other[9..];
+                if t != "wasm32-unknown-unknown" {
+                    return Err(format!(
+                        "unsupported `--target={t}` (v1 allows only wasm32-unknown-unknown)"
+                    ));
+                }
+                target = Some(t.to_string());
             }
             other if other.starts_with("--error-format") => {
                 error_format = parse_error_format(other)?;
@@ -562,6 +580,7 @@ fn parse_emit_ll(args: &[String]) -> Result<Command, String> {
         path,
         output,
         optimize,
+        target,
         error_format,
     }))
 }
@@ -571,6 +590,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
     let mut output = None;
     let mut keep_ll = false;
     let mut runtime = None;
+    let mut optimize = None;
     let mut bench = false;
     let mut pgo = PgoMode::None;
     let mut error_format = ErrorFormat::Human;
@@ -586,6 +606,8 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
             "-h" | "--help" => return Ok(Command::Help),
             "--keep-ll" => keep_ll = true,
             "--bench" => bench = true,
+            "--opt" => optimize = Some(true),
+            "--no-opt" => optimize = Some(false),
             "--pgo-gen" => pgo = PgoMode::Generate,
             "--runtime=portable" => runtime = Some(RuntimeKind::Portable),
             "--runtime=uring" => runtime = Some(RuntimeKind::Uring),
@@ -623,6 +645,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
         output,
         keep_ll,
         runtime,
+        optimize,
         bench,
         pgo,
         error_format,
@@ -633,6 +656,7 @@ fn parse_run(args: &[String]) -> Result<Command, String> {
     let mut path = None;
     let mut output = None;
     let mut runtime = None;
+    let mut optimize = None;
     let mut bench = false;
     let mut pgo = PgoMode::None;
     let mut error_format = ErrorFormat::Human;
@@ -647,6 +671,8 @@ fn parse_run(args: &[String]) -> Result<Command, String> {
         match arg.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
             "--bench" => bench = true,
+            "--opt" => optimize = Some(true),
+            "--no-opt" => optimize = Some(false),
             "--pgo-gen" => pgo = PgoMode::Generate,
             "--runtime=portable" => runtime = Some(RuntimeKind::Portable),
             "--runtime=uring" => runtime = Some(RuntimeKind::Uring),
@@ -678,10 +704,12 @@ fn parse_run(args: &[String]) -> Result<Command, String> {
     if expect_o {
         return Err("missing path after -o".into());
     }
+
     Ok(Command::Run(RunOptions {
         path,
         output,
         runtime,
+        optimize,
         bench,
         pgo,
         error_format,

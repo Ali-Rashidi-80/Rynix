@@ -544,7 +544,7 @@ pub fn resolve_for_source(source: &Path) -> Result<Option<DepsReport>, String> {
     Ok(Some(resolve_deps(&m)))
 }
 
-/// Primary `.ryx` paths + optional `[build].runtime` for `build` / `run` (L2–L4).
+/// Primary `.ryx` paths + optional `[build].runtime` / `optimize` for `build` / `run`.
 #[derive(Debug, Clone)]
 pub struct ProjectSources {
     /// `[package].entry` then `files`, or a single direct `.ryx` path.
@@ -556,6 +556,8 @@ pub struct ProjectSources {
     pub package_name: Option<String>,
     /// Raw `[build].runtime` string from the root manifest, if any.
     pub runtime: Option<String>,
+    /// `[build].optimize` from the root manifest, if any (P13-L5).
+    pub optimize: Option<bool>,
 }
 
 /// Resolve primary sources for `build` / `run`.
@@ -577,18 +579,19 @@ pub fn resolve_project_sources(path: Option<&Path>) -> Result<ProjectSources, St
             .is_some_and(|e| e.eq_ignore_ascii_case("ryx"));
         if is_ryx {
             let abs = fs::canonicalize(&start).unwrap_or_else(|_| start.clone());
-            let (manifest_path, package_name, runtime) = match find_manifest(&abs) {
+            let (manifest_path, package_name, runtime, optimize) = match find_manifest(&abs) {
                 Some(m_path) => match load_manifest(&m_path) {
-                    Ok(m) => (Some(m_path), Some(m.name), m.runtime),
-                    Err(_) => (Some(m_path), None, None),
+                    Ok(m) => (Some(m_path), Some(m.name), m.runtime, m.optimize),
+                    Err(_) => (Some(m_path), None, None, None),
                 },
-                None => (None, None, None),
+                None => (None, None, None, None),
             };
             return Ok(ProjectSources {
                 primary: vec![abs],
                 manifest_path,
                 package_name,
                 runtime,
+                optimize,
             });
         }
         return Err(format!(
@@ -644,6 +647,7 @@ fn primary_from_manifest(m_path: &Path) -> Result<ProjectSources, String> {
         manifest_path: Some(m_path.to_path_buf()),
         package_name: Some(m.name),
         runtime: m.runtime,
+        optimize: m.optimize,
     })
 }
 

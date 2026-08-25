@@ -16,6 +16,7 @@ pub fn run(options: &RunOptions) -> ExitCode {
         output: Some(out.clone()),
         keep_ll: false,
         runtime: options.runtime,
+        optimize: options.optimize,
         bench: options.bench,
         pgo: options.pgo.clone(),
         error_format: options.error_format,

@@ -1,0 +1,4 @@
+## Pure arith fixture for wasm32 emit-ll smoke (no RT soft calls).
+def main() -> i64
+  return 42
+end

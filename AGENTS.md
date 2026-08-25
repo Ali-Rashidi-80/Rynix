@@ -27,6 +27,7 @@ ad-hoc scraping.
 - Soft HTTP: one-shot + bounded loop; `import std::fs` / `std::crypto` (SHA)
 - `eval`: arith/print-oriented; unsupported CallExt hard-fails (no zero-default)
 - Phase 12 complete: [docs/LEAD_AHEAD.md](docs/LEAD_AHEAD.md)
+- Phase 13: `emit-ll --target=wasm32-unknown-unknown`; `[build].optimize` + `--opt`/`--no-opt` ([docs/PHASE13.md](docs/PHASE13.md))
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 
 ## Honesty rules

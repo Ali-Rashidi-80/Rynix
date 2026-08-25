@@ -16,6 +16,30 @@ fn clang() -> Option<String> {
     None
 }
 
+/// Prefer a clang that can compile `--target=wasm32-unknown-unknown`.
+fn clang_with_wasm() -> Option<String> {
+    for c in ["clang", "clang.exe", "x86_64-w64-mingw32-clang"] {
+        let probe_c = std::env::temp_dir().join("rynix_wasm_clang_probe.c");
+        let probe_o = std::env::temp_dir().join("rynix_wasm_clang_probe.o");
+        let _ = std::fs::write(&probe_c, "int main(void){return 0;}\n");
+        let ok = Command::new(c)
+            .args([
+                "--target=wasm32-unknown-unknown",
+                "-c",
+                probe_c.to_str()?,
+                "-o",
+                probe_o.to_str()?,
+            ])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if ok {
+            return Some(c.into());
+        }
+    }
+    None
+}
+
 #[test]
 fn hello_binary_under_300kb() {
     let Some(clang) = clang() else {
@@ -1054,6 +1078,125 @@ fn gpg_detach_sign_smoke() {
         "gpg_sign_smoke failed: stdout={} stderr={}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn emit_ll_wasm32_clang_accepts() {
+    let Some(clang) = clang_with_wasm() else {
+        eprintln!("skip: no clang with wasm32-unknown-unknown on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("target")).ok();
+
+    let ll = root.join("target/wasm_arith.ll");
+    let obj = root.join("target/wasm_arith.o");
+    let status = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .current_dir(&root)
+        .args([
+            "emit-ll",
+            "testdata/wasm_arith.ryx",
+            "--target=wasm32-unknown-unknown",
+            "-o",
+            ll.to_str().unwrap(),
+        ])
+        .status()
+        .expect("emit-ll wasm");
+    assert!(status.success(), "emit-ll --target=wasm32 failed");
+    let text = std::fs::read_to_string(&ll).expect("read ll");
+    assert!(
+        text.contains("target triple = \"wasm32-unknown-unknown\""),
+        "missing wasm32 triple in .ll"
+    );
+    let status = Command::new(&clang)
+        .current_dir(&root)
+        .args([
+            "--target=wasm32-unknown-unknown",
+            "-c",
+            ll.to_str().unwrap(),
+            "-o",
+            obj.to_str().unwrap(),
+            "-Wno-override-module",
+        ])
+        .status()
+        .expect("clang wasm -c");
+    assert!(status.success(), "clang --target=wasm32 -c rejected .ll");
+    assert!(obj.is_file(), "wasm object missing");
+}
+
+#[test]
+fn build_respects_manifest_optimize() {
+    let Some(_clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    let dir = root.join("target/pkg_opt_gate");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("rynix.toml"),
+        r#"[package]
+name = "opt_gate"
+version = "0.1.0"
+entry = "main.ryx"
+
+[build]
+optimize = false
+runtime = "portable"
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("main.ryx"),
+        "def main() -> i64\n  return 1 + 1\nend\n",
+    )
+    .unwrap();
+    let out = dir.join("opt_gate_bin");
+    let ll = out.with_extension("ll");
+    let status = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .current_dir(&dir)
+        .args([
+            "build",
+            "--keep-ll",
+            "-o",
+            out.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .status()
+        .expect("build");
+    assert!(status.success(), "build with optimize=false failed");
+    // With RIR opt off, the add of two literals should still appear in .ll
+    // (const-fold lives in the optimize pipeline).
+    let text = std::fs::read_to_string(&ll).expect("read keep-ll");
+    assert!(
+        text.contains("add i64") || text.contains("add nsw i64") || text.contains("add nuw i64"),
+        "expected unoptimized add in .ll when [build].optimize=false; got:\n{text}"
+    );
+
+    // CLI --opt overrides manifest false.
+    let out2 = dir.join("opt_gate_bin_opt");
+    let ll2 = out2.with_extension("ll");
+    let status = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .current_dir(&dir)
+        .args([
+            "build",
+            "--keep-ll",
+            "--opt",
+            "-o",
+            out2.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .status()
+        .expect("build --opt");
+    assert!(status.success(), "build --opt failed");
+    let text2 = std::fs::read_to_string(&ll2).expect("read keep-ll opt");
+    assert!(
+        !text2.contains("add i64 1, 1") && !text2.contains("add nsw i64 1, 1"),
+        "expected const-fold under --opt; got:\n{text2}"
     );
 }
 

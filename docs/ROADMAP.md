@@ -177,6 +177,15 @@ Rynix does not copy that surface. Order: `0 → 1 → (1b ∥ 2) → 3 → 4 →
 | 5 | Suite12 MATCH as `.ryx` checksums (∥ Wave 6) | ✅ |
 | 6 | LSP workspace go-to-def + eval honesty (∥ Wave 5) | ✅ |
 
+## Phase 13 — WASM emit-ll + manifest optimize
+
+Plan: **[PHASE13.md](PHASE13.md)**. Order: A then B.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | `emit-ll --target=wasm32-unknown-unknown` + clang `-c` smoke | ✅ `emit_ll_wasm32_clang_accepts` |
+| B | `[build].optimize` + `--opt`/`--no-opt` for build/run | ✅ `build_respects_manifest_optimize` |
+
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): `cargo test` on

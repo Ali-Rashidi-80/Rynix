@@ -20,6 +20,7 @@ pub fn run(options: &EmitLlOptions) -> ExitCode {
         &dep_units,
         options.optimize,
         options.error_format,
+        options.target.as_deref(),
     ) {
         Ok(r) => r,
         Err(code) => return code,

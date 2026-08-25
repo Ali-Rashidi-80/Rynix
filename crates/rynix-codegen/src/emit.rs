@@ -15,15 +15,37 @@ use rynix_rir::{
 use rynix_span::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-/// Emit a complete LLVM module as text (no `target` triple — clang fills it in).
+/// Emit a complete LLVM module as text.
+///
+/// When `target_triple` is `None`, omit the triple (host clang fills it in).
+/// When set (Phase 13: `wasm32-unknown-unknown`), write triple + wasm datalayout.
 pub fn emit_llvm(
     module: &Module,
     interner: &Interner,
     report: Option<&EscapeReport>,
 ) -> String {
+    emit_llvm_with_target(module, interner, report, None)
+}
+
+/// Like [`emit_llvm`], with an optional LLVM target triple for cross emit.
+pub fn emit_llvm_with_target(
+    module: &Module,
+    interner: &Interner,
+    report: Option<&EscapeReport>,
+    target_triple: Option<&str>,
+) -> String {
     let mut out = String::new();
     out.push_str("; ModuleID = 'rynix'\n");
-    out.push_str("source_filename = \"rynix\"\n\n");
+    out.push_str("source_filename = \"rynix\"\n");
+    if let Some(triple) = target_triple {
+        let _ = writeln!(out, "target triple = \"{triple}\"");
+        if triple.starts_with("wasm32") {
+            out.push_str(
+                "target datalayout = \"e-m:e-p:32:32-p10:8:8-p20:32:32-i64:64-n32:64-S128-ni:1:10:20\"\n",
+            );
+        }
+    }
+    out.push('\n');
 
     // Runtime declarations.
     out.push_str("declare void @rynix_rt_print(ptr)\n");

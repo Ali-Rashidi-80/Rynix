@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use rynix_ast::AstArena;
-use rynix_codegen::{emit_llvm, prune_unreachable};
+use rynix_codegen::{emit_llvm_with_target, prune_unreachable};
 use rynix_diag::VecSink;
 use rynix_rir::{
     analyze_escape, inject_regions, interpret_module_print, lower_module, run_pipeline, Inst,
@@ -40,7 +40,13 @@ pub fn compile_to_llvm(
     error_format: ErrorFormat,
 ) -> Result<CodegenResult, ExitCode> {
     let primary = path.to_path_buf();
-    compile_to_llvm_with_units(std::slice::from_ref(&primary), &[], optimize, error_format)
+    compile_to_llvm_with_units(
+        std::slice::from_ref(&primary),
+        &[],
+        optimize,
+        error_format,
+        None,
+    )
 }
 
 /// Unity-compile primary + dependency/std units (SPEC §6.3–6.5).
@@ -61,7 +67,13 @@ pub fn compile_to_llvm_with_deps(
         })
         .collect();
     let primary = primary.to_path_buf();
-    compile_to_llvm_with_units(std::slice::from_ref(&primary), &units, optimize, error_format)
+    compile_to_llvm_with_units(
+        std::slice::from_ref(&primary),
+        &units,
+        optimize,
+        error_format,
+        None,
+    )
 }
 
 pub fn compile_to_llvm_with_units(
@@ -69,6 +81,7 @@ pub fn compile_to_llvm_with_units(
     dep_units: &[CompileUnit],
     optimize: bool,
     error_format: ErrorFormat,
+    target_triple: Option<&str>,
 ) -> Result<CodegenResult, ExitCode> {
     let (unity_name, unity_text) = match build_unity_source(primary, dep_units) {
         Ok(v) => v,
@@ -116,7 +129,7 @@ pub fn compile_to_llvm_with_units(
     let report = analyze_escape(&rir, &interner);
     inject_regions(&mut rir, &report);
     prune_unreachable(&mut rir, &interner);
-    let ll = emit_llvm(&rir, &interner, Some(&report));
+    let ll = emit_llvm_with_target(&rir, &interner, Some(&report), target_triple);
     let const_print_i64 =
         detect_const_print_i64(&ll).or_else(|| eval_const_print_if_acyclic(&rir, &interner));
 

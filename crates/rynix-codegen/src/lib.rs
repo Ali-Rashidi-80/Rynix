@@ -6,5 +6,5 @@
 mod emit;
 mod reach;
 
-pub use emit::emit_llvm;
+pub use emit::{emit_llvm, emit_llvm_with_target};
 pub use reach::{prune_unreachable, reachable_from_main};

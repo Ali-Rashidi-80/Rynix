@@ -304,8 +304,11 @@ optimize = true
 or omit the path to use cwd (`find_manifest`). Root packages compile
 `[package].entry` then `files` as one primary unity unit. CLI `--runtime=`
 wins when present; otherwise `[build].runtime` from the root manifest; else
-portable. `[build].optimize` is parsed but not yet applied (build still
-hardcodes optimize). Broken path deps fail the build gate. Resolve with
+portable. CLI `--opt` / `--no-opt` win when present; otherwise
+`[build].optimize`; else optimize defaults **on** for build/run
+([PHASE13.md](docs/PHASE13.md)). Cross emit: `rynixc emit-ll file.ryx
+--target=wasm32-unknown-unknown` (clang `-c` smoke gated; no WASI RT yet).
+Broken path deps fail the build gate. Resolve with
 `rynixc deps [path] --error-format=json`
 (includes a `lock` object). Pin with `rynixc deps --lock` → `rynix.lock.toml` at package or workspace root;
 `--locked` requires a matching pin. Workspace members use `{ workspace = true }`

@@ -47,8 +47,9 @@ pub fn run(options: &BuildOptions) -> ExitCode {
     let result = match codegen_pipe::compile_to_llvm_with_units(
         &project.primary,
         &dep_units,
-        true,
+        effective_optimize(options.optimize, project.optimize),
         options.error_format,
+        None,
     ) {
         Ok(r) => r,
         Err(code) => return code,
@@ -159,6 +160,11 @@ fn effective_runtime(cli: Option<RuntimeKind>, manifest: Option<&str>) -> Runtim
             RuntimeKind::Portable
         }
     }
+}
+
+/// CLI `--opt` / `--no-opt` when set; else `[build].optimize`; else `true` (P13-L5).
+fn effective_optimize(cli: Option<bool>, manifest: Option<bool>) -> bool {
+    cli.or(manifest).unwrap_or(true)
 }
 
 fn emit_resolve_error(message: &str, error_format: ErrorFormat) -> ExitCode {
