@@ -1438,6 +1438,12 @@ fn enum_match_variant_roundtrip() {
 }
 
 #[test]
+fn inline_match_return_roundtrip() {
+    // Exhaustive match+return inlined into main (Phase 22-A).
+    build_run_fixture("inline_match_return", "6");
+}
+
+#[test]
 fn example_http_path_param_tls_checks() {
     let root = repo_root();
     let example = root.join("examples/11_http_path_param_tls.ryx");
@@ -1830,6 +1836,44 @@ fn mcp_apply_fix_path_file() {
 }
 
 #[test]
+fn mcp_format_path_file() {
+    let path = example("01_hello.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let (resp, err) = mcp_tools_call("rynix_format", serde_json::json!({ "path": path_str }));
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    assert!(
+        text.contains("def main"),
+        "expected formatted source, got: {text}"
+    );
+    let err = err.expect("fail-closed response");
+    assert!(
+        err.get("error").is_some(),
+        "missing path must fail-closed with error: {err}"
+    );
+}
+
+#[test]
+fn mcp_compile_path_file() {
+    let path = example("01_hello.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let (resp, err) = mcp_tools_call("compile", serde_json::json!({ "path": path_str }));
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    assert!(
+        text.contains("define") || text.contains("@main"),
+        "expected LLVM IR, got: {text}"
+    );
+    let err = err.expect("fail-closed response");
+    assert!(
+        err.get("error").is_some(),
+        "missing path must fail-closed with error: {err}"
+    );
+}
+
+#[test]
 fn verify_phase19_path_mcp_contract() {
     let root = repo_root();
     let contract = root.join("docs/contracts/phase19_path_mcp.contract.toml");
@@ -1884,6 +1928,35 @@ fn verify_phase21_roi_contract() {
     assert_eq!(v["schema"], "rynix.verify.v1");
     assert_eq!(v["status"], "passed");
     assert_eq!(v["contract"], "phase21-roi");
+    assert_eq!(v["ran_tests"], false);
+}
+
+#[test]
+fn verify_phase22_inline_mcp_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase22_inline_mcp.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "verify failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["schema"], "rynix.verify.v1");
+    assert_eq!(v["status"], "passed");
+    assert_eq!(v["contract"], "phase22-inline-mcp");
     assert_eq!(v["ran_tests"], false);
 }
 

@@ -243,6 +243,16 @@ VS Code completion/rename docs.
 | D | CHANGELOG (no push unless asked) | ✅ |
 | E | VS Code LSP completion/rename client honesty | ✅ |
 
+## Phase 22 — Inline match+return + MCP path-first remainder
+
+Plan: **[PHASE22.md](PHASE22.md)**. Fix phantom CFG join after exhaustive
+`return` in match/if when inlined; finish MCP disk-first tools.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | Empty join → unreachable; reachable-only phi | ✅ `inline_match_return_roundtrip` |
+| B | MCP `format` / `explain_alloc` / `compile` / `ast_query` path-first | ✅ `mcp_format_path_file`, `mcp_compile_path_file` |
+
 ## Follow-on (post-13 / parallel)
 
 | Item | Status | Gate |

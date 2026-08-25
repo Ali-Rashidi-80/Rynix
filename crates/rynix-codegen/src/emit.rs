@@ -430,6 +430,12 @@ fn emit_function(
 
         if bi > 0 && !block.params.is_empty() {
             let pred_list = preds.get(&bid).cloned().unwrap_or_default();
+            // Only reachable predecessors — unreachable fallthrough blocks must not
+            // appear in phi (Phase 22: inline match+return phantom joins).
+            let pred_list: Vec<_> = pred_list
+                .into_iter()
+                .filter(|(pred, _)| reachable[pred.0 as usize])
+                .collect();
             for (pi, (pvid, pty)) in block.params.iter().enumerate() {
                 let name = format!("%bp{}_{}", bi, pvid.0);
                 if pred_list.is_empty() {

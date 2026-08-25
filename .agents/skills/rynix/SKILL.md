@@ -40,7 +40,8 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
   `docs/PHASE16.md`
 - Contracts: `docs/contracts/wave1.contract.toml`, `wave12_manifest.contract.toml`,
   `phase19_path_mcp.contract.toml` (path-first MCP + LSP completion/rename),
-  `phase21_roi.contract.toml` (MCP path-first remainder + match variants)
+  `phase21_roi.contract.toml` (MCP path-first remainder + match variants),
+  `phase22_inline_mcp.contract.toml` (inline match+return + MCP format/compile)
 - vs End verdict: `docs/VERDICT.md`, `docs/END_PEER_GAP.md`
 - Soft builtins and std: README Soft builtins + `std/*.ryx` (`std::fs`, `std::crypto`,
   HTTP loop `_2paths_` / `_3paths_` / `path_param`)
@@ -48,7 +49,8 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
   (local/module `def` + `let` near cursor), **rename** (in-document local symbol)
 - MCP: prefer filesystem `path` (path-first; fail-closed on missing file) for
   `rynix_graph` / `rynix_impact` / `rynix_precheck` / `rynix_check` /
-  `rynix_context` / `rynix_security` / `apply_fix`; inline `source` still works
+  `rynix_context` / `rynix_security` / `apply_fix` / `rynix_format` /
+  `rynix_explain_alloc` / `compile` / `ast_query`; inline `source` still works
 - Language: `match` on nullary enum variant idents ([ADR-0015](../../docs/adr/0015-match-enum-variants.md))
 - Memory: escape / region / linear move (`RYX2011`) / `#^ effect: pure` (`RYX2012`)
 - Reserved stubs rejected: `tensor` / `signal` / `agent` → `RYX2013`

@@ -6,14 +6,23 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ## [Unreleased]
 
+### Fixed
+
+- Phase 22: inlined `match`/`if` where every arm `return`s no longer leaves an
+  empty CFG join that becomes a phantom `inline_merge` predecessor (clang
+  `phi` referencing undefined `%bN`). LLVM emit also skips unreachable phi preds.
+
 ### Added
 
+- Phase 22: MCP path-first for `rynix_format` / `rynix_explain_alloc` / `compile` /
+  `ast_query`.
 - Phase 21: MCP path-first for `rynix_check` / `diagnostics`, `rynix_context`,
   `rynix_security`, and `apply_fix` (fail-closed disk read; inline `source`
   still optional).
 - `match` on nullary enum variant idents ([ADR-0015](docs/adr/0015-match-enum-variants.md)).
 - Example `examples/11_http_path_param_tls.ryx` (path_param loop + HTTP TLS).
 - `docs/PHASE21.md` + `docs/contracts/phase21_roi.contract.toml`.
+- `docs/PHASE22.md` + `docs/contracts/phase22_inline_mcp.contract.toml`.
 
 ### Changed
 

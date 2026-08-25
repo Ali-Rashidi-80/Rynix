@@ -100,38 +100,46 @@ fn tool_defs() -> Value {
         },
         {
             "name": "rynix_format",
-            "description": "Canonical-format a Rynix source string",
+            "description": "Canonical-format Rynix. Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
-                "properties": { "source": { "type": "string" } },
-                "required": ["source"]
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
             }
         },
         {
             "name": "rynix_explain_alloc",
-            "description": "Escape/placement report for a clean Rynix source string",
+            "description": "Escape/placement report. Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
-                "properties": { "source": { "type": "string" } },
-                "required": ["source"]
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
             }
         },
         {
             "name": "compile",
-            "description": "Lower+escape+opt and emit textual LLVM IR (.ll)",
+            "description": "Lower+escape+opt and emit textual LLVM IR (.ll). Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
-                "properties": { "source": { "type": "string" } },
-                "required": ["source"]
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
             }
         },
         {
             "name": "ast_query",
-            "description": "Parse and return the s-expression AST dump",
+            "description": "Parse and return the s-expression AST dump. Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
-                "properties": { "source": { "type": "string" } },
-                "required": ["source"]
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
             }
         },
         {
@@ -471,30 +479,26 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         return Ok(json!({ "content": [{ "type": "text", "text": report.to_json().to_string() }] }));
     }
 
-    let source = args
-        .get("source")
-        .and_then(|s| s.as_str())
-        .ok_or_else(|| rpc_error(-32602, "missing source"))?;
-
-    match name {
-        "rynix_format" => {
-            let formatted = format_source(source)?;
-            Ok(json!({ "content": [{ "type": "text", "text": formatted }] }))
-        }
-        "rynix_explain_alloc" => {
-            let text = explain_source(source)?;
-            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
-        }
-        "compile" => {
-            let ll = compile_source(source)?;
-            Ok(json!({ "content": [{ "type": "text", "text": ll }] }))
-        }
-        "ast_query" => {
-            let dump = ast_source(source)?;
-            Ok(json!({ "content": [{ "type": "text", "text": dump }] }))
-        }
-        other => Err(rpc_error(-32602, format!("unknown tool: {other}"))),
+    // Path-first format / explain / compile / ast_query (Phase 22).
+    if name == "rynix_format"
+        || name == "rynix_explain_alloc"
+        || name == "compile"
+        || name == "ast_query"
+    {
+        let path_arg = args.get("path").and_then(|p| p.as_str());
+        let source_arg = args.get("source").and_then(|s| s.as_str());
+        let (_label, text) = resolve_label_and_text(path_arg, source_arg)?;
+        let out = match name {
+            "rynix_format" => format_source(&text)?,
+            "rynix_explain_alloc" => explain_source(&text)?,
+            "compile" => compile_source(&text)?,
+            "ast_query" => ast_source(&text)?,
+            _ => unreachable!(),
+        };
+        return Ok(json!({ "content": [{ "type": "text", "text": out }] }));
     }
+
+    Err(rpc_error(-32602, format!("unknown tool: {name}")))
 }
 
 fn check_source(path: &str, source: &str) -> String {

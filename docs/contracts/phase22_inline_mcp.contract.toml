@@ -1,0 +1,34 @@
+# Phase 22 — inline match+return + MCP path-first remainder
+
+[contract]
+name = "phase22-inline-mcp"
+
+[[evidence]]
+id = "inline-match-return"
+kind = "cargo_test"
+package = "rynixc"
+filter = "inline_match_return_roundtrip"
+
+[[evidence]]
+id = "mcp-format-path"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_format_path_file"
+
+[[evidence]]
+id = "mcp-compile-path"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_compile_path_file"
+
+[[evidence]]
+id = "phase22-doc"
+kind = "file"
+path = "docs/PHASE22.md"
+contains = "inline_merge"
+
+[[evidence]]
+id = "skill-phase22"
+kind = "file"
+path = ".agents/skills/rynix/SKILL.md"
+contains = "phase22_inline_mcp"

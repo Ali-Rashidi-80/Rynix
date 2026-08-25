@@ -125,6 +125,25 @@ fn match_stmt_updates_mut(m: &rynix_ast::MatchStmt<'_>) -> bool {
         || m.else_body.is_some_and(|b| if_updates_carried(b))
 }
 
+/// Whether any terminator currently targets `join` (used before sealing empty joins).
+fn block_has_incoming(func: &crate::ir::Function, join: BlockId) -> bool {
+    for block in &func.blocks {
+        let Some(&last) = block.insts.last() else {
+            continue;
+        };
+        match func.inst(last) {
+            Inst::Jump { target, .. } if *target == join => return true,
+            Inst::Br {
+                then_target,
+                else_target,
+                ..
+            } if *then_target == join || *else_target == join => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
 fn if_updates_carried(body: &[Stmt<'_>]) -> bool {
     for stmt in body {
         match stmt {
@@ -4050,8 +4069,7 @@ impl LowerCtx<'_, '_> {
         // Flatten to nested br for the first arm; elif/else chain.
         let join = self.b.create_block();
         self.lower_if_arms(&i.arms, i.else_body, join);
-        self.b.switch_to(join);
-        self.b.seal_block(join);
+        self.finish_cfg_join(join);
     }
 
     fn lower_if_arms(
@@ -4098,7 +4116,17 @@ impl LowerCtx<'_, '_> {
         let join = self.b.create_block();
         let scrut = self.expr(m.scrutinee);
         self.lower_match_arms(scrut, m.arms, m.else_body, join);
+        self.finish_cfg_join(join);
+    }
+
+    /// Seal a CFG join. If every arm returned/diverged (no edge into `join`),
+    /// mark it `unreachable` so inlining does not add a phantom fallthrough
+    /// predecessor to `inline_merge` (Phase 22 — clang phi `%bN` undefined).
+    fn finish_cfg_join(&mut self, join: crate::ir::BlockId) {
         self.b.switch_to(join);
+        if !self.is_terminated() && !block_has_incoming(&self.b.func, join) {
+            let _ = self.b.push(Inst::Unreachable);
+        }
         self.b.seal_block(join);
     }
 
