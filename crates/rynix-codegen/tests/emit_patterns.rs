@@ -119,11 +119,17 @@ end
 }
 
 #[test]
-fn fib_const_trip_has_no_loop_latch() {
+fn fib_opaque_strength_reduces_without_host_fold() {
+    // Suite5 fairness: opaque_i64 blocks collapsing n to a host-evaluated iconst.
+    // Matrix-power strength reduction may remain (log-n loop + metadata) — that is OK.
     let ll = emit(include_str!("../../../benchmarks/suite5/fib.ryx"));
     assert!(
-        !ll.contains("!llvm.loop") && ll.contains("-2038371929568609723"),
-        "fib should fold to iconst (no loop metadata):\n{ll}"
+        ll.contains("@rynix_rt_opaque_i64") || ll.contains("@rynix_rt_print_i64"),
+        "fib Suite5 IR should retain opaque/print surface:\n{ll}"
+    );
+    assert!(
+        !(ll.contains("-2038371929568609723") && !ll.contains("!llvm.loop")),
+        "opaque fib must not host-fold to a lone checksum iconst:\n{ll}"
     );
 }
 
@@ -153,11 +159,16 @@ end
 }
 
 #[test]
-fn nested_folds_away_loop_latches() {
+fn nested_opaque_uses_residue_reduction_not_host_fold() {
+    // Opaque equal bounds → residue O(m²) loops (m=97), not a single iconst.
     let ll = emit(include_str!("../../../benchmarks/suite5/nested.ryx"));
     assert!(
-        !ll.contains("!llvm.loop") && ll.contains("9623703"),
-        "nested should fold to iconst (no loop metadata):\n{ll}"
+        ll.contains("@rynix_rt_opaque_i64") || ll.contains("@rynix_rt_print_i64"),
+        "nested Suite5 IR should retain opaque/print surface:\n{ll}"
+    );
+    assert!(
+        !(ll.contains("9623703") && !ll.contains("!llvm.loop")),
+        "opaque nested must not host-fold to a lone checksum iconst:\n{ll}"
     );
 }
 

@@ -487,6 +487,75 @@ end
 }
 
 #[test]
+fn http_loop_2paths() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+
+    let ryx = root.join("target/http_loop_2paths_check.ryx");
+    std::fs::write(
+        &ryx,
+        r#"def main() -> i64
+  let rc = http_serve_loop_2paths_json_i64(0, "/a", 11, "/b", 22, 3)
+  return rc
+end
+"#,
+    )
+    .unwrap();
+    let check = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["check", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "http_serve_loop_2paths_json_i64 check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["emit-ll", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(ll.status.success(), "emit-ll failed");
+    let text = String::from_utf8_lossy(&ll.stdout);
+    assert!(
+        text.contains("rynix_rt_http_serve_loop_2paths_json_i64"),
+        "missing 2paths serve_loop runtime call in IR"
+    );
+
+    let out = std::env::temp_dir().join("rynix_http_loop_2paths_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/http_loop_2paths_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-lws2_32").arg("-lsecur32").arg("-lcrypt32").arg("-lbcrypt");
+    }
+    assert!(
+        cmd.status().unwrap().success(),
+        "http_loop_2paths smoke compile failed"
+    );
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(
+        Command::new(exe).status().unwrap().success(),
+        "http_loop_2paths smoke failed"
+    );
+}
+
+#[test]
 fn http_post_echo_smoke_c() {
     let Some(clang) = clang() else {
         eprintln!("skip: no clang on PATH");

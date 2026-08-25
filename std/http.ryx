@@ -34,7 +34,14 @@ Listens once and serves until exactly `max_reqs` matching GETs for `path` have
 been answered with `{"value": <value>}`. Returns `0` on success, `-1` if
 `max_reqs <= 0` or on I/O error. Non-matching requests get 404 and do not count.
 
+`http_serve_loop_2paths_json_i64(port, path_a, val_a, path_b, val_b, max_reqs) -> i64`
+
+Same listen-once contract, but a matching GET on **either** `path_a` or `path_b`
+counts (responding with the corresponding value). Useful for thin dual-route
+smokes without a full router.
+
 Pair with a fiber client (see `rt/tests/http_post_echo_smoke.c` /
-`rt/tests/http_loop_three_gets_smoke.c`) or an external HTTP client.
+`rt/tests/http_loop_three_gets_smoke.c` / `rt/tests/http_loop_2paths_smoke.c`)
+or an external HTTP client.
 
 Low-level TCP remains in `std/net.ryx` (`tcp_listen`, `tcp_connect`, …).

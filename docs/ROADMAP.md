@@ -185,6 +185,7 @@ Plan: **[PHASE13.md](PHASE13.md)**. Order: A then B.
 |------|--------|--------|
 | A | `emit-ll --target=wasm32-unknown-unknown` + clang `-c` smoke | ✅ `emit_ll_wasm32_clang_accepts` |
 | B | `[build].optimize` + `--opt`/`--no-opt` for build/run | ✅ `build_respects_manifest_optimize` |
+| C | Dual-path HTTP loop (`http_serve_loop_2paths_json_i64`) | ✅ `http_loop_2paths` |
 
 ## CI
 

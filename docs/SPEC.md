@@ -279,6 +279,7 @@ lower to `rynix_rt_*` symbols documented in [abi.md](abi.md):
 | `http_serve_once_json_i64(port, path, value)` | one-shot HTTP JSON server |
 | `http_serve_once_echo_json_i64(port, path, field)` | one-shot echo request JSON field |
 | `http_serve_loop_json_i64(port, path, value, max_reqs)` | bounded: exactly `max_reqs` matching GETs → `0` |
+| `http_serve_loop_2paths_json_i64(port, path_a, val_a, path_b, val_b, max_reqs)` | dual-path bounded loop (either path counts) |
 | `frame_serve_once_echo` / `frame_client_echo` | length-prefixed binary frame echo |
 | `tls_serve_once_echo` / `tls_client_echo` | TLS echo (real SChannel/OpenSSL) |
 | `sha256_first_i64(data)` | SHA-256 → first 8 bytes as i64 |

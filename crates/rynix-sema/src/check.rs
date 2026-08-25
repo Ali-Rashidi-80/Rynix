@@ -222,6 +222,11 @@ impl<'a> Checker<'a> {
         self.soft_fn("http_serve_once_json_i64", vec![i, s, i], i);
         self.soft_fn("http_serve_once_echo_json_i64", vec![i, s, s], i);
         self.soft_fn("http_serve_loop_json_i64", vec![i, s, i, i], i);
+        self.soft_fn(
+            "http_serve_loop_2paths_json_i64",
+            vec![i, s, i, s, i, i],
+            i,
+        );
         self.soft_fn("frame_serve_once_echo", vec![i], i);
         self.soft_fn("frame_client_echo", vec![s, i, s], i);
         self.soft_fn("tls_serve_once_echo", vec![i], i);

@@ -1,6 +1,6 @@
 # Phase 13 — WASM emit + manifest optimize
 
-**Status:** **Phase 13 complete** (waves A–B green, 2026-08-25)  
+**Status:** **Phase 13 complete** (waves A–C green, 2026-08-25)  
 **After:** Phase 12 complete ([LEAD_AHEAD.md](LEAD_AHEAD.md)) · peer verdict ([VERDICT.md](VERDICT.md))
 
 ## North star
@@ -9,7 +9,9 @@
    wasm32 triple that **clang `--target=wasm32-unknown-unknown -c`** accepts.
 2. `[build].optimize` in `rynix.toml` actually controls RIR optimize for `build`/`run`
    (closes Phase 12 L5).
-3. No WASI runtime port, no browser games, no End WASM toy theater.
+3. Dual-path bounded HTTP JSON routing on the existing fiber/RT path (not a
+   framework).
+4. No WASI runtime port, no browser games, no End WASM toy theater.
 
 ## Order
 
@@ -33,6 +35,7 @@ independence; may ship same day with separate commits when possible.
 |------|-----------|--------|
 | A | `emit_ll_wasm32_clang_accepts` | wasm32 `.ll` + clang `-c` |
 | B | `build_respects_manifest_optimize` | `[build].optimize = false` skips RIR opt path (observable) **or** `--no-opt` / manifest round-trip |
+| C | `http_loop_2paths` | dual-path bounded JSON GET routing |
 
 ## Refuse
 

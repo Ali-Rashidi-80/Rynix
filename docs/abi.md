@@ -43,6 +43,7 @@ parked). `tcp_accept` / `tcp_connect` use uring when the ring is ready.
 | `rynix_rt_http_serve_once_json_i64` | `i64(port, path, value)` | One-shot HTTP JSON server (soft std) |
 | `rynix_rt_http_serve_once_echo_json_i64` | `i64(port, path, field)` | One-shot echo request JSON field |
 | `rynix_rt_http_serve_loop_json_i64` | `i64(port, path, value, max_reqs)` | Bounded loop: exactly `max_reqs` matching GETs → `0`; `max_reqs <= 0` → `-1` |
+| `rynix_rt_http_serve_loop_2paths_json_i64` | `i64(port, path_a, val_a, path_b, val_b, max_reqs)` | Dual-path: matching GET on either path counts toward `max_reqs` |
 | `rynix_rt_frame_serve_once_echo` / `_client_echo` | framed TCP echo | Length-prefixed binary framing |
 | `rynix_rt_ws_accept_key_eq` / `_accept_sha1_first_i64` | WS accept | RFC 6455 Sec-WebSocket-Accept |
 | `rynix_rt_ws_frame_encode` / `_decode` / `_roundtrip_ok` | WS frames | 7/16/64-bit lengths; mask XOR; fragmentation KATs |
