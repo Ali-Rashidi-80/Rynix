@@ -1444,6 +1444,16 @@ fn inline_match_return_roundtrip() {
 }
 
 #[test]
+fn enum_qualified_variant_roundtrip() {
+    build_run_fixture("enum_qualified_variant", "2");
+}
+
+#[test]
+fn vec_str_roundtrip() {
+    build_run_fixture("vec_str_roundtrip", "2");
+}
+
+#[test]
 fn example_http_path_param_tls_checks() {
     let root = repo_root();
     let example = root.join("examples/11_http_path_param_tls.ryx");
@@ -1957,6 +1967,35 @@ fn verify_phase22_inline_mcp_contract() {
     assert_eq!(v["schema"], "rynix.verify.v1");
     assert_eq!(v["status"], "passed");
     assert_eq!(v["contract"], "phase22-inline-mcp");
+    assert_eq!(v["ran_tests"], false);
+}
+
+#[test]
+fn verify_phase23_depth_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase23_depth.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "verify failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["schema"], "rynix.verify.v1");
+    assert_eq!(v["status"], "passed");
+    assert_eq!(v["contract"], "phase23-depth");
     assert_eq!(v["ran_tests"], false);
 }
 

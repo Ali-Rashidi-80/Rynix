@@ -253,6 +253,18 @@ Plan: **[PHASE22.md](PHASE22.md)**. Fix phantom CFG join after exhaustive
 | A | Empty join → unreachable; reachable-only phi | ✅ `inline_match_return_roundtrip` |
 | B | MCP `format` / `explain_alloc` / `compile` / `ast_query` path-first | ✅ `mcp_format_path_file`, `mcp_compile_path_file` |
 
+## Phase 23 — Depth: LSP refs, Enum::Variant, Vec[str], tag
+
+Plan: **[PHASE23.md](PHASE23.md)**.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| Hyg | PRODUCTION_READINESS honesty (0–22+) | ✅ |
+| A | LSP references + workspace/symbol | ✅ `references_lists_local_uses`, `workspace_symbol_lists_fn` |
+| B | `Enum::Variant` paths + match | ✅ `enum_qualified_variant_roundtrip` |
+| C | `Vec[str]` mono ([ADR-0016](adr/0016-vec-str-mono.md)) | ✅ `vec_str_roundtrip` |
+| D | Local tag `v0.1.0` (no push) | ✅ |
+
 ## Follow-on (post-13 / parallel)
 
 | Item | Status | Gate |

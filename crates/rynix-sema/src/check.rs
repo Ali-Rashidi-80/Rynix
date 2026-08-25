@@ -187,15 +187,21 @@ impl<'a> Checker<'a> {
         self.soft_fn("fiber_run", vec![], self.types.ty_unit);
         // `tensor` / `signal` / `agent` are reserved keywords — not soft callables (RYX2013).
 
-        // Region Vec/Map (i64 monomorphized) — soft std surface.
+        // Region Vec/Map (i64 + str monomorphs) — soft std surface.
         let unit = self.types.ty_unit;
         let i = self.types.ty_int;
+        let s = self.types.ty_str;
         let v = self.types.ty_vec;
+        let vs = self.types.ty_vec_str;
         let m = self.types.ty_map;
         self.soft_fn("vec_new", vec![i], v);
         self.soft_fn("vec_push", vec![v, i], unit);
         self.soft_fn("vec_get", vec![v, i], i);
         self.soft_fn("vec_len", vec![v], i);
+        self.soft_fn("vec_str_new", vec![i], vs);
+        self.soft_fn("vec_str_push", vec![vs, s], unit);
+        self.soft_fn("vec_str_get", vec![vs, i], s);
+        self.soft_fn("vec_str_len", vec![vs], i);
         self.soft_fn("map_new", vec![i], m);
         self.soft_fn("map_insert", vec![m, i, i], unit);
         self.soft_fn("map_get", vec![m, i], i);
@@ -462,16 +468,20 @@ impl<'a> Checker<'a> {
                 match name.as_str() {
                     "Vec" if args.len() == 1 => {
                         let elem = self.lower_type(args[0], scope);
-                        if !self.types.compatible(elem, self.types.ty_int)
-                            && !matches!(self.types.kind(elem), TypeKind::Error)
+                        if self.types.compatible(elem, self.types.ty_int)
+                            || matches!(self.types.kind(elem), TypeKind::Error)
                         {
+                            self.types.ty_vec
+                        } else if self.types.compatible(elem, self.types.ty_str) {
+                            self.types.ty_vec_str
+                        } else {
                             self.sink.emit(errors::type_mismatch(
                                 *span,
-                                "Vec[i64]",
+                                "Vec[i64] or Vec[str]",
                                 &format!("Vec[{}]", self.display_ty(elem)),
                             ));
+                            self.types.ty_error
                         }
-                        self.types.ty_vec
                     }
                     "Map" if args.len() == 2 => {
                         let k = self.lower_type(args[0], scope);
@@ -958,10 +968,13 @@ impl<'a> Checker<'a> {
                     (TypeKind::Slice(_), "len") => self.types.ty_int,
                     (TypeKind::Vec, "len" | "get") => self.types.ty_int,
                     (TypeKind::Vec, "push") => self.types.ty_unit,
+                    (TypeKind::VecStr, "len") => self.types.ty_int,
+                    (TypeKind::VecStr, "get") => self.types.ty_str,
+                    (TypeKind::VecStr, "push") => self.types.ty_unit,
                     (TypeKind::Map, "len" | "get") => self.types.ty_int,
                     (TypeKind::Map, "insert") => self.types.ty_unit,
                     (TypeKind::Module, _) => expected.unwrap_or(self.types.ty_error),
-                    (TypeKind::Vec | TypeKind::Map | TypeKind::Slice(_), _) => {
+                    (TypeKind::Vec | TypeKind::VecStr | TypeKind::Map | TypeKind::Slice(_), _) => {
                         self.sink.emit(errors::unknown_method(
                             m.method.span,
                             &self.display_ty(recv),
@@ -1197,6 +1210,29 @@ impl<'a> Checker<'a> {
         };
         self.path_resolution.insert(path.id, def);
         let kind = &self.defs[def.index() as usize];
+        // `Enum::Variant` — allow enum type as path prefix (Phase 23-B).
+        if path.segments.len() == 2 && matches!(kind, DefKind::Enum { .. }) {
+            let seg = &path.segments[1];
+            if let Some(&(vdef, _)) = self
+                .enum_variants
+                .get(&def)
+                .and_then(|m| m.get(&seg.name))
+            {
+                self.path_resolution.insert(path.id, vdef);
+                let ty = self
+                    .def_types
+                    .get(&vdef)
+                    .copied()
+                    .unwrap_or(self.types.ty_error);
+                self.node_types.insert(path.id, ty);
+                return ty;
+            }
+            self.sink.emit(errors::unresolved_name(
+                seg.span,
+                self.interner.resolve(seg.name),
+            ));
+            return self.types.ty_error;
+        }
         if kind.is_type() && !matches!(kind, DefKind::Variant { .. }) {
             // Types are not bare values; use `Name { … }` struct literals.
             self.sink.emit(errors::unresolved_name(
@@ -1410,6 +1446,7 @@ impl<'a> Checker<'a> {
         matches!(
             self.types.kind(ty),
             TypeKind::Vec
+                | TypeKind::VecStr
                 | TypeKind::Map
                 | TypeKind::Ptr
                 | TypeKind::Slice(_)
@@ -1446,6 +1483,9 @@ impl<'a> Checker<'a> {
         };
         self.path_resolution.insert(path.id, def);
         let kind = &self.defs[def.index() as usize];
+        if path.segments.len() == 2 && matches!(kind, DefKind::Enum { .. }) {
+            return self.check_path(path, scope);
+        }
         if kind.is_type() && !matches!(kind, DefKind::Variant { .. }) {
             self.sink.emit(errors::unresolved_name(
                 first.span,

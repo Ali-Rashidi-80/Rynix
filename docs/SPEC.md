@@ -179,9 +179,9 @@ if_stmt     = "if" expr Newline block { "elif" expr Newline block }
               [ "else" Newline block ] "end"
 match_stmt  = "match" expr Newline { match_arm } [ "else" Newline block ] "end"
 match_arm   = match_pat Newline block
-match_pat   = IntLit | "true" | "false" | "_" | Ident
-              ; Ident = nullary enum variant path (ADR-0015); arm header must
-              ; end the line (not `Ident(...)` / `Ident = …` body stmts)
+match_pat   = IntLit | "true" | "false" | "_" | path
+              ; path = bare nullary variant or `Enum::Variant` (ADR-0015);
+              ; arm header must end the line (not `Ident(...)` / `Ident = …`)
 expr_stmt   = expr Newline
 
 expr        = … | struct_lit | …

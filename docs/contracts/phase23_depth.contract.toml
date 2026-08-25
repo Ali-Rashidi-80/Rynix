@@ -1,0 +1,46 @@
+# Phase 23 — LSP depth + Enum::Variant + Vec[str]
+
+[contract]
+name = "phase23-depth"
+
+[[evidence]]
+id = "lsp-references"
+kind = "cargo_test"
+package = "rynixc"
+filter = "references_lists_local_uses"
+
+[[evidence]]
+id = "lsp-workspace-symbol"
+kind = "cargo_test"
+package = "rynixc"
+filter = "workspace_symbol_lists_fn"
+
+[[evidence]]
+id = "enum-qualified"
+kind = "cargo_test"
+package = "rynixc"
+filter = "enum_qualified_variant_roundtrip"
+
+[[evidence]]
+id = "vec-str"
+kind = "cargo_test"
+package = "rynixc"
+filter = "vec_str_roundtrip"
+
+[[evidence]]
+id = "phase23-doc"
+kind = "file"
+path = "docs/PHASE23.md"
+contains = "Vec[str]"
+
+[[evidence]]
+id = "adr-0016"
+kind = "file"
+path = "docs/adr/0016-vec-str-mono.md"
+contains = "VecStr"
+
+[[evidence]]
+id = "prod-readiness-22"
+kind = "file"
+path = "PRODUCTION_READINESS.md"
+contains = "0–23"

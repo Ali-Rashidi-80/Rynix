@@ -1,0 +1,24 @@
+## Qualified nullary enum variant paths (Phase 23-B)
+
+enum Color
+  Red
+  Green
+  Blue
+end
+
+def main() -> i64
+  let c = Color::Green
+  let mut n = 0
+  match c
+    Color::Red
+      n = 1
+    Color::Green
+      n = 2
+    Color::Blue
+      n = 3
+    _
+      n = 0
+  end
+  print_i64(n)
+  return 0
+end

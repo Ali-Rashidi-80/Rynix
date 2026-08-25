@@ -40,6 +40,7 @@ ad-hoc scraping.
 - Phase 20 complete: WASM host-import `env.print_i64` + package/INSTALL polish; Niche-10 certified ([docs/NICHE10.md](docs/NICHE10.md))
 - Phase 21: MCP path-first remainder + match enum variants + product example ([docs/PHASE21.md](docs/PHASE21.md))
 - Phase 22: inline match+return CFG fix + MCP format/compile path-first ([docs/PHASE22.md](docs/PHASE22.md))
+- Phase 23: LSP refs/symbols + `Enum::Variant` + `Vec[str]` ([docs/PHASE23.md](docs/PHASE23.md))
 - Install: one-path clang Win/Linux — [INSTALL.md](INSTALL.md)
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 

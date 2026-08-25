@@ -32,6 +32,8 @@ pub enum TypeKind {
     Ptr,
     /// Region Vec[i64] handle (ADR-0006).
     Vec,
+    /// Region Vec[str] handle (ADR-0016).
+    VecStr,
     /// Region Map[i64, i64] handle (ADR-0006).
     Map,
     Slice(TypeId),
@@ -61,6 +63,7 @@ pub struct TypeCtx {
     pub ty_nil: TypeId,
     pub ty_ptr: TypeId,
     pub ty_vec: TypeId,
+    pub ty_vec_str: TypeId,
     pub ty_map: TypeId,
     pub ty_module: TypeId,
 }
@@ -86,6 +89,7 @@ impl TypeCtx {
             ty_nil: TypeId(0),
             ty_ptr: TypeId(0),
             ty_vec: TypeId(0),
+            ty_vec_str: TypeId(0),
             ty_map: TypeId(0),
             ty_module: TypeId(0),
         };
@@ -99,6 +103,7 @@ impl TypeCtx {
         ctx.ty_nil = ctx.intern(TypeKind::Nil);
         ctx.ty_ptr = ctx.intern(TypeKind::Ptr);
         ctx.ty_vec = ctx.intern(TypeKind::Vec);
+        ctx.ty_vec_str = ctx.intern(TypeKind::VecStr);
         ctx.ty_map = ctx.intern(TypeKind::Map);
         ctx.ty_module = ctx.intern(TypeKind::Module);
         ctx
@@ -179,6 +184,7 @@ impl TypeCtx {
             TypeKind::Nil => "nil".into(),
             TypeKind::Ptr => "ptr".into(),
             TypeKind::Vec => "Vec[i64]".into(),
+            TypeKind::VecStr => "Vec[str]".into(),
             TypeKind::Map => "Map[i64, i64]".into(),
             TypeKind::Module => "<module>".into(),
             TypeKind::Slice(e) => format!("[{}]", self.display(*e, resolve_name, interner)),

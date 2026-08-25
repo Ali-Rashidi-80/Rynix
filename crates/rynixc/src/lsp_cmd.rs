@@ -1,5 +1,5 @@
 //! Minimal LSP server on stdio: full-sync documents, diagnostics, go-to-definition,
-//! hover, completion, and in-document rename.
+//! hover, completion, rename, references, and workspace symbols.
 
 #![allow(
     clippy::collapsible_if,
@@ -111,7 +111,9 @@ impl LanguageServer {
                         "completionProvider": {
                             "triggerCharacters": ["."]
                         },
-                        "renameProvider": true
+                        "renameProvider": true,
+                        "referencesProvider": true,
+                        "workspaceSymbolProvider": true
                     },
                     "serverInfo": {
                         "name": "rynixc-lsp",
@@ -134,6 +136,8 @@ impl LanguageServer {
             "textDocument/hover" => Some(self.hover(req)),
             "textDocument/completion" => Some(self.completion(req)),
             "textDocument/rename" => Some(self.rename(req)),
+            "textDocument/references" => Some(self.references(req)),
+            "workspace/symbol" => Some(self.workspace_symbol(req)),
             "textDocument/didClose" => {
                 if let Some(params) = &req.params {
                     if let Some(uri) = params["textDocument"]["uri"].as_str() {
@@ -434,6 +438,135 @@ impl LanguageServer {
                 "changes": { uri: edits }
             }
         })
+    }
+
+    fn references(&self, req: &LspRequest) -> Value {
+        let empty = json!([]);
+        let Some(params) = &req.params else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let uri = params["textDocument"]["uri"].as_str().unwrap_or_default();
+        let include_decl = params["context"]["includeDeclaration"]
+            .as_bool()
+            .unwrap_or(true);
+        let line = params["position"]["line"].as_u64().unwrap_or(0) as u32 + 1;
+        let col = params["position"]["character"].as_u64().unwrap_or(0) as u32 + 1;
+        let Some(doc) = self.documents.get(uri) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+
+        let mut sources = SourceMap::new();
+        let label = doc.path.to_string_lossy();
+        sources.add_owned(label.as_ref(), doc.text.clone());
+        let file = sources.files().next().expect("one file");
+        let offset = pos_from_line_col(file, line, col);
+
+        let arena = AstArena::new();
+        let mut interner = rynix_span::Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(
+            &arena,
+            &mut interner,
+            file.text(),
+            file.start_pos(),
+            &mut sink,
+        );
+        let analysis = analyze(module, &mut interner, &mut sink);
+
+        let Some(def_idx) = def_index_at(module, &analysis, offset) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let def_span = analysis.defs.get(def_idx).and_then(|d| d.span());
+        let mut locs = Vec::new();
+        for span in reference_spans(module, &analysis, def_idx) {
+            if !include_decl {
+                if let Some(ds) = def_span {
+                    if span.lo() == ds.lo() && span.hi() == ds.hi() {
+                        continue;
+                    }
+                }
+            }
+            let (_f, start) = sources.line_col(span.lo());
+            let (_, end) = sources.line_col(span.hi());
+            locs.push(json!({
+                "uri": uri,
+                "range": {
+                    "start": {
+                        "line": start.line.saturating_sub(1),
+                        "character": start.col.saturating_sub(1)
+                    },
+                    "end": {
+                        "line": end.line.saturating_sub(1),
+                        "character": end.col.saturating_sub(1)
+                    }
+                }
+            }));
+        }
+        json!({ "jsonrpc": "2.0", "id": req.id, "result": locs })
+    }
+
+    fn workspace_symbol(&self, req: &LspRequest) -> Value {
+        let empty = json!([]);
+        let Some(params) = &req.params else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let query = params["query"].as_str().unwrap_or("").to_ascii_lowercase();
+        let mut symbols = Vec::new();
+        for (uri, doc) in &self.documents {
+            let arena = AstArena::new();
+            let mut interner = rynix_span::Interner::new();
+            let mut sink = VecSink::new();
+            let module = rynix_parser::parse(
+                &arena,
+                &mut interner,
+                &doc.text,
+                0,
+                &mut sink,
+            );
+            let analysis = analyze(module, &mut interner, &mut sink);
+            let mut sources = SourceMap::new();
+            let label = doc.path.to_string_lossy();
+            sources.add_owned(label.as_ref(), doc.text.clone());
+            for def in &analysis.defs {
+                let (kind, name_sym, span) = match def {
+                    DefKind::Fn { name, span, .. } => (12u8, *name, *span), // Function
+                    DefKind::Struct { name, span, .. } => (23u8, *name, *span), // Struct
+                    DefKind::Enum { name, span, .. } => (10u8, *name, *span), // Enum
+                    DefKind::Variant { name, span, .. } => (22u8, *name, *span), // EnumMember
+                    _ => continue,
+                };
+                let name = interner.resolve(name_sym).to_string();
+                if !query.is_empty() && !name.to_ascii_lowercase().contains(&query) {
+                    continue;
+                }
+                let (_f, start) = sources.line_col(span.lo());
+                let (_, end) = sources.line_col(span.hi());
+                symbols.push(json!({
+                    "name": name,
+                    "kind": kind,
+                    "location": {
+                        "uri": uri,
+                        "range": {
+                            "start": {
+                                "line": start.line.saturating_sub(1),
+                                "character": start.col.saturating_sub(1)
+                            },
+                            "end": {
+                                "line": end.line.saturating_sub(1),
+                                "character": end.col.saturating_sub(1)
+                            }
+                        }
+                    }
+                }));
+            }
+        }
+        symbols.sort_by(|a, b| {
+            a["name"]
+                .as_str()
+                .unwrap_or("")
+                .cmp(b["name"].as_str().unwrap_or(""))
+        });
+        json!({ "jsonrpc": "2.0", "id": req.id, "result": symbols })
     }
 }
 
@@ -1395,5 +1528,58 @@ mod tests {
             "use not renamed: {renamed}"
         );
         assert!(!renamed.contains("answer"), "old name remains: {renamed}");
+    }
+
+    #[test]
+    fn references_lists_local_uses() {
+        let src = "def main() -> i64\n  let answer = 42\n  return answer\nend\n";
+        let mut sources = SourceMap::new();
+        sources.add_owned("test.ryx", src.to_string());
+        let file = sources.files().next().unwrap();
+        let arena = AstArena::new();
+        let mut interner = Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(
+            &arena,
+            &mut interner,
+            file.text(),
+            file.start_pos(),
+            &mut sink,
+        );
+        let analysis = analyze(module, &mut interner, &mut sink);
+        let use_off = src.rfind("answer").unwrap() as u32 + file.start_pos();
+        let def_idx = def_index_at(module, &analysis, use_off).expect("def at use");
+        let spans = reference_spans(module, &analysis, def_idx);
+        assert!(
+            spans.len() >= 2,
+            "expected def + use for references, got {}",
+            spans.len()
+        );
+    }
+
+    #[test]
+    fn workspace_symbol_lists_fn() {
+        let src = "def helper() -> i64\n  return 1\nend\ndef main() -> i64\n  return helper()\nend\n";
+        let mut server = LanguageServer::new();
+        server.documents.insert(
+            "file:///test.ryx".into(),
+            Document {
+                path: PathBuf::from("test.ryx"),
+                text: src.into(),
+                version: 1,
+            },
+        );
+        let req = LspRequest {
+            id: Some(json!(1)),
+            method: "workspace/symbol".into(),
+            params: Some(json!({ "query": "hel" })),
+        };
+        let resp = server.workspace_symbol(&req);
+        let arr = resp["result"].as_array().expect("result array");
+        let names: Vec<&str> = arr.iter().filter_map(|s| s["name"].as_str()).collect();
+        assert!(
+            names.iter().any(|n| *n == "helper"),
+            "expected helper in workspace symbols: {names:?}"
+        );
     }
 }

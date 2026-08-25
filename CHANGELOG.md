@@ -6,13 +6,19 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ## [Unreleased]
 
+### Added
+
+- Phase 23: LSP `textDocument/references` + `workspace/symbol`.
+- Phase 23: `Enum::Variant` nullary paths in exprs and `match` arms.
+- Phase 23: `Vec[str]` mono (`vec_str_*`, [ADR-0016](docs/adr/0016-vec-str-mono.md)).
+
 ### Fixed
 
 - Phase 22: inlined `match`/`if` where every arm `return`s no longer leaves an
   empty CFG join that becomes a phantom `inline_merge` predecessor (clang
   `phi` referencing undefined `%bN`). LLVM emit also skips unreachable phi preds.
 
-### Added
+### Added (earlier unreleased)
 
 - Phase 22: MCP path-first for `rynix_format` / `rynix_explain_alloc` / `compile` /
   `ast_query`.
@@ -21,14 +27,14 @@ tracks versions informally until a tagged release is explicitly requested.
   still optional).
 - `match` on nullary enum variant idents ([ADR-0015](docs/adr/0015-match-enum-variants.md)).
 - Example `examples/11_http_path_param_tls.ryx` (path_param loop + HTTP TLS).
-- `docs/PHASE21.md` + `docs/contracts/phase21_roi.contract.toml`.
-- `docs/PHASE22.md` + `docs/contracts/phase22_inline_mcp.contract.toml`.
+- `docs/PHASE21.md` / `PHASE22.md` / `PHASE23.md` + contracts.
 
 ### Changed
 
 - README / README.fa.md: Pics2PPT-style centered header (logo, language switcher,
   badges, TOC details).
-- `PRODUCTION_READINESS.md`: documents VS Code CodeLens (was incorrectly “No CodeLens”).
+- `PRODUCTION_READINESS.md`: phases 0–22+ honesty; MCP path-first list; CodeLens;
+  LSP references; `Vec[str]`.
 - VS Code extension docs: LSP completion + rename via LanguageClient.
 
 ## [0.1.0] — Niche-10 certified (Phases 16–20)

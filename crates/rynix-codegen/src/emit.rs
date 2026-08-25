@@ -75,6 +75,10 @@ pub fn emit_llvm_with_target(
     out.push_str("declare void @rynix_rt_vec_i64_push(ptr, i64)\n");
     out.push_str("declare i64 @rynix_rt_vec_i64_get(ptr, i64)\n");
     out.push_str("declare i64 @rynix_rt_vec_i64_len(ptr)\n");
+    out.push_str("declare ptr @rynix_rt_vec_str_new(i32)\n");
+    out.push_str("declare void @rynix_rt_vec_str_push(ptr, ptr)\n");
+    out.push_str("declare ptr @rynix_rt_vec_str_get(ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_vec_str_len(ptr)\n");
     out.push_str("declare ptr @rynix_rt_map_i64_new(i32)\n");
     out.push_str("declare void @rynix_rt_map_i64_insert(ptr, i64, i64)\n");
     out.push_str("declare i64 @rynix_rt_map_i64_get(ptr, i64)\n");
@@ -1088,6 +1092,7 @@ fn emit_inst(
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_now_ms()");
                 ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_vec_i64_new"
+                || n == "rynix_rt_vec_str_new"
                 || n == "rynix_rt_map_i64_new"
                 || n == "rynix_rt_kv_new"
             {
@@ -1120,6 +1125,10 @@ fn emit_inst(
                 let v = ctx.val(args[0]);
                 let x = ctx.val(args[1]);
                 let _ = writeln!(out, "  call void @rynix_rt_vec_i64_push(ptr {v}, i64 {x})");
+            } else if n == "rynix_rt_vec_str_push" {
+                let v = ctx.val(args[0]);
+                let x = ctx.val(args[1]);
+                let _ = writeln!(out, "  call void @rynix_rt_vec_str_push(ptr {v}, ptr {x})");
             } else if n == "rynix_rt_map_i64_insert" {
                 let m = ctx.val(args[0]);
                 let k = ctx.val(args[1]);
@@ -1128,6 +1137,17 @@ fn emit_inst(
                     out,
                     "  call void @rynix_rt_map_i64_insert(ptr {m}, i64 {k}, i64 {val})"
                 );
+            } else if n == "rynix_rt_vec_str_get" {
+                let v = ctx.val(args[0]);
+                let i = ctx.val(args[1]);
+                let t = ctx.tmp();
+                let _ = writeln!(out, "  {t} = call ptr @rynix_rt_vec_str_get(ptr {v}, i64 {i})");
+                ctx.bind(result.unwrap(), t);
+            } else if n == "rynix_rt_vec_str_len" {
+                let v = ctx.val(args[0]);
+                let t = ctx.tmp();
+                let _ = writeln!(out, "  {t} = call i64 @rynix_rt_vec_str_len(ptr {v})");
+                ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_vec_i64_get"
                 || n == "rynix_rt_vec_i64_len"
                 || n == "rynix_rt_map_i64_get"

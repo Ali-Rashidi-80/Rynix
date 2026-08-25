@@ -125,18 +125,20 @@ end
 }
 
 #[test]
-fn vec_str_annotation_rejected() {
+fn vec_str_annotation_ok() {
     let sink = analyze_only(
         r"
 def main() -> i64
-  let v: Vec[str] = vec_new(0)
+  let v: Vec[str] = vec_str_new(0)
   return 0
 end
 ",
     );
-    assert!(
-        sink.error_count() > 0,
-        "Vec[str] must be a type error, got no diagnostics"
+    assert_eq!(
+        sink.error_count(),
+        0,
+        "Vec[str] + vec_str_new should typecheck: {:?}",
+        sink.diags
     );
 }
 

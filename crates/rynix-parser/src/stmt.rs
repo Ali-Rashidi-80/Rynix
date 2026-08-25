@@ -228,15 +228,29 @@ impl<'arena> Parser<'arena, '_, '_> {
         match self.peek().kind {
             TokenKind::IntLit | TokenKind::True | TokenKind::False => true,
             TokenKind::Ident => {
-                // `_` wildcard, or nullary variant path ending the arm header line.
-                // Disambiguate from body stmts: `print_i64(...)` / `x = 1` are not patterns.
+                // `_` wildcard, bare variant, or `Enum::Variant` path ending the arm header.
                 if self.text(self.peek().span) == "_" {
                     return true;
                 }
-                matches!(
-                    self.peek_next().kind,
+                let n0 = self.peek_next();
+                if matches!(
+                    n0.kind,
                     TokenKind::Newline | TokenKind::End | TokenKind::Else | TokenKind::Eof
-                )
+                ) {
+                    return true;
+                }
+                // `Color::Green` then newline/end.
+                if n0.kind == TokenKind::ColonColon {
+                    let n1 = self.peek_ahead(1);
+                    if n1.kind != TokenKind::Ident {
+                        return false;
+                    }
+                    return matches!(
+                        self.peek_ahead(2).kind,
+                        TokenKind::Newline | TokenKind::End | TokenKind::Else | TokenKind::Eof
+                    );
+                }
+                false
             }
             _ => false,
         }

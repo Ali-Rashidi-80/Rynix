@@ -20,8 +20,8 @@ disambiguation: an `Ident` starts a pattern only when the next significant
 token is `Newline` / `end` / `else` / `Eof` — so `print_i64(...)` and `x = 1`
 remain arm-body statements.
 
-Payload variants (`Some(T)`) and qualified `Enum.Variant` paths stay out of
-scope until a later ADR.
+Payload variants (`Some(T)`) stay out of scope until a later ADR.
+Qualified **`Enum::Variant`** paths (and match arms) are accepted in Phase 23-B.
 
 ## Consequences
 

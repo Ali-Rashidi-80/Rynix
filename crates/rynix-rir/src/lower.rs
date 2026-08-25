@@ -106,6 +106,7 @@ fn map_ty(analysis: &Analysis, ty: TypeId) -> IrTy {
         TypeKind::Enum(_) => IrTy::I64,
         TypeKind::Ptr
         | TypeKind::Vec
+        | TypeKind::VecStr
         | TypeKind::Map
         | TypeKind::Slice(_)
         | TypeKind::Struct(_)
@@ -4757,10 +4758,13 @@ impl LowerCtx<'_, '_> {
         let soft = match (method.as_str(), kind) {
             ("insert", Some(TypeKind::Map)) => "map_insert",
             ("push", Some(TypeKind::Vec)) => "vec_push",
+            ("push", Some(TypeKind::VecStr)) => "vec_str_push",
             ("get", Some(TypeKind::Map)) => "map_get",
             ("get", Some(TypeKind::Vec)) => "vec_get",
+            ("get", Some(TypeKind::VecStr)) => "vec_str_get",
             ("len", Some(TypeKind::Map)) => "map_len",
             ("len", Some(TypeKind::Vec)) => "vec_len",
+            ("len", Some(TypeKind::VecStr)) => "vec_str_len",
             (other, _) => other,
         };
         let soft = soft.to_string();
@@ -4785,6 +4789,10 @@ impl LowerCtx<'_, '_> {
             "vec_push" => (self.interner.intern("rynix_rt_vec_i64_push"), IrTy::Unit),
             "vec_get" => (self.interner.intern("rynix_rt_vec_i64_get"), IrTy::I64),
             "vec_len" => (self.interner.intern("rynix_rt_vec_i64_len"), IrTy::I64),
+            "vec_str_new" => (self.interner.intern("rynix_rt_vec_str_new"), IrTy::Ptr),
+            "vec_str_push" => (self.interner.intern("rynix_rt_vec_str_push"), IrTy::Unit),
+            "vec_str_get" => (self.interner.intern("rynix_rt_vec_str_get"), IrTy::Str),
+            "vec_str_len" => (self.interner.intern("rynix_rt_vec_str_len"), IrTy::I64),
             "map_new" => (self.interner.intern("rynix_rt_map_i64_new"), IrTy::Ptr),
             "map_insert" => (self.interner.intern("rynix_rt_map_i64_insert"), IrTy::Unit),
             "map_get" => (self.interner.intern("rynix_rt_map_i64_get"), IrTy::I64),

@@ -97,15 +97,24 @@ impl<'arena, 'parse, 'src> Parser<'arena, 'parse, 'src> {
         self.current
     }
 
-    /// Next significant token after `current` (does not mutate parser state).
-    fn peek_next(&self) -> Token {
+    /// Peek the `n`-th significant token after `current` (`n=0` → next).
+    fn peek_ahead(&self, n: usize) -> Token {
         struct Discard;
         impl DiagSink for Discard {
             fn emit(&mut self, _diag: rynix_diag::Diagnostic) {}
         }
         let mut lexer = self.lexer.clone();
         let mut sink = Discard;
-        Self::next_significant(&mut lexer, &mut sink, self.delim_depth)
+        let mut tok = Token::new(TokenKind::Eof, Span::empty(0));
+        for _ in 0..=n {
+            tok = Self::next_significant(&mut lexer, &mut sink, self.delim_depth);
+        }
+        tok
+    }
+
+    /// Next significant token after `current` (does not mutate parser state).
+    fn peek_next(&self) -> Token {
+        self.peek_ahead(0)
     }
 
     fn at(&self, kind: TokenKind) -> bool {

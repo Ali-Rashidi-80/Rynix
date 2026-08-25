@@ -64,6 +64,50 @@ int64_t rynix_rt_vec_i64_len(void *vec) {
   return v ? v->len : 0;
 }
 
+typedef struct {
+  int32_t region;
+  const char **data;
+  int64_t len;
+  int64_t cap;
+} rynix_vec_str;
+
+void *rynix_rt_vec_str_new(int32_t region) {
+  rynix_vec_str *v = (rynix_vec_str *)reg_alloc(region, sizeof(rynix_vec_str));
+  if (!v) return NULL;
+  v->region = region;
+  v->data = NULL;
+  v->len = 0;
+  v->cap = 0;
+  return v;
+}
+
+void rynix_rt_vec_str_push(void *vec, const char *s) {
+  rynix_vec_str *v = (rynix_vec_str *)vec;
+  if (!v) return;
+  if (v->len >= v->cap) {
+    int64_t ncap = v->cap == 0 ? 8 : v->cap * 2;
+    const char **nd =
+        (const char **)reg_alloc(v->region, (size_t)ncap * sizeof(const char *));
+    if (!nd) rynix_rt_panic("vec_str grow failed");
+    if (v->data && v->len > 0)
+      memcpy(nd, v->data, (size_t)v->len * sizeof(const char *));
+    v->data = nd;
+    v->cap = ncap;
+  }
+  v->data[v->len++] = s ? s : "";
+}
+
+const char *rynix_rt_vec_str_get(void *vec, int64_t i) {
+  rynix_vec_str *v = (rynix_vec_str *)vec;
+  if (!v || i < 0 || i >= v->len) rynix_rt_panic("vec_str index");
+  return v->data[i];
+}
+
+int64_t rynix_rt_vec_str_len(void *vec) {
+  rynix_vec_str *v = (rynix_vec_str *)vec;
+  return v ? v->len : 0;
+}
+
 void *rynix_rt_map_i64_new(int32_t region) {
   rynix_map_i64 *m = (rynix_map_i64 *)reg_alloc(region, sizeof(rynix_map_i64));
   if (!m) return NULL;

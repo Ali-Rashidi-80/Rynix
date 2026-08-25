@@ -31,6 +31,11 @@ void *rynix_rt_vec_i64_new(int32_t region);
 void rynix_rt_vec_i64_push(void *vec, int64_t x);
 int64_t rynix_rt_vec_i64_get(void *vec, int64_t i);
 int64_t rynix_rt_vec_i64_len(void *vec);
+
+void *rynix_rt_vec_str_new(int32_t region);
+void rynix_rt_vec_str_push(void *vec, const char *s);
+const char *rynix_rt_vec_str_get(void *vec, int64_t i);
+int64_t rynix_rt_vec_str_len(void *vec);
 void *rynix_rt_map_i64_new(int32_t region);
 void rynix_rt_map_i64_insert(void *map, int64_t key, int64_t val);
 int64_t rynix_rt_map_i64_get(void *map, int64_t key);
