@@ -401,6 +401,18 @@ the lockfile is missing.
 
 Evidence: `deps_lock_write_verify_and_tamper`.
 
+### 6.3.2 Local digest attest (`rynix.attest.v1.json`)
+
+`rynixc deps --attest` writes `rynix.lock.toml` and a sibling
+`rynix.attest.v1.json` with `kind: "local_digest"`: SHA-256 of the lock file
+plus the same per-package pins. `deps --attest-verify` fails if the file is
+missing or `lock_sha256` / pins do not match.
+
+This is **not** Sigstore (no Rekor, Fulcio, OIDC, or transparency log). Schema:
+`docs/schemas/rynix.attest.v1.json`.
+
+Evidence: `deps_attest_write_verify_and_tamper`.
+
 ### 6.4 `import` and qualified calls
 
 ```ryx

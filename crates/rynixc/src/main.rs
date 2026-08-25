@@ -10,6 +10,7 @@ mod agent_cmd;
 mod agent_lib;
 mod arch_cmd;
 mod architecture;
+mod attest;
 mod build_cmd;
 mod check_cmd;
 mod cli;

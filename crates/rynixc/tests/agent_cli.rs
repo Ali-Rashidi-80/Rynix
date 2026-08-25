@@ -897,6 +897,93 @@ core = {{ path = "{core_path}" }}
 }
 
 #[test]
+fn deps_attest_write_verify_and_tamper() {
+    let root = repo_root();
+    let core = root.join("testdata/pkg_core");
+    let dir = std::env::temp_dir().join("rynix_deps_attest_test");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let core_path = core.display().to_string().replace('\\', "/");
+    std::fs::write(
+        dir.join("rynix.toml"),
+        format!(
+            r#"
+[package]
+name = "attest_app"
+entry = "main.ryx"
+
+[dependencies]
+core = {{ path = "{core_path}" }}
+"#
+        ),
+    )
+    .unwrap();
+    std::fs::write(dir.join("main.ryx"), "def main() -> i64\n  return 0\nend\n").unwrap();
+
+    let write = rynixc()
+        .args(["deps", dir.to_str().unwrap(), "--attest"])
+        .output()
+        .expect("spawn attest");
+    assert!(
+        write.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&write.stderr)
+    );
+    let attest_path = dir.join("rynix.attest.v1.json");
+    assert!(dir.join("rynix.lock.toml").is_file());
+    assert!(attest_path.is_file());
+    let body: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&attest_path).unwrap()).expect("attest json");
+    assert_eq!(body["schema"], "rynix.attest.v1");
+    assert_eq!(body["kind"], "local_digest");
+    assert!(
+        body["lock_sha256"]
+            .as_str()
+            .is_some_and(|s| s.len() == 64),
+        "lock_sha256 missing"
+    );
+
+    let ok = rynixc()
+        .args([
+            "deps",
+            dir.to_str().unwrap(),
+            "--attest-verify",
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn attest-verify");
+    assert!(
+        ok.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&ok.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&ok.stdout).trim()).expect("json");
+    assert_eq!(v["attest"]["present"], true);
+    assert_eq!(v["attest"]["ok"], true);
+
+    let mut tampered = body.clone();
+    tampered["lock_sha256"] =
+        serde_json::json!("0000000000000000000000000000000000000000000000000000000000000000");
+    std::fs::write(
+        &attest_path,
+        serde_json::to_string_pretty(&tampered).unwrap(),
+    )
+    .unwrap();
+
+    let bad = rynixc()
+        .args(["deps", dir.to_str().unwrap(), "--attest-verify"])
+        .output()
+        .expect("spawn attest-verify bad");
+    assert!(!bad.status.success());
+    let err = String::from_utf8_lossy(&bad.stderr);
+    assert!(
+        err.contains("lock_sha256") || err.contains("attest"),
+        "{err}"
+    );
+}
+
+#[test]
 fn build_fs_roundtrip() {
     let root = repo_root();
     let main = root.join("testdata/fs_roundtrip.ryx");

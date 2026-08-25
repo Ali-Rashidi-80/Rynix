@@ -312,7 +312,9 @@ portable. CLI `--opt` / `--no-opt` win when present; otherwise
 [PHASE14.md](docs/PHASE14.md)). Broken path deps fail the build gate. Resolve with
 `rynixc deps [path] --error-format=json`
 (includes a `lock` object). Pin with `rynixc deps --lock` → `rynix.lock.toml` at package or workspace root;
-`--locked` requires a matching pin. Workspace members use `{ workspace = true }`
+`--locked` requires a matching pin. Attest with `rynixc deps --attest` →
+`rynix.attest.v1.json` (offline SHA-256 of the lock; not Sigstore Rekor).
+Workspace members use `{ workspace = true }`
 (SPEC §6.6). Soft `fs_*` builtins cover whole-file I/O
 (`fs_write_file` / `fs_read_file` / `fs_exists` / `fs_remove_file`).
 

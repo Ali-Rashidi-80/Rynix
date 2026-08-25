@@ -3,6 +3,10 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use crate::attest::{
+    attest_path_for_manifest, enrich_attest_json, from_lock, read_attest, verify_attest,
+    write_attest,
+};
 use crate::cli::{DepsOptions, ErrorFormat};
 use crate::lockfile::{
     enrich_deps_json, lock_from_report, lock_path_for_manifest, read_lock, verify_report, write_lock,
@@ -31,7 +35,9 @@ pub fn run(options: &DepsOptions) -> ExitCode {
     let report = resolve_deps(&manifest);
     match options.error_format {
         ErrorFormat::Json => {
-            println!("{}", enrich_deps_json(&report, report.to_json()));
+            let mut body = enrich_deps_json(&report, report.to_json());
+            body = enrich_attest_json(&report, body);
+            println!("{body}");
         }
         ErrorFormat::Human => {
             println!(
@@ -100,7 +106,8 @@ pub fn run(options: &DepsOptions) -> ExitCode {
         }
     }
 
-    if options.lock {
+    let write_lockfile = options.lock || options.attest;
+    if write_lockfile {
         match lock_from_report(&report).and_then(|lock| write_lock(&lock_path, &lock)) {
             Ok(()) => {
                 if matches!(options.error_format, ErrorFormat::Human) {
@@ -108,6 +115,58 @@ pub fn run(options: &DepsOptions) -> ExitCode {
                 }
             }
             Err(e) => {
+                eprintln!("error: {e}");
+                return ExitCode::from(1);
+            }
+        }
+    }
+
+    if options.attest {
+        let lock = match read_lock(&lock_path) {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("error: {e}");
+                return ExitCode::from(1);
+            }
+        };
+        let attest_path = attest_path_for_manifest(&report.root_manifest);
+        match from_lock(&lock_path, &lock).and_then(|a| write_attest(&attest_path, &a)) {
+            Ok(()) => {
+                if matches!(options.error_format, ErrorFormat::Human) {
+                    eprintln!("wrote {}", attest_path.display());
+                }
+            }
+            Err(e) => {
+                eprintln!("error: {e}");
+                return ExitCode::from(1);
+            }
+        }
+    }
+
+    if options.attest_verify {
+        let attest_path = attest_path_for_manifest(&report.root_manifest);
+        if !attest_path.is_file() {
+            eprintln!(
+                "error: --attest-verify requires {} (run `rynixc deps --attest` first)",
+                attest_path.display()
+            );
+            return ExitCode::from(1);
+        }
+        if !lock_path.is_file() {
+            eprintln!(
+                "error: --attest-verify requires {} (run `rynixc deps --lock` first)",
+                lock_path.display()
+            );
+            return ExitCode::from(1);
+        }
+        match (read_lock(&lock_path), read_attest(&attest_path)) {
+            (Ok(lock), Ok(attest)) => {
+                if let Err(e) = verify_attest(&report, &lock_path, &lock, &attest) {
+                    eprintln!("error: {e}");
+                    return ExitCode::from(1);
+                }
+            }
+            (Err(e), _) | (_, Err(e)) => {
                 eprintln!("error: {e}");
                 return ExitCode::from(1);
             }

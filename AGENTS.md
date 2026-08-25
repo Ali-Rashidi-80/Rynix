@@ -21,7 +21,8 @@ ad-hoc scraping.
 - Agent write gate: `patch --write` denied unless `rynix.scope.toml` / `--force-write`
 - Path deps: `rynixc deps` → `rynix.deps.v1` (path + local `[registry]` index;
   dir-scan or sparse `index/config.json`; optional `rynix.lock.toml` via `--lock` /
-  `--locked`; no network)
+  `--locked`; local digest `rynix.attest.v1.json` via `--attest` / `--attest-verify`;
+  no network)
 - Package compile: unity + `pkg__fn` mangling; semver `^`/`>=`; `import std::mod`; workspace `{ workspace = true }`
 - Conventions: `rynixc dna` → `rynix.dna.v1` (heuristic; not “80 layers”)
 - Scaffold: `rynixc new <name>` → local package; next: `rynixc build` (cwd / entry)
@@ -29,7 +30,7 @@ ad-hoc scraping.
 - `eval`: arith/print-oriented; unsupported CallExt hard-fails (no zero-default)
 - Phase 12 complete: [docs/LEAD_AHEAD.md](docs/LEAD_AHEAD.md)
 - Phase 13: `emit-ll --target=wasm32-unknown-unknown`; `[build].optimize` + `--opt`/`--no-opt` ([docs/PHASE13.md](docs/PHASE13.md))
-- Phase 14: `emit-wasm` → real `.wasm` via clang (no WASI / no `rt/`) ([docs/PHASE14.md](docs/PHASE14.md))
+- Phase 14: `emit-wasm` → real `.wasm` via clang (no WASI / no `rt/`); `deps --attest` → `rynix.attest.v1` local digest ([docs/PHASE14.md](docs/PHASE14.md))
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 
 ## Honesty rules

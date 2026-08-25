@@ -50,6 +50,16 @@
         "path": { "type": ["string", "null"] },
         "detail": { "type": "string" }
       }
+    },
+    "attest": {
+      "type": "object",
+      "description": "Optional rynix.attest.v1.json status (local digest; not Sigstore Rekor)",
+      "properties": {
+        "present": { "type": "boolean" },
+        "ok": { "type": "boolean" },
+        "path": { "type": ["string", "null"] },
+        "detail": { "type": "string" }
+      }
     }
   }
 }

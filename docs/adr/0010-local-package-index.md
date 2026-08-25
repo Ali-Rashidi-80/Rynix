@@ -44,6 +44,9 @@ lib  = { path = "../lib" }     # unchanged path form
 7. Optional **`rynix.lock.toml`** pins resolved local deps with sha256 over
    ordered sources (`rynixc deps --lock` / `--locked`; verify on build when
    present). Lock path is the workspace root when applicable. Still no network CDN.
+8. Optional **`rynix.attest.v1.json`** (`deps --attest` / `--attest-verify`) is
+   an offline SHA-256 of that lock plus package pins — **not** Sigstore
+   Rekor/Fulcio/OIDC.
 
 ## Consequences
 
@@ -53,6 +56,7 @@ lib  = { path = "../lib" }     # unchanged path form
   (`pkg_sparse_app`, `deps_resolves_sparse_local_index`), mangled path/registry
   builds, multifile `pkg_util` extras, `build_pkg_std_app_loads_math`,
   `deps_lock_write_verify_and_tamper`.
+- Local digest attest: `deps_attest_write_verify_and_tamper`.
 - Global/registry CDN remains out of scope until a future ADR with mirror +
   checksum policy + CI evidence.
 - Dependencies: workspace `semver` + `sha2` (cold path only; ADR-0004).

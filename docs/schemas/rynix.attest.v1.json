@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynix.dev/schemas/rynix.attest.v1.json",
+  "title": "rynix.attest.v1",
+  "description": "Offline SHA-256 digest of rynix.lock.toml plus package pins. Not Sigstore Rekor, Fulcio, or OIDC.",
+  "type": "object",
+  "required": ["schema", "kind", "note", "lock_path", "lock_sha256", "packages"],
+  "properties": {
+    "schema": { "const": "rynix.attest.v1" },
+    "kind": { "const": "local_digest" },
+    "note": { "type": "string" },
+    "lock_path": { "type": "string" },
+    "lock_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "sha256"],
+        "properties": {
+          "name": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    }
+  }
+}
