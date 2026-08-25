@@ -12,7 +12,8 @@ normative** for SPEC, ADRs, and JSON schemas. Persian companions cover onboardin
 | [../README.md](../README.md) | Product front page |
 | [../INSTALL.md](../INSTALL.md) | Install + one-path clang |
 | [NICHE10.md](NICHE10.md) | Niche-10 certified scorecard |
-| [ROADMAP.md](ROADMAP.md) | Phase gates 0–20 |
+| [GOLDEN_PATH.md](GOLDEN_PATH.md) | **Post-24 golden plan** (Phases 25–30 + refuse) |
+| [ROADMAP.md](ROADMAP.md) | Phase gates 0–24+ |
 | [SPEC.md](SPEC.md) | Grammar & soft builtins |
 | [abi.md](abi.md) | Runtime ABI |
 | [VERDICT.md](VERDICT.md) | vs End audit |

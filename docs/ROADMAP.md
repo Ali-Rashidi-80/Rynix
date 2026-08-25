@@ -274,6 +274,12 @@ Plan: **[PHASE24.md](PHASE24.md)**.
 | A | `Map[str, i64]` mono ([ADR-0017](adr/0017-map-str-i64-mono.md)) | ✅ `map_str_i64_roundtrip` |
 | B | `examples/12_http_vec_map_str.ryx` | ✅ `example_http_vec_map_str_checks` |
 
+## Golden path (post-24)
+
+Canonical next plan: **[GOLDEN_PATH.md](GOLDEN_PATH.md)** — Phases **25–30**,
+full backlog map, refuse set, DoD. Default execute: Phase 25 (`Map[str,str]` +
+`documentSymbol`).
+
 ## Follow-on (post-13 / parallel)
 
 | Item | Status | Gate |
