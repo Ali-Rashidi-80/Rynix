@@ -1,29 +1,35 @@
-![Rynix — زبان سیستم‌محور بومی هوش مصنوعی](assets/logo.png)
+<div align="center">
+
+[English](README.md) · **فارسی**
+
+<img src="assets/logo.png" alt="لوگوی Rynix" width="128" height="128" />
 
 # Rynix
 
-**زبان‌ها:** [English](README.md) (پیش‌فرض) · [فارسی](README.fa.md)
+**زبان سیستم‌محور بومی هوش مصنوعی — Zero-GC، فایبر بی‌رنگ، گیت‌های صادقانه، Niche-10 گواهی‌شده.**
 
-**زبان سیستم‌محور بومی هوش مصنوعی** — سینتکس کاننیکال، مسیر Zero-GC escape،
-فایبرهای بی‌رنگ، تشخیص‌های ماشین‌خوان، بک‌اند LLVM متنی، بنچمارک‌های **صادقانه**،
-و گواهی **[Niche-10](docs/NICHE10.md)** (سیستم + عامل + پکیج آفلاین — نه برابری مطلق با Go).
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF.svg)](.github/workflows/ci.yml)
+[![نسخه](https://img.shields.io/badge/version-0.1.0-3fb950.svg)](Cargo.toml)
+[![لایسنس](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE.md)
+[![Rust](https://img.shields.io/badge/Rust-1.98+-orange.svg)](rust-toolchain.toml)
+[![فازها](https://img.shields.io/badge/phases-0--20%20gated-147A8A.svg)](docs/ROADMAP.md)
+[![Niche-10](https://img.shields.io/badge/Niche--10-certified-0B3D4A.svg)](docs/NICHE10.md)
+[![حافظه](https://img.shields.io/badge/memory-Zero--GC%20escape-0B3D4A.svg)](#مدل-حافظه)
+[![AI](https://img.shields.io/badge/AI-MCP%20+%20LSP%20+%20JSON-3ECFB2.svg)](#نمونه-زبان)
 
-`.ryx` · `rynixc` · فازهای **۰–۲۰** با گیت · [نقشه راه](docs/ROADMAP.md) ·
-[Niche-10](docs/NICHE10.md)
+`.ryx` · `rynixc` · [نقشه راه](docs/ROADMAP.md) · [Niche-10](docs/NICHE10.md) · [نصب](INSTALL.fa.md)
 
-![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF.svg)
-![Version](https://img.shields.io/badge/version-0.1.0-3fb950.svg)
-![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)
-![Rust](https://img.shields.io/badge/Rust-1.98+-orange.svg)
-![Phases](https://img.shields.io/badge/phases-0--20%20gated-147A8A.svg)
-![Niche10](https://img.shields.io/badge/Niche--10-certified-0B3D4A.svg)
-![Memory](https://img.shields.io/badge/memory-Zero--GC%20escape-0B3D4A.svg)
-![AI](https://img.shields.io/badge/AI-MCP%20+%20LSP%20+%20JSON-3ECFB2.svg)
+</div>
+
+---
 
 > این فایل ترجمهٔ همراهِ [`README.md`](README.md) است. **منبع حقیقت انگلیسی است**؛
 > در تعارض، نسخهٔ انگلیسی اولویت دارد.
 
-## فهرست
+## فهرست مطالب
+
+<details open>
+<summary><strong>پرش به بخش</strong></summary>
 
 - [Rynix چیست؟](#rynix-چیست)
 - [Rynix چه چیزی نیست](#rynix-چه-چیزی-نیست)
@@ -39,6 +45,8 @@
 - [وضعیت](#وضعیت)
 - [مستندات](#مستندات)
 - [مشارکت و لایسنس](#مشارکت-و-لایسنس)
+
+</details>
 
 ---
 

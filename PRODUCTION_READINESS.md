@@ -20,7 +20,7 @@ certified** ([docs/NICHE10.md](docs/NICHE10.md),
 | AI CLI | Ready | `graph`, `slice`, `impact`, `eval`, `patch`, `verify`, `precheck`, `context`, `security`, `scope`, `deps`, `dna`, `arch check` | Agent write needs `rynix.scope.toml` / `--force-write` |
 | Architecture guard | Ready | `Architecture.toml`, `arch check`, CI job | Import/call patterns only |
 | Benchmarks | Ready | Suite5 **12** workloads + checksum JSON + CI C↔Rynix | Opaque bounds + disclosed strength reduction; not End suite12 sims |
-| Editor (LSP) | Ready | `lsp-serve` diag/hover/def/**completion**/**rename**; VS Code ext | No CodeLens/studio ([ADR-0007](docs/adr/0007-deferred-ui-frameworks.md)) |
+| Editor (LSP) | Ready | `lsp-serve` diag/hover/def/**completion**/**rename**; VS Code ext + **CodeLens** (check/alloc/impact) | No studio/canvas ([ADR-0007](docs/adr/0007-deferred-ui-frameworks.md)) |
 | Std json/http | Ready | GET/POST; serve once/loop 1–3 paths; path_param; header/body/keep-alive; TLS product path | Not a full framework / nginx RPS |
 | Packages | Ready | `rynix.toml`, path+local registry/sparse, lock, `new`, `deps --attest` → `rynix.attest.v1` **local digest** (not Sigstore/Rekor) | Offline-first; no CDN registry |
 | WASM | Ready | `emit-ll --target=wasm32-unknown-unknown`; `emit-wasm` → `\0asm`; Node runs `main`; host-import `env.print_i64` | No WASI / no `rt/` in wasm |

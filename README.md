@@ -1,27 +1,32 @@
-![Rynix — AI-native systems language](assets/logo.png)
+<div align="center">
+
+**English** · [Persian](README.fa.md)
+
+<img src="assets/logo.png" alt="Rynix logo" width="128" height="128" />
 
 # Rynix
 
-**Languages:** [English](README.md) (default) · [فارسی](README.fa.md)
+**AI-native systems language — Zero-GC escape, colorless fibers, honest gates, Niche-10 certified.**
 
-**AI-native systems language** — canonical syntax, Zero-GC escape path, colorless
-fibers, machine-readable diagnostics, textual LLVM backend, **honest** benchmarks,
-and a gated **[Niche-10](docs/NICHE10.md)** product scorecard (systems + agent +
-offline packages — not Absolute-10 vs Go).
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF.svg)](.github/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-0.1.0-3fb950.svg)](Cargo.toml)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE.md)
+[![Rust](https://img.shields.io/badge/Rust-1.98+-orange.svg)](rust-toolchain.toml)
+[![Phases](https://img.shields.io/badge/phases-0--20%20gated-147A8A.svg)](docs/ROADMAP.md)
+[![Niche-10](https://img.shields.io/badge/Niche--10-certified-0B3D4A.svg)](docs/NICHE10.md)
+[![Memory](https://img.shields.io/badge/memory-Zero--GC%20escape-0B3D4A.svg)](#memory-model)
+[![AI](https://img.shields.io/badge/AI-MCP%20+%20LSP%20+%20JSON-3ECFB2.svg)](#tooling-surface)
 
-`.ryx` · `rynixc` · phases **0–20** gated · [Roadmap](docs/ROADMAP.md) ·
-[Niche-10](docs/NICHE10.md)
+`.ryx` · `rynixc` · [Roadmap](docs/ROADMAP.md) · [Niche-10](docs/NICHE10.md) · [Install](INSTALL.md)
 
-![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF.svg)
-![Version](https://img.shields.io/badge/version-0.1.0-3fb950.svg)
-![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)
-![Rust](https://img.shields.io/badge/Rust-1.98+-orange.svg)
-![Phases](https://img.shields.io/badge/phases-0--20%20gated-147A8A.svg)
-![Niche10](https://img.shields.io/badge/Niche--10-certified-0B3D4A.svg)
-![Memory](https://img.shields.io/badge/memory-Zero--GC%20escape-0B3D4A.svg)
-![AI](https://img.shields.io/badge/AI-MCP%20+%20LSP%20+%20JSON-3ECFB2.svg)
+</div>
 
-## Table of contents
+---
+
+## Table of Contents
+
+<details open>
+<summary><strong>Jump to section</strong></summary>
 
 - [What is Rynix?](#what-is-rynix)
 - [What Rynix is NOT](#what-rynix-is-not)
@@ -44,6 +49,8 @@ offline packages — not Absolute-10 vs Go).
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
+
+</details>
 
 ---
 
