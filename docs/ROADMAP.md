@@ -265,6 +265,15 @@ Plan: **[PHASE23.md](PHASE23.md)**.
 | C | `Vec[str]` mono ([ADR-0016](adr/0016-vec-str-mono.md)) | ✅ `vec_str_roundtrip` |
 | D | Local tag `v0.1.0` (no push) | ✅ |
 
+## Phase 24 — Map[str,i64] + product example
+
+Plan: **[PHASE24.md](PHASE24.md)**.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | `Map[str, i64]` mono ([ADR-0017](adr/0017-map-str-i64-mono.md)) | ✅ `map_str_i64_roundtrip` |
+| B | `examples/12_http_vec_map_str.ryx` | ✅ `example_http_vec_map_str_checks` |
+
 ## Follow-on (post-13 / parallel)
 
 | Item | Status | Gate |

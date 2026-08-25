@@ -206,6 +206,11 @@ impl<'a> Checker<'a> {
         self.soft_fn("map_insert", vec![m, i, i], unit);
         self.soft_fn("map_get", vec![m, i], i);
         self.soft_fn("map_len", vec![m], i);
+        let msi = self.types.ty_map_str_i64;
+        self.soft_fn("map_str_i64_new", vec![i], msi);
+        self.soft_fn("map_str_i64_insert", vec![msi, s, i], unit);
+        self.soft_fn("map_str_i64_get", vec![msi, s], i);
+        self.soft_fn("map_str_i64_len", vec![msi], i);
 
         let vec_sym = self.interner.intern("Vec");
         let vec_def = self.alloc_def(DefKind::BuiltinType { name: vec_sym });
@@ -486,22 +491,27 @@ impl<'a> Checker<'a> {
                     "Map" if args.len() == 2 => {
                         let k = self.lower_type(args[0], scope);
                         let v = self.lower_type(args[1], scope);
-                        if (!self.types.compatible(k, self.types.ty_int)
-                            || !self.types.compatible(v, self.types.ty_int))
-                            && !matches!(self.types.kind(k), TypeKind::Error)
-                            && !matches!(self.types.kind(v), TypeKind::Error)
-                        {
+                        let k_ok = self.types.compatible(k, self.types.ty_int)
+                            || matches!(self.types.kind(k), TypeKind::Error);
+                        let k_str = self.types.compatible(k, self.types.ty_str);
+                        let v_ok = self.types.compatible(v, self.types.ty_int)
+                            || matches!(self.types.kind(v), TypeKind::Error);
+                        if k_ok && v_ok {
+                            self.types.ty_map
+                        } else if k_str && v_ok {
+                            self.types.ty_map_str_i64
+                        } else {
                             self.sink.emit(errors::type_mismatch(
                                 *span,
-                                "Map[i64, i64]",
+                                "Map[i64, i64] or Map[str, i64]",
                                 &format!(
                                     "Map[{}, {}]",
                                     self.display_ty(k),
                                     self.display_ty(v)
                                 ),
                             ));
+                            self.types.ty_error
                         }
-                        self.types.ty_map
                     }
                     _ => {
                         self.sink.emit(errors::unresolved_name(
@@ -973,8 +983,17 @@ impl<'a> Checker<'a> {
                     (TypeKind::VecStr, "push") => self.types.ty_unit,
                     (TypeKind::Map, "len" | "get") => self.types.ty_int,
                     (TypeKind::Map, "insert") => self.types.ty_unit,
+                    (TypeKind::MapStrI64, "len" | "get") => self.types.ty_int,
+                    (TypeKind::MapStrI64, "insert") => self.types.ty_unit,
                     (TypeKind::Module, _) => expected.unwrap_or(self.types.ty_error),
-                    (TypeKind::Vec | TypeKind::VecStr | TypeKind::Map | TypeKind::Slice(_), _) => {
+                    (
+                        TypeKind::Vec
+                        | TypeKind::VecStr
+                        | TypeKind::Map
+                        | TypeKind::MapStrI64
+                        | TypeKind::Slice(_),
+                        _,
+                    ) => {
                         self.sink.emit(errors::unknown_method(
                             m.method.span,
                             &self.display_ty(recv),
@@ -1448,6 +1467,7 @@ impl<'a> Checker<'a> {
             TypeKind::Vec
                 | TypeKind::VecStr
                 | TypeKind::Map
+                | TypeKind::MapStrI64
                 | TypeKind::Ptr
                 | TypeKind::Slice(_)
                 | TypeKind::Struct(_)

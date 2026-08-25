@@ -41,6 +41,11 @@ void rynix_rt_map_i64_insert(void *map, int64_t key, int64_t val);
 int64_t rynix_rt_map_i64_get(void *map, int64_t key);
 int64_t rynix_rt_map_i64_len(void *map);
 
+void *rynix_rt_map_str_i64_new(int32_t region);
+void rynix_rt_map_str_i64_insert(void *map, const char *key, int64_t val);
+int64_t rynix_rt_map_str_i64_get(void *map, const char *key);
+int64_t rynix_rt_map_str_i64_len(void *map);
+
 /* ---- fibers ------------------------------------------------------------ */
 typedef void (*rynix_rt_fiber_fn)(void *arg);
 void *rynix_rt_spawn(rynix_rt_fiber_fn fn, void *arg);

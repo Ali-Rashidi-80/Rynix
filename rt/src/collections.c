@@ -183,3 +183,113 @@ int64_t rynix_rt_map_i64_len(void *map) {
   rynix_map_i64 *m = (rynix_map_i64 *)map;
   return m ? m->len : 0;
 }
+
+typedef struct {
+  const char *key;
+  int64_t val;
+  int used;
+} rynix_map_str_slot;
+
+typedef struct {
+  int32_t region;
+  rynix_map_str_slot *slots;
+  int64_t cap;
+  int64_t len;
+} rynix_map_str_i64;
+
+static uint64_t str_hash(const char *s) {
+  uint64_t h = 1469598103934665603ull;
+  if (!s) return h;
+  for (const unsigned char *p = (const unsigned char *)s; *p; p++) {
+    h ^= (uint64_t)(*p);
+    h *= 1099511628211ull;
+  }
+  return h;
+}
+
+static int str_eq(const char *a, const char *b) {
+  if (a == b) return 1;
+  if (!a || !b) return 0;
+  return strcmp(a, b) == 0;
+}
+
+static int64_t map_str_probe(rynix_map_str_i64 *m, const char *key) {
+  int64_t i = (int64_t)(str_hash(key) % (uint64_t)m->cap);
+  for (int64_t n = 0; n < m->cap; n++) {
+    int64_t j = (i + n) % m->cap;
+    if (!m->slots[j].used || str_eq(m->slots[j].key, key)) return j;
+  }
+  return -1;
+}
+
+static void map_str_grow(rynix_map_str_i64 *m) {
+  int64_t old_cap = m->cap;
+  rynix_map_str_slot *old = m->slots;
+  int64_t ncap = old_cap * 2;
+  if (ncap < 16) ncap = 16;
+  rynix_map_str_slot *ns =
+      (rynix_map_str_slot *)reg_alloc(m->region, (size_t)ncap * sizeof(rynix_map_str_slot));
+  if (!ns) rynix_rt_panic("map_str grow");
+  memset(ns, 0, (size_t)ncap * sizeof(rynix_map_str_slot));
+  m->slots = ns;
+  m->cap = ncap;
+  m->len = 0;
+  for (int64_t i = 0; i < old_cap; i++) {
+    if (!old[i].used) continue;
+    int64_t j = map_str_probe(m, old[i].key);
+    if (j < 0) rynix_rt_panic("map_str grow full");
+    m->slots[j].used = 1;
+    m->slots[j].key = old[i].key;
+    m->slots[j].val = old[i].val;
+    m->len++;
+  }
+}
+
+void *rynix_rt_map_str_i64_new(int32_t region) {
+  rynix_map_str_i64 *m =
+      (rynix_map_str_i64 *)reg_alloc(region, sizeof(rynix_map_str_i64));
+  if (!m) return NULL;
+  m->region = region;
+  m->cap = 16;
+  m->len = 0;
+  m->slots =
+      (rynix_map_str_slot *)reg_alloc(region, (size_t)m->cap * sizeof(rynix_map_str_slot));
+  if (!m->slots) rynix_rt_panic("map_str alloc");
+  memset(m->slots, 0, (size_t)m->cap * sizeof(rynix_map_str_slot));
+  return m;
+}
+
+void rynix_rt_map_str_i64_insert(void *map, const char *key, int64_t val) {
+  rynix_map_str_i64 *m = (rynix_map_str_i64 *)map;
+  if (!m) return;
+  if (!key) key = "";
+  if (m->len * 2 >= m->cap) {
+    map_str_grow(m);
+  }
+  int64_t j = map_str_probe(m, key);
+  if (j < 0) {
+    map_str_grow(m);
+    j = map_str_probe(m, key);
+  }
+  if (j < 0) rynix_rt_panic("map_str full");
+  if (!m->slots[j].used) {
+    m->slots[j].used = 1;
+    m->slots[j].key = key;
+    m->len++;
+  }
+  m->slots[j].val = val;
+}
+
+int64_t rynix_rt_map_str_i64_get(void *map, const char *key) {
+  rynix_map_str_i64 *m = (rynix_map_str_i64 *)map;
+  if (!m) return 0;
+  if (!key) key = "";
+  int64_t j = map_str_probe(m, key);
+  if (j < 0 || !m->slots[j].used) return 0;
+  return m->slots[j].val;
+}
+
+int64_t rynix_rt_map_str_i64_len(void *map) {
+  rynix_map_str_i64 *m = (rynix_map_str_i64 *)map;
+  return m ? m->len : 0;
+}

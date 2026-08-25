@@ -8,6 +8,11 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ### Added
 
+- Phase 24: `Map[str, i64]` mono ([ADR-0017](docs/adr/0017-map-str-i64-mono.md)).
+- Example `examples/12_http_vec_map_str.ryx`.
+
+### Added (Phase 23)
+
 - Phase 23: LSP `textDocument/references` + `workspace/symbol`.
 - Phase 23: `Enum::Variant` nullary paths in exprs and `match` arms.
 - Phase 23: `Vec[str]` mono (`vec_str_*`, [ADR-0016](docs/adr/0016-vec-str-mono.md)).

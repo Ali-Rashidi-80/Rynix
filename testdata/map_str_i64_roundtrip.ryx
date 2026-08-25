@@ -1,0 +1,10 @@
+## Map[str, i64] mono (Phase 24-A / ADR-0017)
+
+def main() -> i64
+  let m: Map[str, i64] = map_str_i64_new(0)
+  m.insert("a", 10)
+  m.insert("b", 20)
+  print_i64(m.len())
+  print_i64(m.get("a"))
+  return 0
+end

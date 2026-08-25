@@ -41,6 +41,7 @@ ad-hoc scraping.
 - Phase 21: MCP path-first remainder + match enum variants + product example ([docs/PHASE21.md](docs/PHASE21.md))
 - Phase 22: inline match+return CFG fix + MCP format/compile path-first ([docs/PHASE22.md](docs/PHASE22.md))
 - Phase 23: LSP refs/symbols + `Enum::Variant` + `Vec[str]` ([docs/PHASE23.md](docs/PHASE23.md))
+- Phase 24: `Map[str, i64]` + product example ([docs/PHASE24.md](docs/PHASE24.md))
 - Install: one-path clang Win/Linux — [INSTALL.md](INSTALL.md)
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 

@@ -1,0 +1,28 @@
+# Phase 24 — Map[str,i64] + product example
+
+[contract]
+name = "phase24-map-str"
+
+[[evidence]]
+id = "map-str-i64"
+kind = "cargo_test"
+package = "rynixc"
+filter = "map_str_i64_roundtrip"
+
+[[evidence]]
+id = "example-http-vec-map"
+kind = "cargo_test"
+package = "rynixc"
+filter = "example_http_vec_map_str_checks"
+
+[[evidence]]
+id = "phase24-doc"
+kind = "file"
+path = "docs/PHASE24.md"
+contains = "Map[str, i64]"
+
+[[evidence]]
+id = "adr-0017"
+kind = "file"
+path = "docs/adr/0017-map-str-i64-mono.md"
+contains = "MapStrI64"

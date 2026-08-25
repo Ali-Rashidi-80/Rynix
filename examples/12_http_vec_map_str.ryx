@@ -1,0 +1,20 @@
+## Product sample: path_param HTTP + Vec[str] + Map[str,i64] (Phase 24-B)
+##
+## Compiles/lowers to real soft builtins. Network pairing stays in rt/tests
+## (size_echo_gates). Port 0 avoids binding.
+
+def main() -> i64
+  let tags: Vec[str] = vec_str_new(0)
+  tags.push("items")
+  tags.push("api")
+  print_i64(tags.len())
+
+  let scores: Map[str, i64] = map_str_i64_new(0)
+  scores.insert("items", 3)
+  scores.insert("api", 42)
+  print_i64(scores.get("api"))
+
+  let loop_rc = http_serve_loop_path_param_json_i64(0, "/items/", 2)
+  print_i64(loop_rc)
+  return 0
+end

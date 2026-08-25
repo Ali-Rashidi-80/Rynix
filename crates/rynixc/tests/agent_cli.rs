@@ -1454,6 +1454,11 @@ fn vec_str_roundtrip() {
 }
 
 #[test]
+fn map_str_i64_roundtrip() {
+    build_run_fixture("map_str_i64_roundtrip", "10");
+}
+
+#[test]
 fn example_http_path_param_tls_checks() {
     let root = repo_root();
     let example = root.join("examples/11_http_path_param_tls.ryx");
@@ -1493,6 +1498,54 @@ fn example_http_path_param_tls_checks() {
     assert!(
         text.contains("rynix_rt_http_tls_serve_once_json_i64"),
         "missing http_tls call"
+    );
+}
+
+#[test]
+fn example_http_vec_map_str_checks() {
+    let root = repo_root();
+    let example = root.join("examples/12_http_vec_map_str.ryx");
+    let check = rynixc()
+        .args([
+            "check",
+            example.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("check");
+    assert!(
+        check.status.success(),
+        "example 12 check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll_path = root.join("target/test-12_http_vec_map_str.ll");
+    let emit = rynixc()
+        .args([
+            "emit-ll",
+            example.to_str().unwrap(),
+            "-o",
+            ll_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("emit-ll");
+    assert!(
+        emit.status.success(),
+        "example 12 emit-ll failed:\n{}",
+        String::from_utf8_lossy(&emit.stderr)
+    );
+    let text = std::fs::read_to_string(&ll_path).expect("read ll");
+    assert!(
+        text.contains("rynix_rt_vec_str_new") || text.contains("rynix_rt_vec_str_push"),
+        "missing vec_str"
+    );
+    assert!(
+        text.contains("rynix_rt_map_str_i64_new")
+            || text.contains("rynix_rt_map_str_i64_insert"),
+        "missing map_str_i64"
+    );
+    assert!(
+        text.contains("rynix_rt_http_serve_loop_path_param_json_i64"),
+        "missing path_param call"
     );
 }
 
@@ -1996,6 +2049,35 @@ fn verify_phase23_depth_contract() {
     assert_eq!(v["schema"], "rynix.verify.v1");
     assert_eq!(v["status"], "passed");
     assert_eq!(v["contract"], "phase23-depth");
+    assert_eq!(v["ran_tests"], false);
+}
+
+#[test]
+fn verify_phase24_map_str_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase24_map_str.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "verify failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["schema"], "rynix.verify.v1");
+    assert_eq!(v["status"], "passed");
+    assert_eq!(v["contract"], "phase24-map-str");
     assert_eq!(v["ran_tests"], false);
 }
 

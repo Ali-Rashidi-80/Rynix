@@ -42,10 +42,12 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
   `phase19_path_mcp.contract.toml` (path-first MCP + LSP completion/rename),
   `phase21_roi.contract.toml` (MCP path-first remainder + match variants),
   `phase22_inline_mcp.contract.toml` (inline match+return + MCP format/compile),
-  `phase23_depth.contract.toml` (LSP refs + Enum::Variant + Vec[str])
+  `phase23_depth.contract.toml` (LSP refs + Enum::Variant + Vec[str]),
+  `phase24_map_str.contract.toml` (Map[str,i64] + example 12)
 - vs End verdict: `docs/VERDICT.md`, `docs/END_PEER_GAP.md`
 - Soft builtins and std: README Soft builtins + `std/*.ryx` (`std::fs`, `std::crypto`,
-  HTTP loop `_2paths_` / `_3paths_` / `path_param`); `Vec[i64]` + `Vec[str]` mono
+  HTTP loop `_2paths_` / `_3paths_` / `path_param`); `Vec[i64]` / `Vec[str]` /
+  `Map[i64,i64]` / `Map[str,i64]` mono
 - LSP (`rynixc lsp-serve`): diagnostics, hover, go-to-definition, **completion**,
   **rename**, **references**, **workspace/symbol**
 - MCP: prefer filesystem `path` (path-first; fail-closed on missing file) for
@@ -54,7 +56,8 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
   `rynix_explain_alloc` / `compile` / `ast_query`; inline `source` still works
 - Language: `match` on nullary enum variants + `Enum::Variant` paths
   ([ADR-0015](../../docs/adr/0015-match-enum-variants.md)); `Vec[str]`
-  ([ADR-0016](../../docs/adr/0016-vec-str-mono.md))
+  ([ADR-0016](../../docs/adr/0016-vec-str-mono.md)); `Map[str, i64]`
+  ([ADR-0017](../../docs/adr/0017-map-str-i64-mono.md))
 - Memory: escape / region / linear move (`RYX2011`) / `#^ effect: pure` (`RYX2012`)
 - Reserved stubs rejected: `tensor` / `signal` / `agent` → `RYX2013`
 

@@ -1,17 +1,17 @@
 # Production readiness (honest)
 
 **Version:** `0.1.0` · **Toolchain:** `rynixc`  
-Status: **v0.1 shipping core** — acceptance-gated phases **0–23** complete; **Niche-10
+Status: **v0.1 shipping core** — acceptance-gated phases **0–24** complete; **Niche-10
 certified** ([docs/NICHE10.md](docs/NICHE10.md),
 [docs/adr/0013-niche-10-scorecard.md](docs/adr/0013-niche-10-scorecard.md));
-ROI Phases 21–23 ([docs/PHASE21.md](docs/PHASE21.md), [docs/PHASE22.md](docs/PHASE22.md),
-[docs/PHASE23.md](docs/PHASE23.md)).
+ROI Phases 21–24 ([docs/PHASE21.md](docs/PHASE21.md), [docs/PHASE22.md](docs/PHASE22.md),
+[docs/PHASE23.md](docs/PHASE23.md), [docs/PHASE24.md](docs/PHASE24.md)).
 
 | Subsystem | Status | Evidence | Known limits |
 |-----------|--------|----------|--------------|
 | Lexer | Ready | `cargo test -p rynix-lexer`, criterion ~400 MiB/s gate | Not SIMD-tuned to 1 GiB/s |
 | Parser / AST | Ready | snapshots, fuzz README, recovery tests | No multiline strings |
-| Sema | Ready | `#^ error` directive tests, match/method typing | Mono `Vec[i64]` / **`Vec[str]`** / `Map[i64,i64]` ([ADR-0006](docs/adr/0006-monomorphized-collections.md), [ADR-0014](docs/adr/0014-mono-collections-niche10.md), [ADR-0016](docs/adr/0016-vec-str-mono.md)); not parametric `Vec[T]` |
+| Sema | Ready | `#^ error` directive tests, match/method typing | Mono `Vec[i64]` / `Vec[str]` / `Map[i64,i64]` / **`Map[str,i64]`** ([ADR-0006](docs/adr/0006-monomorphized-collections.md), [ADR-0014](docs/adr/0014-mono-collections-niche10.md), [ADR-0016](docs/adr/0016-vec-str-mono.md), [ADR-0017](docs/adr/0017-map-str-i64-mono.md)); not parametric |
 | RIR + passes | Ready | verify, DCE/const-fold/simplify/BCE, interpreter | DCE tombstones dead bool ops |
 | Escape + free | Ready | `free_at`, `--explain-alloc`, MCP explain | Intraprocedural-first; conservative FFI |
 | LLVM codegen | Ready | `diff_llvm_vs_interp`, size gate `<300KiB` hello | Textual IR only (ADR-0005) |
