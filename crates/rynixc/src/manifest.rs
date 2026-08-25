@@ -5,6 +5,8 @@
 //! - `"x.y.z"` version string — resolved under `[registry] path = "..."` only
 //!
 //! There is **no** network registry. Missing local vendor dirs fail resolve/build.
+//! Optional **sparse** index: `{registry}/index/config.json` plus Cargo-style
+//! crate files under `index/{prefix}/{name}` (NDJSON `vers` lines). Still no CDN.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -23,6 +25,9 @@ pub struct Manifest {
     pub optimize: Option<bool>,
     /// Local package index root (`[registry] path = "vendor"`).
     pub registry_path: Option<PathBuf>,
+    /// `[registry] sparse = true` requires `index/config.json`; `false` forces
+    /// directory scan. `None` auto-detects the sparse config file.
+    pub registry_sparse: Option<bool>,
     /// Workspace member dirs relative to this manifest (`[workspace] members`).
     pub workspace_members: Vec<PathBuf>,
     pub deps: Vec<DepSpec>,
@@ -60,7 +65,10 @@ pub struct ResolvedDep {
 pub struct DepsReport {
     pub root_manifest: PathBuf,
     pub package: String,
+    /// Local registry root when `[registry] path` is set.
     pub registry: Option<PathBuf>,
+    /// `"sparse"` or `"scan"` when a registry path is set (never a network index).
+    pub registry_index: Option<String>,
     /// Nearest ancestor workspace root, if any.
     pub workspace: Option<PathBuf>,
     pub deps: Vec<ResolvedDep>,
@@ -114,11 +122,17 @@ impl DepsReport {
             "manifest": self.root_manifest.display().to_string(),
             "package": self.package,
             "registry": self.registry.as_ref().map(|p| p.display().to_string()),
+            "registry_index": self.registry_index.clone(),
             "workspace": self.workspace.as_ref().map(|p| p.display().to_string()),
             "status": if self.all_ok() { "ok" } else { "error" },
             "dependencies": self.deps.iter().map(|d| json!({
                 "name": d.name,
                 "kind": d.kind,
+                "index": if d.kind == "registry" {
+                    self.registry_index.clone()
+                } else {
+                    None
+                },
                 "path": d.path.display().to_string(),
                 "version": d.version,
                 "entry": d.entry.as_ref().map(|p| p.display().to_string()),
@@ -126,7 +140,7 @@ impl DepsReport {
                 "ok": d.ok,
                 "detail": d.detail,
             })).collect::<Vec<_>>(),
-            "note": "Local path deps and optional filesystem package index — no network registry.",
+            "note": "Local path deps and optional filesystem package index (dir-scan or sparse) — no network registry.",
         })
     }
 }
@@ -355,18 +369,177 @@ fn resolve_one_dir(name: &str, kind: &str, abs: PathBuf, version: Option<String>
     }
 }
 
+fn registry_fail(name: &str, path: PathBuf, ver: &str, detail: String) -> ResolvedDep {
+    ResolvedDep {
+        name: name.into(),
+        kind: "registry".into(),
+        path,
+        version: Some(ver.into()),
+        entry: None,
+        sources: Vec::new(),
+        ok: false,
+        detail,
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RegistryIndexKind {
+    Scan,
+    Sparse,
+}
+
+/// Cargo sparse-index prefix: `a` → `1/a`, `ab` → `2/ab`, `abc` → `3/a/abc`,
+/// else `{aa}/{bb}/{name}` (`util` → `ut/il/util`).
+fn crate_index_rel_path(name: &str) -> Option<PathBuf> {
+    if name.is_empty()
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains('.')
+    {
+        return None;
+    }
+    let rel = match name.len() {
+        1 => format!("1/{name}"),
+        2 => format!("2/{name}"),
+        3 => format!("3/{}/{name}", &name[..1]),
+        _ => format!("{}/{}/{name}", &name[..2], &name[2..4]),
+    };
+    Some(PathBuf::from(rel))
+}
+
+fn sparse_config_present(reg: &Path) -> bool {
+    reg.join("index").join("config.json").is_file()
+}
+
+fn registry_index_kind(reg: &Path, flag: Option<bool>) -> Result<RegistryIndexKind, String> {
+    match flag {
+        Some(false) => Ok(RegistryIndexKind::Scan),
+        Some(true) => {
+            if sparse_config_present(reg) {
+                Ok(RegistryIndexKind::Sparse)
+            } else {
+                Err(
+                    "[registry] sparse = true requires local index/config.json (no CDN)".into(),
+                )
+            }
+        }
+        None => Ok(if sparse_config_present(reg) {
+            RegistryIndexKind::Sparse
+        } else {
+            RegistryIndexKind::Scan
+        }),
+    }
+}
+
+fn parse_sparse_crate_versions(text: &str) -> Result<Vec<semver::Version>, String> {
+    let mut out = Vec::new();
+    for (i, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let v: Value = serde_json::from_str(line).map_err(|e| {
+            format!("sparse crate index line {}: {e}", i + 1)
+        })?;
+        if v.get("yanked").and_then(|x| x.as_bool()) == Some(true) {
+            continue;
+        }
+        let Some(vers) = v.get("vers").and_then(|x| x.as_str()) else {
+            return Err(format!("sparse crate index line {}: missing vers", i + 1));
+        };
+        let ver = semver::Version::parse(vers).map_err(|e| {
+            format!("sparse crate index line {}: bad vers `{vers}`: {e}", i + 1)
+        })?;
+        out.push(ver);
+    }
+    Ok(out)
+}
+
+fn load_sparse_crate_versions(reg: &Path, name: &str) -> Result<Vec<semver::Version>, String> {
+    let rel = crate_index_rel_path(name).ok_or_else(|| {
+        format!("invalid package name `{name}` for sparse index")
+    })?;
+    let base = reg.join("index").join(&rel);
+    let json = {
+        let mut p = base.clone();
+        p.set_extension("json");
+        p
+    };
+    for cand in [&base, &json] {
+        if cand.is_file() {
+            let text = fs::read_to_string(cand).map_err(|e| {
+                format!("cannot read sparse crate index {}: {e}", cand.display())
+            })?;
+            return parse_sparse_crate_versions(&text);
+        }
+    }
+    Err(format!(
+        "sparse index has no crate file for `{name}` (expected index/{})",
+        rel.display()
+    ))
+}
+
+fn resolve_sparse_registry_version(reg: &Path, name: &str, ver_req: &str) -> ResolvedDep {
+    let versions = match load_sparse_crate_versions(reg, name) {
+        Ok(v) => v,
+        Err(e) => return registry_fail(name, reg.to_path_buf(), ver_req, e),
+    };
+    let chosen = if semver::Version::parse(ver_req).is_ok() {
+        versions.iter().find(|v| v.to_string() == ver_req).cloned()
+    } else {
+        let req = match semver::VersionReq::parse(ver_req) {
+            Ok(r) => r,
+            Err(e) => {
+                return registry_fail(
+                    name,
+                    reg.to_path_buf(),
+                    ver_req,
+                    format!(
+                        "invalid version req `{ver_req}` for `{name}`: {e} (use exact dir, ^x.y.z, or >=x.y.z)"
+                    ),
+                );
+            }
+        };
+        versions
+            .into_iter()
+            .filter(|v| req.matches(v))
+            .max()
+    };
+    let Some(ver) = chosen else {
+        return registry_fail(
+            name,
+            reg.to_path_buf(),
+            ver_req,
+            format!(
+                "package `{name}` req `{ver_req}` not listed in local sparse index under {}/index/",
+                reg.display()
+            ),
+        );
+    };
+    let cand = reg.join(name).join(ver.to_string());
+    if cand.is_dir() && cand.join("rynix.toml").is_file() {
+        let abs = fs::canonicalize(&cand).unwrap_or(cand);
+        return resolve_one_dir(name, "registry", abs, Some(ver.to_string()));
+    }
+    registry_fail(
+        name,
+        cand.clone(),
+        ver_req,
+        format!(
+            "sparse index lists `{name}` {ver} but package dir missing: {}",
+            cand.display()
+        ),
+    )
+}
+
 fn resolve_registry_version(manifest: &Manifest, name: &str, ver_req: &str) -> ResolvedDep {
     let Some(reg_rel) = &manifest.registry_path else {
-        return ResolvedDep {
-            name: name.into(),
-            kind: "registry".into(),
-            path: manifest.dir.clone(),
-            version: Some(ver_req.into()),
-            entry: None,
-            sources: Vec::new(),
-            ok: false,
-            detail: "version dep requires [registry] path = \"…\" (local index only)".into(),
-        };
+        return registry_fail(
+            name,
+            manifest.dir.clone(),
+            ver_req,
+            "version dep requires [registry] path = \"…\" (local index only)".into(),
+        );
     };
     let reg = if reg_rel.is_absolute() {
         reg_rel.clone()
@@ -374,6 +547,14 @@ fn resolve_registry_version(manifest: &Manifest, name: &str, ver_req: &str) -> R
         manifest.dir.join(reg_rel)
     };
     let reg = fs::canonicalize(&reg).unwrap_or(reg);
+
+    let kind = match registry_index_kind(&reg, manifest.registry_sparse) {
+        Ok(k) => k,
+        Err(e) => return registry_fail(name, reg, ver_req, e),
+    };
+    if kind == RegistryIndexKind::Sparse {
+        return resolve_sparse_registry_version(&reg, name, ver_req);
+    }
 
     // Exact directory match only when the req is a plain version (not a range).
     if semver::Version::parse(ver_req).is_ok() {
@@ -393,18 +574,14 @@ fn resolve_registry_version(manifest: &Manifest, name: &str, ver_req: &str) -> R
     let req = match semver::VersionReq::parse(ver_req) {
         Ok(r) => r,
         Err(e) => {
-            return ResolvedDep {
-                name: name.into(),
-                kind: "registry".into(),
-                path: reg.clone(),
-                version: Some(ver_req.into()),
-                entry: None,
-                sources: Vec::new(),
-                ok: false,
-                detail: format!(
+            return registry_fail(
+                name,
+                reg.clone(),
+                ver_req,
+                format!(
                     "invalid version req `{ver_req}` for `{name}`: {e} (use exact dir, ^x.y.z, or >=x.y.z)"
                 ),
-            };
+            );
         }
     };
 
@@ -440,19 +617,15 @@ fn resolve_registry_version(manifest: &Manifest, name: &str, ver_req: &str) -> R
         return resolve_one_dir(name, "registry", abs, Some(ver.to_string()));
     }
 
-    ResolvedDep {
-        name: name.into(),
-        kind: "registry".into(),
-        path: reg.clone(),
-        version: Some(ver_req.into()),
-        entry: None,
-        sources: Vec::new(),
-        ok: false,
-        detail: format!(
+    registry_fail(
+        name,
+        reg.clone(),
+        ver_req,
+        format!(
             "package `{name}` req `{ver_req}` not found under local registry (exact dir or semver range under {}/{{name}}/)",
             reg.display()
         ),
-    }
+    )
 }
 
 pub fn resolve_deps(manifest: &Manifest) -> DepsReport {
@@ -469,10 +642,18 @@ pub fn resolve_deps(manifest: &Manifest) -> DepsReport {
         fs::canonicalize(&abs).unwrap_or(abs)
     });
     let workspace = find_workspace_root(&manifest.dir);
+    let registry_index = registry.as_ref().and_then(|reg| {
+        match registry_index_kind(reg, manifest.registry_sparse) {
+            Ok(RegistryIndexKind::Sparse) => Some("sparse".into()),
+            Ok(RegistryIndexKind::Scan) => Some("scan".into()),
+            Err(_) => None,
+        }
+    });
     DepsReport {
         root_manifest: manifest.dir.join("rynix.toml"),
         package: manifest.name.clone(),
         registry,
+        registry_index,
         workspace,
         deps: out,
     }
@@ -721,6 +902,8 @@ fn parse_manifest_toml(content: &str) -> Manifest {
             "[registry]" => {
                 if let Some(v) = parse_string_assign(line, "path") {
                     m.registry_path = Some(PathBuf::from(v));
+                } else if let Some(v) = parse_bool_assign(line, "sparse") {
+                    m.registry_sparse = Some(v);
                 }
             }
             "[build]" => {
@@ -942,6 +1125,57 @@ util = "0.1.0"
         assert_eq!(report.deps.len(), 1);
         assert_eq!(report.deps[0].kind, "registry");
         assert_eq!(report.deps[0].version.as_deref(), Some("0.1.0"));
+        assert_eq!(report.registry_index.as_deref(), Some("scan"));
+    }
+
+    #[test]
+    fn crate_index_rel_path_matches_cargo_sparse() {
+        assert_eq!(
+            crate_index_rel_path("util").as_deref(),
+            Some(Path::new("ut/il/util"))
+        );
+        assert_eq!(crate_index_rel_path("a").as_deref(), Some(Path::new("1/a")));
+        assert_eq!(crate_index_rel_path("ab").as_deref(), Some(Path::new("2/ab")));
+        assert_eq!(
+            crate_index_rel_path("abc").as_deref(),
+            Some(Path::new("3/a/abc"))
+        );
+    }
+
+    #[test]
+    fn parses_registry_sparse_flag() {
+        let m = parse_manifest_toml(
+            r#"
+[package]
+name = "app"
+[registry]
+path = "vendor"
+sparse = true
+"#,
+        );
+        assert_eq!(m.registry_sparse, Some(true));
+    }
+
+    #[test]
+    fn resolves_sparse_index_skips_unlisted_dir() {
+        let root =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata/pkg_sparse_app");
+        let root = root.canonicalize().expect("testdata");
+        let m = load_manifest(&root.join("rynix.toml")).expect("manifest");
+        let report = resolve_deps(&m);
+        assert!(report.all_ok(), "{:?}", report.deps);
+        assert_eq!(report.registry_index.as_deref(), Some("sparse"));
+        assert_eq!(report.deps.len(), 1);
+        assert_eq!(report.deps[0].kind, "registry");
+        assert_eq!(report.deps[0].version.as_deref(), Some("0.2.0"));
+        assert!(
+            !report.deps[0]
+                .path
+                .to_string_lossy()
+                .contains("0.9.0"),
+            "unlisted decoy dir must not win: {:?}",
+            report.deps[0].path
+        );
     }
 
     #[test]

@@ -157,7 +157,7 @@ Gap analysis: [END_PEER_GAP.md](END_PEER_GAP.md).
 | DCE strips dead Suite5 noise | ✅ | `dce_matrix_noise` — matrix LLVM is `opaque*216` |
 | C11 backend | 🔄 deferred | ADR-0008 — no stub transpile |
 | UI / canvas | 🔄 deferred | ADR-0007 — no stub studio |
-| Network package registry | 🔄 deferred | ADR-0010 — local index + unity + `rynix.lock.toml` only |
+| Network package registry | 🔄 deferred | ADR-0010 — local dir-scan + **sparse** index + unity + lock; no CDN |
 
 ## Phase 12 — Lead ahead (valuable, not theatrical)
 
@@ -186,6 +186,13 @@ Plan: **[PHASE13.md](PHASE13.md)**. Order: A then B.
 | A | `emit-ll --target=wasm32-unknown-unknown` + clang `-c` smoke | ✅ `emit_ll_wasm32_clang_accepts` |
 | B | `[build].optimize` + `--opt`/`--no-opt` for build/run | ✅ `build_respects_manifest_optimize` |
 | C | Dual-path HTTP loop (`http_serve_loop_2paths_json_i64`) | ✅ `http_loop_2paths` |
+
+## Follow-on (post-13)
+
+| Item | Status | Gate |
+|------|--------|------|
+| Local sparse package index (no CDN) | ✅ | `deps_resolves_sparse_local_index`, `build_pkg_sparse_app_resolves_index` |
+| Suite5 `sum` closed form without `sdiv`/IDIV | ✅ | `sum_opaque_closed_form_has_no_sdiv_or_loop` |
 
 ## CI
 

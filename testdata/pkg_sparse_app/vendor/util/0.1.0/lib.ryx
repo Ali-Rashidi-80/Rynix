@@ -1,0 +1,4 @@
+## vendor util 0.1.0 — listed in sparse index.
+def util_answer() -> i64
+  return 42
+end

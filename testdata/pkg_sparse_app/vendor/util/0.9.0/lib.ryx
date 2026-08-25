@@ -1,0 +1,4 @@
+## Decoy: on-disk but NOT listed in sparse index. Must not be selected.
+def util_answer() -> i64
+  return 99
+end

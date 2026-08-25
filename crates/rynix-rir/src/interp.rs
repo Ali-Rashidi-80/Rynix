@@ -126,6 +126,21 @@ fn eval_func(
                 Inst::IDiv(a, b) => {
                     vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x / y)?);
                 }
+                Inst::UDiv(a, b) => {
+                    let InterpValue::I64(x) = get(&vals, *a)? else {
+                        return Err(InterpError::Trap("udiv".into()));
+                    };
+                    let InterpValue::I64(y) = get(&vals, *b)? else {
+                        return Err(InterpError::Trap("udiv".into()));
+                    };
+                    if y == 0 {
+                        return Err(InterpError::Trap("udiv by zero".into()));
+                    }
+                    vals.insert(
+                        result_vid.unwrap(),
+                        InterpValue::I64(((x as u64) / (y as u64)) as i64),
+                    );
+                }
                 Inst::IRem(a, b) => {
                     vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x % y)?);
                 }

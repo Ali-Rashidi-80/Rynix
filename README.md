@@ -398,7 +398,8 @@ Grammar: [`docs/SPEC.md`](docs/SPEC.md). Soft table must match `crates/rynix-sem
 
 ### Packages (local only)
 
-Path + optional filesystem `[registry]` index; unity compile + `pkg__fn` mangling;
+Path + optional filesystem `[registry]` index (directory scan or local sparse
+`index/config.json`); unity compile + `pkg__fn` mangling;
 `rynix.lock.toml` via `rynixc deps --lock`; workspaces `{ workspace = true }`;
 `rynixc new <name>` scaffold; next step is `rynixc build` in the package dir.
 `import std::math` / `std::fs` / `std::crypto` load real `std/*.ryx` defs (docs-only

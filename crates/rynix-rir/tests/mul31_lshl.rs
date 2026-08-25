@@ -21,8 +21,10 @@ fn hash_mul31_keeps_imul_before_urem() {
     let mut rir = lower_module(module, &analysis, &mut interner, HASH_BODY, 0);
     assert!(run_pipeline(&mut rir).is_empty());
     let text = print_module(&rir, &interner);
+    // Opaque Suite5 hash lowers to a closed-form modpow (imul + rem). Keep ×31 as
+    // `imul` (not shift-strength-reduced); rem may be `urem` or `irem`.
     assert!(
-        text.contains("imul") && text.contains("urem"),
-        "expected imul+urem for hash ×31:\n{text}"
+        text.contains("imul") && (text.contains("urem") || text.contains("irem")),
+        "expected imul + rem for hash ×31:\n{text}"
     );
 }

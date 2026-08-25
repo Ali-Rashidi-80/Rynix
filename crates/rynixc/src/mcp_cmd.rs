@@ -253,7 +253,7 @@ fn tool_defs() -> Value {
         },
         {
             "name": "rynix_deps",
-            "description": "Resolve local path deps from rynix.toml (rynix.deps.v1)",
+            "description": "Resolve local path/registry deps from rynix.toml (rynix.deps.v1; local index only)",
             "inputSchema": {
                 "type": "object",
                 "properties": {

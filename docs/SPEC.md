@@ -336,6 +336,29 @@ out of scope for CDN. Exact directory names still work; ranges pick the
 **highest** matching `{registry}/{name}/{version}/` folder
 ([ADR-0010](adr/0010-local-package-index.md)).
 
+### 6.2.1 Local sparse index (no CDN)
+
+When `{registry}/index/config.json` exists (or `[registry] sparse = true`),
+resolve versions from a Cargo-style **local** crate file instead of scanning
+every `{name}/{version}/` directory:
+
+```text
+vendor/index/config.json          # presence selects sparse mode
+vendor/index/ut/il/util           # NDJSON: {"name","vers", optional "yanked"}
+vendor/util/0.2.0/                # package sources (must exist for the chosen vers)
+```
+
+Prefix rules match crates.io sparse: 1-char `1/{name}`, 2-char `2/{name}`,
+3-char `3/{a}/{name}`, else `{aa}/{bb}/{name}`. A `.json` suffix on the crate
+file is accepted. `yanked: true` lines are skipped. Unlisted version
+directories (even if they contain `rynix.toml`) must not be selected.
+`config.json` is not fetched over the network; `dl` / `api` keys are ignored.
+
+`rynixc deps --error-format=json` reports `registry_index: "sparse" | "scan"`.
+
+Evidence: `testdata/pkg_sparse_app`, `deps_resolves_sparse_local_index`,
+`build_pkg_sparse_app_resolves_index`.
+
 ### 6.3 Unity compile of dependency sources
 
 `rynixc build` / `emit-ll` load each resolved dependency’s sources **before**
@@ -366,8 +389,8 @@ Rules:
 - Soft `std` builtins remain injected by sema
 
 Evidence: `testdata/pkg_app`, `testdata/pkg_util` (`files = ["extra.ryx"]`),
-`testdata/pkg_reg_app`, `build_pkg_app_calls_path_dep`,
-`build_pkg_reg_app_resolves_registry_deps`.
+`testdata/pkg_reg_app`, `testdata/pkg_sparse_app`, `build_pkg_app_calls_path_dep`,
+`build_pkg_reg_app_resolves_registry_deps`, `build_pkg_sparse_app_resolves_index`.
 
 ### 6.3.1 Local lockfile (`rynix.lock.toml`)
 

@@ -20,7 +20,8 @@ ad-hoc scraping.
   (manifest build: `docs/contracts/wave12_manifest.contract.toml`)
 - Agent write gate: `patch --write` denied unless `rynix.scope.toml` / `--force-write`
 - Path deps: `rynixc deps` → `rynix.deps.v1` (path + local `[registry]` index;
-  optional `rynix.lock.toml` via `--lock` / `--locked`; no network)
+  dir-scan or sparse `index/config.json`; optional `rynix.lock.toml` via `--lock` /
+  `--locked`; no network)
 - Package compile: unity + `pkg__fn` mangling; semver `^`/`>=`; `import std::mod`; workspace `{ workspace = true }`
 - Conventions: `rynixc dna` → `rynix.dna.v1` (heuristic; not “80 layers”)
 - Scaffold: `rynixc new <name>` → local package; next: `rynixc build` (cwd / entry)

@@ -107,6 +107,7 @@ impl FunctionBuilder {
             | Inst::ISub(_, _)
             | Inst::IMul(_, _)
             | Inst::IDiv(_, _)
+            | Inst::UDiv(_, _)
             | Inst::IRem(_, _)
             | Inst::URem(_, _)
             | Inst::IAnd(_, _)

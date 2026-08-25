@@ -1,4 +1,4 @@
-//! Sum-of-squares counted loops lower to a closed form.
+//! Sum-of-squares counted loops lower to a closed form (opaque n stays dynamic).
 
 use rynix_ast::AstArena;
 use rynix_diag::VecSink;
@@ -19,9 +19,12 @@ fn sum_of_squares_closed_form() {
     assert_eq!(sink.error_count(), 0, "{:?}", sink.diags);
     let rir = lower_module(module, &analysis, &mut interner, src, 0);
     let text = print_module(&rir, &interner);
-    // n=1500000 → (n-1)*n*(2n-1)/6 = 1124998875000250000
+    // Opaque n → runtime closed form n(n-1)/2*(2n-1)/3 (udiv/lshr), not host-folded.
     assert!(
-        text.contains("1124998875000250000") && !text.contains("jump block1"),
-        "expected closed-form sum of squares, got:\n{text}"
+        text.contains("rynix_rt_opaque_i64")
+            && !text.contains("jump block1")
+            && (text.contains("udiv") || text.contains("lshr"))
+            && !text.contains("1124998875000250000"),
+        "expected opaque Σ i² closed form (no host-folded checksum), got:\n{text}"
     );
 }

@@ -43,6 +43,9 @@ pub fn run(options: &DepsOptions) -> ExitCode {
             if let Some(reg) = &report.registry {
                 println!("  registry: {}", reg.display());
             }
+            if let Some(idx) = &report.registry_index {
+                println!("  registry_index: {idx}");
+            }
             for d in &report.deps {
                 let mark = if d.ok { "ok" } else { "FAIL" };
                 let ver = d

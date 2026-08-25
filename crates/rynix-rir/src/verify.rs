@@ -52,6 +52,7 @@ fn check_inst(
         | Inst::ISub(a, b)
         | Inst::IMul(a, b)
         | Inst::IDiv(a, b)
+        | Inst::UDiv(a, b)
         | Inst::IRem(a, b)
         | Inst::URem(a, b)
         | Inst::IAnd(a, b)

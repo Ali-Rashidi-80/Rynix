@@ -320,6 +320,7 @@ fn deps_resolves_local_registry_version() {
     assert_eq!(v["schema"], "rynix.deps.v1");
     assert_eq!(v["status"], "ok");
     assert_eq!(v["package"], "pkg_reg_app");
+    assert_eq!(v["registry_index"], "scan");
     assert!(v["registry"].as_str().unwrap().contains("vendor"));
     let deps = v["dependencies"].as_array().expect("deps");
     assert_eq!(deps.len(), 1);
@@ -327,6 +328,82 @@ fn deps_resolves_local_registry_version() {
     assert_eq!(deps[0]["kind"], "registry");
     assert_eq!(deps[0]["version"], "0.1.0");
     assert_eq!(deps[0]["ok"], true);
+}
+
+#[test]
+fn deps_resolves_sparse_local_index() {
+    let root = repo_root();
+    let app = root.join("testdata/pkg_sparse_app");
+    let out = rynixc()
+        .args([
+            "deps",
+            app.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["schema"], "rynix.deps.v1");
+    assert_eq!(v["status"], "ok");
+    assert_eq!(v["package"], "pkg_sparse_app");
+    assert_eq!(v["registry_index"], "sparse");
+    let deps = v["dependencies"].as_array().expect("deps");
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0]["name"], "util");
+    assert_eq!(deps[0]["kind"], "registry");
+    assert_eq!(deps[0]["index"], "sparse");
+    assert_eq!(deps[0]["version"], "0.2.0");
+    assert_eq!(deps[0]["ok"], true);
+    let path = deps[0]["path"].as_str().unwrap_or("");
+    assert!(
+        !path.contains("0.9.0") && !path.contains("0.8.0"),
+        "sparse must ignore unlisted/yanked dirs, got {path}"
+    );
+}
+
+#[test]
+fn build_pkg_sparse_app_resolves_index() {
+    let root = repo_root();
+    let main = root.join("testdata/pkg_sparse_app/main.ryx");
+    let out_dir = root.join("target/test-pkg-sparse-app");
+    std::fs::create_dir_all(&out_dir).ok();
+    let exe = out_dir.join(if cfg!(windows) {
+        "pkg_sparse_app.exe"
+    } else {
+        "pkg_sparse_app"
+    });
+    let build = rynixc()
+        .args([
+            "build",
+            main.to_str().unwrap(),
+            "-o",
+            exe.to_str().unwrap(),
+            "--runtime=portable",
+        ])
+        .output()
+        .expect("spawn build");
+    assert!(
+        build.status.success(),
+        "build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let run = Command::new(&exe).output().expect("run");
+    assert!(run.status.success(), "run failed");
+    let stdout = String::from_utf8_lossy(&run.stdout);
+    assert!(
+        stdout.contains("42"),
+        "expected util 0.2.0 answer=42 (not decoy 99), got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("99") && !stdout.contains("88"),
+        "decoy/yanked util must not be linked, got: {stdout}"
+    );
 }
 
 #[test]

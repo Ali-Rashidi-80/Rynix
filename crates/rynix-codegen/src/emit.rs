@@ -623,6 +623,18 @@ fn emit_inst(
                 bin_i(out, ctx, func, result, "sdiv", a, b);
             }
         }
+        Inst::UDiv(a, b) => match iconst_of(func, *b).and_then(udiv_const_plan) {
+            Some(UdivPlan::Pow2(shift)) => {
+                let x = ctx.val(*a);
+                let name = ctx.tmp();
+                let _ = writeln!(out, "  {name} = lshr i64 {x}, {shift}");
+                ctx.bind(result.unwrap(), name);
+            }
+            Some(UdivPlan::Mulhu { magic, shift }) => {
+                emit_udiv_mulhu(out, ctx, result, a, magic, shift);
+            }
+            None => bin_i(out, ctx, func, result, "udiv", a, b),
+        },
         Inst::IRem(a, b) => {
             if let Some(shift) = iconst_of(func, *b).and_then(pow2_shift) {
                 emit_signed_srem_pow2(out, ctx, result, a, shift);
@@ -1236,6 +1248,61 @@ fn pow2_shift(n: i64) -> Option<u32> {
     } else {
         None
     }
+}
+
+/// Granlund–Montgomery `udiv` by a small positive constant (no IDIV).
+enum UdivPlan {
+    Pow2(u32),
+    Mulhu { magic: u64, shift: u32 },
+}
+
+fn udiv_const_plan(d: i64) -> Option<UdivPlan> {
+    if let Some(shift) = pow2_shift(d) {
+        return Some(UdivPlan::Pow2(shift));
+    }
+    // 0xAAAAAAAAAAAAAAAB = ceil(2^64 / 3); `lshr` 1 → /3, `lshr` 2 → /6.
+    const MAGIC3: u64 = 0xAAAA_AAAA_AAAA_AAAB;
+    match d {
+        3 => Some(UdivPlan::Mulhu {
+            magic: MAGIC3,
+            shift: 1,
+        }),
+        6 => Some(UdivPlan::Mulhu {
+            magic: MAGIC3,
+            shift: 2,
+        }),
+        _ => None,
+    }
+}
+
+/// `udiv n, d` → `(mulhu n, magic) >> shift` via i128 (clang `-c` of textual `.ll`
+/// often leaves a raw `udiv`/`sdiv` as IDIV).
+fn emit_udiv_mulhu(
+    out: &mut String,
+    ctx: &mut EmitCtx<'_>,
+    result: Option<ValueId>,
+    a: &ValueId,
+    magic: u64,
+    shift: u32,
+) {
+    let x = ctx.val(*a);
+    let wide = ctx.tmp();
+    let mag = ctx.tmp();
+    let prod = ctx.tmp();
+    let hi128 = ctx.tmp();
+    let hi = ctx.tmp();
+    let _ = writeln!(out, "  {wide} = zext i64 {x} to i128");
+    let _ = writeln!(out, "  {mag} = zext i64 {magic} to i128");
+    let _ = writeln!(out, "  {prod} = mul i128 {wide}, {mag}");
+    let _ = writeln!(out, "  {hi128} = lshr i128 {prod}, 64");
+    let _ = writeln!(out, "  {hi} = trunc i128 {hi128} to i64");
+    if shift == 0 {
+        ctx.bind(result.unwrap(), hi);
+        return;
+    }
+    let q = ctx.tmp();
+    let _ = writeln!(out, "  {q} = lshr i64 {hi}, {shift}");
+    ctx.bind(result.unwrap(), q);
 }
 
 /// Signed `sdiv` by `2^shift` without a variable divisor (LLVM-friendly, trunc toward zero).

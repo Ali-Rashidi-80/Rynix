@@ -74,6 +74,7 @@ fn format_inst(
         Inst::ISub(a, b) => format!("{lhs}isub {}, {}", v(*a), v(*b)),
         Inst::IMul(a, b) => format!("{lhs}imul {}, {}", v(*a), v(*b)),
         Inst::IDiv(a, b) => format!("{lhs}idiv {}, {}", v(*a), v(*b)),
+        Inst::UDiv(a, b) => format!("{lhs}udiv {}, {}", v(*a), v(*b)),
         Inst::IRem(a, b) => format!("{lhs}irem {}, {}", v(*a), v(*b)),
         Inst::URem(a, b) => format!("{lhs}urem {}, {}", v(*a), v(*b)),
         Inst::IAnd(a, b) => format!("{lhs}iand {}, {}", v(*a), v(*b)),

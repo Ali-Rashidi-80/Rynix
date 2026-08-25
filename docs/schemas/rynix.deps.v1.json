@@ -9,6 +9,11 @@
     "manifest": { "type": "string" },
     "package": { "type": "string" },
     "registry": { "type": ["string", "null"] },
+    "registry_index": {
+      "type": ["string", "null"],
+      "enum": ["sparse", "scan", null],
+      "description": "Local index mode; never a network registry"
+    },
     "workspace": { "type": ["string", "null"] },
     "status": { "type": "string", "enum": ["ok", "error"] },
     "dependencies": {
@@ -19,6 +24,10 @@
         "properties": {
           "name": { "type": "string" },
           "kind": { "type": "string", "enum": ["path", "registry", "workspace"] },
+          "index": {
+            "type": ["string", "null"],
+            "enum": ["sparse", "scan", null]
+          },
           "path": { "type": "string" },
           "version": { "type": ["string", "null"] },
           "entry": { "type": ["string", "null"] },

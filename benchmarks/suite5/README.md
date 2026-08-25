@@ -43,6 +43,8 @@ Compilers may **strength-reduce** recognized patterns (closed forms, `ctpop`, ma
 hash polynomials, …). That is a real optimization when disclosed; Suite5 measures
 **binary wall-clock for the same checksum**, not identical instruction mixes.
 Literal-bound host-fold outside Suite5 remains a compiler feature (unit-tested separately).
+`sum` uses the closed form `n(n-1)/2 · (2n-1)/3` with an unsigned reciprocal multiply
+(no `sdiv`/IDIV); checksum `1124998875000250000` is unchanged.
 
 ## Correctness gate
 
@@ -67,26 +69,27 @@ successful language in the run order. CI requires **C ↔ Rynix** match on all 1
 ### Latest head-to-head vs End (2026-08-25, Windows; warmup=3, runs=9)
 
 Checksums OK on all 12 for C, Rynix, and End. Artifact:
-`suite5_summary_2026-08-25_vs_end.txt`. Peer regressions + port notes:
-[END_INTEGRATION.md](END_INTEGRATION.md).
+`suite5_summary_2026-08-25_vs_end_mulhu.txt` (post–`sum` mulhu closed form).
+Peer regressions + port notes: [END_INTEGRATION.md](END_INTEGRATION.md).
 
 | Challenge | c | rynix | end | Winner |
 |-----------|--:|------:|----:|--------|
-| alu | 11.4 | 5.8 | 7.9 | rynix |
-| nested | 6.9 | 5.3 | 5.3 | tie |
-| fib | 9.6 | 6.6 | 8.3 | rynix |
-| hash | 19.7 | 5.5 | 16.5 | rynix |
-| prime | 11.7 | 8.3 | 64.0 | rynix |
-| sum | 13.1 | 6.6 | 5.3 | end |
-| bits | 457.6 | 92.2 | 418.9 | rynix |
-| matrix | 11.2 | 5.5 | 6.5 | rynix |
-| scan | 17.2 | 5.8 | 13.6 | rynix |
-| powmod | 16.8 | 5.4 | 16.8 | rynix |
-| gcd | 178.9 | 113.4 | 243.2 | rynix |
-| reduce | 27.5 | 5.3 | 15.6 | rynix |
+| alu | 8.7 | 6.1 | 8.5 | rynix |
+| nested | 6.9 | 5.9 | 5.7 | end |
+| fib | 8.1 | 5.5 | 8.0 | rynix |
+| hash | 28.3 | 5.7 | 14.8 | rynix |
+| prime | 11.6 | 8.6 | 59.3 | rynix |
+| sum | 12.5 | 7.3 | 7.0 | end |
+| bits | 454.0 | 90.0 | 375.3 | rynix |
+| matrix | 7.7 | 5.6 | 5.7 | rynix |
+| scan | 16.8 | 6.0 | 12.2 | rynix |
+| powmod | 15.5 | 6.8 | 13.3 | rynix |
+| gcd | 163.7 | 116.1 | 209.7 | rynix |
+| reduce | 13.1 | 5.4 | 15.2 | rynix |
 
-**Rynix 10 · End 1 · tie 1.** Strength reduction disclosed for large Rynix/C gaps.
-Authoritative narrative: [docs/VERDICT.md](../../docs/VERDICT.md).
+**Rynix 10 · End 2** (`nested`, `sum`). `sum` gap vs End closed from ~1.2× to
+~1.03× after reciprocal-mul closed form (same checksum). Strength reduction
+disclosed. Authoritative narrative: [docs/VERDICT.md](../../docs/VERDICT.md).
 
 ### Prior multi-lang snapshot (2026-08-25, no End)
 

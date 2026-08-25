@@ -294,7 +294,7 @@ fn parse_inst(
             })?;
             bind(lhs, b.bconst(n), vmap);
         }
-        "iadd" | "isub" | "imul" | "idiv" | "irem" => {
+        "iadd" | "isub" | "imul" | "idiv" | "udiv" | "irem" => {
             let a = map_v(parts.get(1).unwrap_or(&"").trim_end_matches(','), vmap)?;
             let bv = map_v(parts.get(2).unwrap_or(&""), vmap)?;
             let v = match op {
@@ -302,6 +302,7 @@ fn parse_inst(
                 "isub" => b.push_value(Inst::ISub(a, bv)),
                 "imul" => b.push_value(Inst::IMul(a, bv)),
                 "idiv" => b.push_value(Inst::IDiv(a, bv)),
+                "udiv" => b.push_value(Inst::UDiv(a, bv)),
                 _ => b.push_value(Inst::IRem(a, bv)),
             };
             bind(lhs, v, vmap);

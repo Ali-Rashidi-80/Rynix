@@ -1,0 +1,12 @@
+[package]
+name = "pkg_sparse_app"
+version = "0.1.0"
+entry = "main.ryx"
+
+[registry]
+path = "vendor"
+sparse = true
+
+[dependencies]
+# Scan would pick unlisted vendor/util/0.9.0; sparse index must not.
+util = ">=0.1.0"

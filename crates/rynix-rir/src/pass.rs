@@ -35,6 +35,32 @@ pub fn const_fold(module: &mut Module) {
 fn const_fold_once(module: &mut Module) -> bool {
     let mut changed = false;
     for func in &mut module.funcs {
+        let mut pred_count = vec![0u32; func.blocks.len()];
+        for inst in &func.insts {
+            match inst {
+                Inst::Jump { target, .. } => {
+                    if (target.0 as usize) < pred_count.len() {
+                        pred_count[target.0 as usize] =
+                            pred_count[target.0 as usize].saturating_add(1);
+                    }
+                }
+                Inst::Br {
+                    then_target,
+                    else_target,
+                    ..
+                } => {
+                    if (then_target.0 as usize) < pred_count.len() {
+                        pred_count[then_target.0 as usize] =
+                            pred_count[then_target.0 as usize].saturating_add(1);
+                    }
+                    if (else_target.0 as usize) < pred_count.len() {
+                        pred_count[else_target.0 as usize] =
+                            pred_count[else_target.0 as usize].saturating_add(1);
+                    }
+                }
+                _ => {}
+            }
+        }
         let mut known: Vec<Option<i64>> = vec![None; func.values.len()];
         let mut rewrites: Vec<(usize, i64)> = Vec::new();
         for (ii, inst) in func.insts.iter().enumerate() {
@@ -44,6 +70,47 @@ fn const_fold_once(module: &mut Module) -> bool {
                 .enumerate()
                 .find(|(_, v)| v.def == Some(crate::ir::InstId(ii as u32)))
                 .map(|(i, _)| i);
+            match inst {
+                Inst::Jump { target, args } => {
+                    if pred_count.get(target.0 as usize).copied() == Some(1) {
+                        let params = &func.blocks[target.0 as usize].params;
+                        for (i, arg) in args.iter().enumerate() {
+                            if let Some(n) = known.get(arg.0 as usize).copied().flatten()
+                                && let Some((pid, _)) = params.get(i)
+                                && (pid.0 as usize) < known.len()
+                            {
+                                known[pid.0 as usize] = Some(n);
+                            }
+                        }
+                    }
+                }
+                Inst::Br {
+                    then_target,
+                    then_args,
+                    else_target,
+                    else_args,
+                    ..
+                } => {
+                    for (tgt, args) in [
+                        (*then_target, then_args.as_slice()),
+                        (*else_target, else_args.as_slice()),
+                    ] {
+                        if pred_count.get(tgt.0 as usize).copied() == Some(1) {
+                            let params = &func.blocks[tgt.0 as usize].params;
+                            for (i, arg) in args.iter().enumerate() {
+                                if let Some(n) =
+                                    known.get(arg.0 as usize).copied().flatten()
+                                    && let Some((pid, _)) = params.get(i)
+                                    && (pid.0 as usize) < known.len()
+                                {
+                                    known[pid.0 as usize] = Some(n);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
             let folded = match *inst {
                 Inst::IConst(n) => Some(n),
                 Inst::BConst(b) => {
@@ -76,6 +143,13 @@ fn const_fold_once(module: &mut Module) -> bool {
                 },
                 Inst::IAnd(a, b) => bin(&known, a, b, |x, y| x & y),
                 Inst::IOr(a, b) => bin(&known, a, b, |x, y| x | y),
+                Inst::UDiv(a, b) => match (
+                    known.get(a.0 as usize).copied().flatten(),
+                    known.get(b.0 as usize).copied().flatten(),
+                ) {
+                    (Some(x), Some(y)) if y != 0 => Some(((x as u64) / (y as u64)) as i64),
+                    _ => None,
+                },
                 Inst::URem(a, b) => match (
                     known.get(a.0 as usize).copied().flatten(),
                     known.get(b.0 as usize).copied().flatten(),
@@ -218,6 +292,7 @@ fn mark_used(inst: &Inst, used: &mut FxHashSet<ValueId>) {
         | Inst::ISub(a, b)
         | Inst::IMul(a, b)
         | Inst::IDiv(a, b)
+        | Inst::UDiv(a, b)
         | Inst::IRem(a, b)
         | Inst::URem(a, b)
         | Inst::IAnd(a, b)

@@ -1,0 +1,4 @@
+## vendor util 0.2.0 — highest non-yanked sparse listing.
+def util_answer() -> i64
+  return 42
+end

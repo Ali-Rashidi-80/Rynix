@@ -2047,8 +2047,10 @@ impl LowerCtx<'_, '_> {
             Inst::LShl(a, b) => {
                 self.value_is_nonneg(*a) && self.value_is_nonneg_iconst(*b)
             }
+            Inst::LShr(a, _) => self.value_is_nonneg(*a),
             Inst::ISub(a, b) => self.value_is_nonneg(*a) && self.value_is_nonneg(*b),
             Inst::IAnd(l, _) => self.value_is_nonneg(*l),
+            Inst::ZExtI64(_) => true,
             _ => false,
         }
     }
@@ -2153,6 +2155,9 @@ impl LowerCtx<'_, '_> {
                 let sh = self.b.iconst(i64::from(shift));
                 return self.b.push_value(Inst::LShr(l, sh));
             }
+        }
+        if self.value_is_nonneg(l) && self.value_is_strictly_positive(r) {
+            return self.b.push_value(Inst::UDiv(l, r));
         }
         self.b.push_value(Inst::IDiv(l, r))
     }
@@ -2609,19 +2614,18 @@ impl LowerCtx<'_, '_> {
         let n = self.load_sym(bound);
         let z = self.b.iconst(0);
         let one = self.b.iconst(1);
-        let two = self.b.iconst(2);
-        let six = self.b.iconst(6);
+        let three = self.b.iconst(3);
+        // n<=0 → 0; else n*(n-1)/2 * (2n-1) / 3  (always divisible; no `sdiv`).
         let n_pos = self.b.push_value(Inst::ICmp(CmpOp::Gt, n, z));
         let n_pos_i = self.b.push_value(Inst::ZExtI64(n_pos));
-        let nm1 = self.b.push_value(Inst::ISub(n, one));
-        let nm1_s = self.b.push_value(Inst::IMul(nm1, n_pos_i));
-        // (n-1)*n*(2n-1)/6
-        let t1 = self.b.push_value(Inst::IMul(nm1_s, n));
-        let two_n = self.b.push_value(Inst::IMul(two, n));
-        let two_n_m1 = self.b.push_value(Inst::ISub(two_n, one));
-        let t2 = self.b.push_value(Inst::IMul(t1, two_n_m1));
-        let sum = self.lower_int_div(t2, six);
-        let sum = self.b.push_value(Inst::IMul(sum, n_pos_i));
+        let n_s = self.b.push_value(Inst::IMul(n, n_pos_i));
+        let nm1 = self.b.push_value(Inst::ISub(n_s, n_pos_i));
+        let prod = self.b.push_value(Inst::IMul(nm1, n_s));
+        let half = self.b.push_value(Inst::LShr(prod, one));
+        let two_n = self.b.push_value(Inst::IAdd(n_s, n_s));
+        let odd = self.b.push_value(Inst::ISub(two_n, n_pos_i));
+        let num = self.b.push_value(Inst::IMul(half, odd));
+        let sum = self.b.push_value(Inst::UDiv(num, three));
         self.store_sym(acc_sym, sum);
         self.locals.insert(counter, Local::MutSsa(n));
         true
@@ -2987,34 +2991,35 @@ impl LowerCtx<'_, '_> {
         let n = self.load_sym(bound);
         let zero = self.b.iconst(0);
         let one = self.b.iconst(1);
-        let two = self.b.iconst(2);
         let n_pos = self.b.push_value(Inst::ICmp(CmpOp::Gt, n, zero));
         let n_pos_i = self.b.push_value(Inst::ZExtI64(n_pos));
-        let nm1 = self.b.push_value(Inst::ISub(n, one));
-        let nm1_s = self.b.push_value(Inst::IMul(nm1, n_pos_i));
+        let n_s = self.b.push_value(Inst::IMul(n, n_pos_i));
+        let nm1 = self.b.push_value(Inst::ISub(n_s, n_pos_i));
+        // Zero-masked → treat as unsigned (lshr / udiv / urem; no sdiv/srem).
+        let nm1_s = nm1;
 
         // Σ A*i = A*(n-1)*n/2
         let a_c = self.b.iconst(a_k);
         let t_a = self.b.push_value(Inst::IMul(a_c, nm1_s));
-        let t_a2 = self.b.push_value(Inst::IMul(t_a, n));
-        let s_a = self.lower_int_div(t_a2, two);
+        let t_a2 = self.b.push_value(Inst::IMul(t_a, n_s));
+        let s_a = self.b.push_value(Inst::LShr(t_a2, one));
 
         // Σ floor(i/B): Q=(n-1)/B, R=(n-1)%B → B*(Q-1)*Q/2 + Q*(R+1) (0 when Q=0)
         let b_c = self.b.iconst(b_k);
-        let q = self.lower_int_div(nm1_s, b_c);
-        let r = self.lower_int_rem(nm1_s, b_c);
+        let q = self.b.push_value(Inst::UDiv(nm1_s, b_c));
+        let r = self.b.push_value(Inst::URem(nm1_s, b_c));
         let qm1 = self.b.push_value(Inst::ISub(q, one));
         let b_qm1 = self.b.push_value(Inst::IMul(b_c, qm1));
         let b_qm1_q = self.b.push_value(Inst::IMul(b_qm1, q));
-        let half = self.lower_int_div(b_qm1_q, two);
+        let half = self.b.push_value(Inst::LShr(b_qm1_q, one));
         let rp1 = self.b.push_value(Inst::IAdd(r, one));
         let q_term = self.b.push_value(Inst::IMul(q, rp1));
         let s_b = self.b.push_value(Inst::IAdd(half, q_term));
 
         // Σ i%C: full periods of 0..C-1 plus leftover
         let c_c = self.b.iconst(c_k);
-        let full = self.lower_int_div(n, c_c);
-        let rem = self.lower_int_rem(n, c_c);
+        let full = self.b.push_value(Inst::UDiv(n_s, c_c));
+        let rem = self.b.push_value(Inst::URem(n_s, c_c));
         let per = self.b.iconst((c_k - 1) * c_k / 2);
         let full_part = self.b.push_value(Inst::IMul(full, per));
         let rem_pos = self.b.push_value(Inst::ICmp(CmpOp::Gt, rem, zero));
@@ -3022,7 +3027,7 @@ impl LowerCtx<'_, '_> {
         let rem_m1 = self.b.push_value(Inst::ISub(rem, one));
         let rem_m1_s = self.b.push_value(Inst::IMul(rem_m1, rem_pos_i));
         let rem_prod = self.b.push_value(Inst::IMul(rem_m1_s, rem));
-        let rem_sum = self.lower_int_div(rem_prod, two);
+        let rem_sum = self.b.push_value(Inst::LShr(rem_prod, one));
         let s_c = self.b.push_value(Inst::IAdd(full_part, rem_sum));
 
         let tmp = self.b.push_value(Inst::ISub(s_a, s_b));

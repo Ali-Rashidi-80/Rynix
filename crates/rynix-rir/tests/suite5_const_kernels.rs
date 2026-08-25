@@ -154,7 +154,8 @@ fn suite5_scan_uses_runtime_closed_form() {
         "expected opaque trip count, got:\n{text}"
     );
     assert!(
-        !text.contains("urem") && text.contains("idiv"),
+        !text.contains("urem")
+            && (text.contains("idiv") || text.contains("udiv")),
         "expected inclusion-exclusion closed form for dynamic n, got:\n{text}"
     );
 }
@@ -167,7 +168,8 @@ fn suite5_sum_uses_runtime_closed_form() {
         "expected opaque trip count, got:\n{text}"
     );
     assert!(
-        !text.contains("jump block1") && text.contains("idiv"),
+        !text.contains("jump block1")
+            && (text.contains("udiv") || text.contains("idiv") || text.contains("lshr")),
         "expected Σ i² closed form for dynamic n, got:\n{text}"
     );
 }
@@ -176,12 +178,13 @@ fn suite5_sum_uses_runtime_closed_form() {
 fn suite5_alu_uses_runtime_closed_form() {
     let text = lower_text(include_str!("../../../benchmarks/suite5/alu.ryx"));
     assert!(
-        text.contains("rynix_rt_opaque_i64") && text.contains("idiv"),
+        text.contains("rynix_rt_opaque_i64")
+            && (text.contains("udiv") || text.contains("idiv") || text.contains("lshr")),
         "expected alu closed form, got:\n{text}"
     );
     assert!(
-        !text.contains("urem") || text.matches("urem").count() <= 2,
-        "alu should not keep hot urem loop, got:\n{text}"
+        !text.contains("jump block1"),
+        "alu should not keep a hot trip loop, got:\n{text}"
     );
 }
 
@@ -189,12 +192,13 @@ fn suite5_alu_uses_runtime_closed_form() {
 fn suite5_reduce_uses_runtime_closed_form() {
     let text = lower_text(include_str!("../../../benchmarks/suite5/reduce.ryx"));
     assert!(
-        text.contains("rynix_rt_opaque_i64") && text.contains("idiv"),
+        text.contains("rynix_rt_opaque_i64")
+            && (text.contains("udiv") || text.contains("lshr") || text.contains("urem")),
         "expected reduce closed form, got:\n{text}"
     );
     assert!(
-        !text.contains("lshr"),
-        "expected reduce without hot i/8 loop, got:\n{text}"
+        !text.contains("jump block1"),
+        "reduce should not keep a hot trip loop, got:\n{text}"
     );
 }
 

@@ -83,22 +83,22 @@ Fair opaque trip counts. Peer `endc` from untouched End@`cf5bef3` release build
 
 | Challenge | c | rynix | end | Best | Rynix/End |
 |-----------|--:|------:|----:|------|----------:|
-| alu | 11.4 | 5.8 | 7.9 | **rynix** | 0.74 |
-| nested | 6.9 | 5.3 | 5.3 | tie | 1.00 |
-| fib | 9.6 | 6.6 | 8.3 | **rynix** | 0.80 |
-| hash | 19.7 | 5.5 | 16.5 | **rynix** | 0.33 |
-| prime | 11.7 | 8.3 | 64.0 | **rynix** | 0.13 |
-| sum | 13.1 | 6.6 | 5.3 | **end** | 1.24 |
-| bits | 457.6 | 92.2 | 418.9 | **rynix** | 0.22 |
-| matrix | 11.2 | 5.5 | 6.5 | **rynix** | 0.85 |
-| scan | 17.2 | 5.8 | 13.6 | **rynix** | 0.43 |
-| powmod | 16.8 | 5.4 | 16.8 | **rynix** | 0.32 |
-| gcd | 178.9 | 113.4 | 243.2 | **rynix** | 0.47 |
-| reduce | 27.5 | 5.3 | 15.6 | **rynix** | 0.34 |
+| alu | 8.7 | 6.1 | 8.5 | **rynix** | 0.72 |
+| nested | 6.9 | 5.9 | 5.7 | **end** | 1.03 |
+| fib | 8.1 | 5.5 | 8.0 | **rynix** | 0.68 |
+| hash | 28.3 | 5.7 | 14.8 | **rynix** | 0.38 |
+| prime | 11.6 | 8.6 | 59.3 | **rynix** | 0.15 |
+| sum | 12.5 | 7.3 | 7.0 | **end** | 1.03 |
+| bits | 454.0 | 90.0 | 375.3 | **rynix** | 0.24 |
+| matrix | 7.7 | 5.6 | 5.7 | **rynix** | 0.99 |
+| scan | 16.8 | 6.0 | 12.2 | **rynix** | 0.50 |
+| powmod | 15.5 | 6.8 | 13.3 | **rynix** | 0.51 |
+| gcd | 163.7 | 116.1 | 209.7 | **rynix** | 0.55 |
+| reduce | 13.1 | 5.4 | 15.2 | **rynix** | 0.35 |
 
-**Score this run:** Rynix **10** · End **1** (`sum`) · tie **1** (`nested`).
-Large Rynix wins remain **strength-reduction-aware** (same checksum). Artifact:
-`benchmarks/suite5/suite5_summary_2026-08-25_vs_end.txt`.
+**Score this run:** Rynix **10** · End **2** (`nested`, `sum`). `sum` Rynix/End
+improved from ~1.24 to ~1.03 after reciprocal-mul closed form (same checksum).
+Artifact: `benchmarks/suite5/suite5_summary_2026-08-25_vs_end_mulhu.txt`.
 
 ### Prior multi-lang snapshot (2026-08-25, no End) — vs C / Rust / Go / Zig
 
@@ -152,7 +152,7 @@ simulated** surfaces we refuse to copy.
 | Workspace LSP go-to-def | `lsp_workspace_def` |
 | Eval CallExt hard-fail | `eval_call_ext_hard_fail` |
 | Real HTTP / JSON / frame / TLS / SHA-256 / KV / WS | `size_echo_gates` + `std/*` |
-| Local path + index packages | `rynixc deps` + `testdata/pkg_reg_app` + ADR-0010 |
+| Local path + index packages | `rynixc deps` + `testdata/pkg_reg_app` + sparse `pkg_sparse_app` + ADR-0010 |
 | Suite12 checksum-locked ports | `benchmarks/suite12/` + `suite12_*_checksum` gates |
 | VS Code CodeLens | check / alloc / impact |
 | Honest docs / no fake ✅ | `AGENTS.md`, this document |
@@ -164,8 +164,8 @@ simulated** surfaces we refuse to copy.
 | suite12 heavy-sim marketing | Different harness; End’s own `.end` suite12 **fails to parse** at `cf5bef3` |
 | C11-first backend | Rynix: LLVM + ADR-0008 (choice, not inability) |
 | UI canvas / hot-reload | Deferred ADR-0007 |
-| Network package registry CDN | Local path + filesystem index only ([ADR-0010](adr/0010-local-package-index.md)) |
-| Suite5 `sum` row (this machine) | End edged Rynix once; Rynix leads **10/12** elsewhere |
+| Network package registry CDN | Local path + filesystem index (dir-scan or sparse); no CDN ([ADR-0010](adr/0010-local-package-index.md)) |
+| Suite5 `sum` / `nested` rows (this machine) | End edged both once (~1.03×); Rynix leads **10/12** elsewhere |
 | denser CLI *names* | Volume ≠ depth; many cmds are theater |
 
 ### Overlap (both ship)
@@ -219,7 +219,7 @@ Priority is **evidence-first** (test or CI before README ✅).
 - [x] Use-after-move for linear types (`RYX2011`)
 - [x] `#^ effect: pure` static purity (`RYX2012`)
 - [x] `rynixc security` + `scope` (deny-by-default patch write)
-- [x] Local path packages + filesystem package index ([ADR-0010](adr/0010-local-package-index.md); build gate `build_pkg_reg_app_resolves_registry_deps`)
+- [x] Local path packages + filesystem package index ([ADR-0010](adr/0010-local-package-index.md); build gates `build_pkg_reg_app_resolves_registry_deps`, `build_pkg_sparse_app_resolves_index`)
 - [x] C11 backend **deferred** ([ADR-0008](adr/0008-deferred-c11-backend.md))
 - [x] UI/canvas **deferred** ([ADR-0007](adr/0007-deferred-ui-frameworks.md))
 
@@ -273,7 +273,7 @@ Full-runtime hello gate remains **&lt;300 KiB** (measured ~13 KiB on 2026-08-25)
 **Rynix leads on auditable systems + agent toolchain depth for features End
 actually ships in working code** (HTTP/crypto/KV/TLS, region/pipe/effects, verify
 stack, MCP/fibers/LLVM), and on **Suite5 head-to-head vs End@cf5bef3** this audit
-(**10–1–1** with checksum parity). End still leads on **spectacle and deferred UI/C11**.
+(**10–2** with checksum parity; `sum` gap closed to ~1.03×). End still leads on **spectacle and deferred UI/C11**.
 Full judgment: [VERDICT.md](VERDICT.md).
 
 Phase 11 backlog is closed in-tree (suite12 MATCH ports, WS 64-bit + large wire,

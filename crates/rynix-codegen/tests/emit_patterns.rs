@@ -182,6 +182,32 @@ fn reduce_folds_to_iconst() {
 }
 
 #[test]
+fn sum_opaque_closed_form_has_no_sdiv_or_loop() {
+    // Opaque n → closed form n(n-1)/2*(2n-1)/3 via udiv/mulhu, not host-folded checksum.
+    let ll = emit(include_str!("../../../benchmarks/suite5/sum.ryx"));
+    assert!(
+        ll.contains("@rynix_rt_opaque_i64"),
+        "sum Suite5 IR should retain opaque:\n{ll}"
+    );
+    assert!(
+        !ll.contains("!llvm.loop"),
+        "sum of squares should strength-reduce the loop:\n{ll}"
+    );
+    assert!(
+        !ll.contains("sdiv "),
+        "closed-form /3 must not emit signed IDIV:\n{ll}"
+    );
+    assert!(
+        !(ll.contains("1124998875000250000") && !ll.contains("opaque")),
+        "opaque sum must not host-fold to a lone checksum iconst:\n{ll}"
+    );
+    assert!(
+        ll.contains("mul i128") || ll.contains("udiv "),
+        "expected reciprocal mulhu or udiv for /3:\n{ll}"
+    );
+}
+
+#[test]
 fn mutable_let_uses_stack_alloca() {
     let ll = emit(
         r"

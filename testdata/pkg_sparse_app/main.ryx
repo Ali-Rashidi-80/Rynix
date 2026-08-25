@@ -1,0 +1,5 @@
+## App resolved via local sparse index; calls util_answer from listed vendor version.
+def main() -> i64
+  print_i64(util_answer())
+  return 0
+end

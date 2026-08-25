@@ -51,7 +51,7 @@ Full methodology: [END_PEER_GAP.md](END_PEER_GAP.md). Positioning: [COMPARE.md](
 | WebSocket | — / incomplete | RFC 6455 + wire smokes | **Rynix** |
 | Agent CLI | ~60 names, uneven depth | graph/slice/impact/eval/patch/verify… | Tie on overlap; End broader **names** |
 | **MCP** | **Absent** | **18 tools** (`mcp-serve`) | **Rynix** |
-| Packages | Local path; **PubGrub theater** | Path + local index + unity/semver/lock/workspace | **Rynix** |
+| Packages | Local path; **PubGrub theater** | Path + local index (scan + sparse) + unity/semver/lock/workspace | **Rynix** |
 | Memory / escape | Real region/borrow subset | Escape + move + `#^ effect: pure` + explain-alloc | **Rynix** (transparency) |
 | Editor LSP | LSP server; VS Code **without** LanguageClient | `lsp-serve` + **LanguageClient** + CodeLens + workspace goto | **Rynix** |
 | Microbench fairness | suite12 (different programs; checksum caveats) | Suite5 **C↔Rynix CI** + optional End slot | **Rynix** |
@@ -89,7 +89,7 @@ Peer `endc` built release-only from untouched `D:\0\End-peer` @ `cf5bef3`
 3. Rynix-owned Suite5 `.end` ports use only `for` / `while` / `getenv as i64`
    (see `benchmarks/suite5/regen_end_ports.py` + `END_INTEGRATION.md`).
 
-Live head-to-head numbers: `benchmarks/suite5/suite5_summary_2026-08-25_vs_end.txt`
+Live head-to-head numbers: `benchmarks/suite5/suite5_summary_2026-08-25_vs_end_mulhu.txt`
 (and table in [END_PEER_GAP.md](END_PEER_GAP.md) §2). Checksums must match C on every
 counted End row.
 
@@ -146,7 +146,7 @@ cargo test -p rynixc --test agent_cli
 | Question | Answer |
 |----------|--------|
 | Who is ahead on **real shipping** systems + agent toolchain? | **You (Rynix)** |
-| Who is ahead on **Suite5 same-algorithm wall-clock** vs End@cf5bef3? | **You — 10 wins, 1 tie, 1 loss (`sum`)** (checksums OK) |
+| Who is ahead on **Suite5 same-algorithm wall-clock** vs End@cf5bef3? | **You — 10 wins, 2 losses (`nested`, `sum`)** (checksums OK; `sum` gap ~1.03×) |
 | Who is ahead on **brochure / domain spectacle**? | Friend (End) — by design of their README |
 | Is Rynix a waste of time vs End? | **No** — Rynix leads where code must be true; End’s suite12 `.end` does not even parse at peer HEAD |
 | What would reverse this? | End ships real TLS, MCP, fixes `if` parsing, and drops STATUS green on stubs — then re-audit |

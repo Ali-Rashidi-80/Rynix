@@ -1,0 +1,4 @@
+{
+  "dl": "{crate}/{version}",
+  "api": "local-filesystem"
+}

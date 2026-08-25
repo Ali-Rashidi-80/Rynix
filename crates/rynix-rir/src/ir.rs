@@ -89,6 +89,8 @@ pub enum Inst {
     ISub(ValueId, ValueId),
     IMul(ValueId, ValueId),
     IDiv(ValueId, ValueId),
+    /// Unsigned division — `udiv` when lhs and rhs are known non-negative.
+    UDiv(ValueId, ValueId),
     IRem(ValueId, ValueId),
     /// Unsigned remainder — `urem` when lhs and rhs are known non-negative.
     URem(ValueId, ValueId),

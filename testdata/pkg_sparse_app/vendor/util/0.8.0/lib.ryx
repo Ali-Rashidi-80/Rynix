@@ -1,0 +1,4 @@
+## Yanked in sparse index — must not be selected even though the dir exists.
+def util_answer() -> i64
+  return 88
+end

@@ -19,7 +19,7 @@ driver (`endc` / `rynixc`) and lean on **C** for native runtime.
 | Editor | VS Code chrome; **no** `vscode-languageclient` | VS Code + **LanguageClient** + LSP + CodeLens |
 | Frameworks | EndHyper, EndForge, UI canvas | Deferred ([ADR-0007](adr/0007-deferred-ui-frameworks.md)) |
 | Concurrency | Threads / channels / OpenMP (per End docs) | Colorless **fibers** + PARKED + io_uring (Linux) / IOCP (Windows) |
-| Packages | Registry staging (per End docs); PubGrub theater | Path deps + local filesystem index ([ADR-0010](adr/0010-local-package-index.md); no CDN) |
+| Packages | Registry staging (per End docs); PubGrub theater | Path deps + local filesystem index (dir-scan or sparse; [ADR-0010](adr/0010-local-package-index.md); no CDN) |
 | Memory story | 4-tier regions + leases + borrow | Escape → stack/region/heap + injected free |
 | Backend | **C11 shipping** + LLVM alpha | Textual LLVM ([ADR-0005](adr/0005-textual-llvm-ir-first.md)); C11 deferred ([ADR-0008](adr/0008-deferred-c11-backend.md)) |
 | Correctness gates | checksum per bench (suite12 caveats) | **CI: C ↔ Rynix all 12** + LLVM↔interp diff |
