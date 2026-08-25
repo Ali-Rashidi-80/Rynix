@@ -4736,6 +4736,12 @@ impl LowerCtx<'_, '_> {
                     IrTy::I64,
                 )
             }
+            "http_serve_loop_3paths_json_i64" => {
+                (
+                    self.interner.intern("rynix_rt_http_serve_loop_3paths_json_i64"),
+                    IrTy::I64,
+                )
+            }
             "frame_serve_once_echo" => {
                 (self.interner.intern("rynix_rt_frame_serve_once_echo"), IrTy::I64)
             }

@@ -378,7 +378,7 @@ end
 | Fibers      | `spawn` (stmt), `yield`, `sleep_ms`, `now_ms`, `fiber_run` | `rt/`; ASan CI |
 | Collections | `vec_*`, `map_*` | [ADR-0006](docs/adr/0006-monomorphized-collections.md) |
 | TCP         | `tcp_listen`…`tcp_close` | fiber-safe `rt/` |
-| JSON / HTTP | `json_*`, `http_get/post_json_i64`, `http_serve_once_*`, `http_serve_loop_*` / `_2paths_*` | `size_echo_gates` |
+| JSON / HTTP | `json_*`, `http_get/post_json_i64`, `http_serve_once_*`, `http_serve_loop_*` / `_2paths_*` / `_3paths_*` | `size_echo_gates` |
 | Frames      | `frame_serve_once_echo`, `frame_client_echo` | `size_echo_gates` |
 | TLS         | `tls_serve_once_echo`, `tls_client_echo` | `tls_*_smoke` |
 | WebSocket   | `ws_accept_*`, `ws_frame_roundtrip_ok` | `ws_*_smoke` |

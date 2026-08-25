@@ -195,10 +195,11 @@ int64_t rynix_rt_http_serve_once_json_i64(int64_t port, const char *path, int64_
 
 /* Respond to one accepted client. Returns 1 if a matching GET was served
  * (200), 0 if a non-matching request got a 404, -1 on I/O error.
- * When `path_b` is non-NULL, either path may match (with its own value). */
-static int64_t http_serve_one_matching_get_json_2paths(int64_t client, const char *path_a,
-                                                       int64_t value_a, const char *path_b,
-                                                       int64_t value_b) {
+ * When `path_b` / `path_c` are non-NULL, either path may match. */
+static int64_t http_serve_one_matching_get_json_paths(int64_t client, const char *path_a,
+                                                      int64_t value_a, const char *path_b,
+                                                      int64_t value_b, const char *path_c,
+                                                      int64_t value_c) {
   char req[2048];
   if (http_recv_message(client, req, (int64_t)sizeof(req)) <= 0) {
     return -1;
@@ -229,6 +230,9 @@ static int64_t http_serve_one_matching_get_json_2paths(int64_t client, const cha
     } else if (path_b && strcmp(req_path, path_b) == 0) {
       match = 1;
       value = value_b;
+    } else if (path_c && strcmp(req_path, path_c) == 0) {
+      match = 1;
+      value = value_c;
     }
   }
 
@@ -271,7 +275,7 @@ static int64_t http_serve_one_matching_get_json_2paths(int64_t client, const cha
 
 static int64_t http_serve_one_matching_get_json_i64(int64_t client, const char *path,
                                                     int64_t value) {
-  return http_serve_one_matching_get_json_2paths(client, path, value, NULL, 0);
+  return http_serve_one_matching_get_json_paths(client, path, value, NULL, 0, NULL, 0);
 }
 
 int64_t rynix_rt_http_serve_loop_json_i64(int64_t port, const char *path, int64_t value,
@@ -325,7 +329,42 @@ int64_t rynix_rt_http_serve_loop_2paths_json_i64(int64_t port, const char *path_
       return -1;
     }
     int64_t rc =
-        http_serve_one_matching_get_json_2paths(client, path_a, value_a, path_b, value_b);
+        http_serve_one_matching_get_json_paths(client, path_a, value_a, path_b, value_b, NULL, 0);
+    rynix_rt_tcp_close(client);
+    if (rc < 0) {
+      rynix_rt_tcp_close(listen_fd);
+      return -1;
+    }
+    if (rc == 1) {
+      served++;
+    }
+  }
+
+  rynix_rt_tcp_close(listen_fd);
+  return 0;
+}
+
+int64_t rynix_rt_http_serve_loop_3paths_json_i64(int64_t port, const char *path_a,
+                                                 int64_t value_a, const char *path_b,
+                                                 int64_t value_b, const char *path_c,
+                                                 int64_t value_c, int64_t max_reqs) {
+  if (!path_a || !path_b || !path_c || port <= 0 || max_reqs <= 0) {
+    return -1;
+  }
+  int64_t listen_fd = rynix_rt_tcp_listen(port);
+  if (listen_fd < 0) {
+    return -1;
+  }
+
+  int64_t served = 0;
+  while (served < max_reqs) {
+    int64_t client = rynix_rt_tcp_accept(listen_fd);
+    if (client < 0) {
+      rynix_rt_tcp_close(listen_fd);
+      return -1;
+    }
+    int64_t rc = http_serve_one_matching_get_json_paths(client, path_a, value_a, path_b, value_b,
+                                                        path_c, value_c);
     rynix_rt_tcp_close(client);
     if (rc < 0) {
       rynix_rt_tcp_close(listen_fd);

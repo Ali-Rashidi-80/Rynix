@@ -195,6 +195,7 @@ Plan: **[PHASE14.md](PHASE14.md)**. Locked Wave A over Sigstore-lite / deeper I/
 |------|--------|--------|
 | A | `rynixc emit-wasm` → real `.wasm` (`\0asm`) via clang | ✅ `emit_wasm_clang_produces_wasm` |
 | B | Local digest attest (`rynix.attest.v1.json`, not Rekor) | ✅ `deps_attest_write_verify_and_tamper` |
+| C | Triple-path HTTP loop (`http_serve_loop_3paths_json_i64`) | ✅ `http_loop_3paths` |
 
 ## Follow-on (post-13 / parallel)
 
@@ -203,7 +204,7 @@ Plan: **[PHASE14.md](PHASE14.md)**. Locked Wave A over Sigstore-lite / deeper I/
 | Local sparse package index (no CDN) | ✅ | `deps_resolves_sparse_local_index`, `build_pkg_sparse_app_resolves_index` |
 | Suite5 `sum` closed form without `sdiv`/IDIV | ✅ | `sum_opaque_closed_form_has_no_sdiv_or_loop` |
 | Sigstore-lite package attest | ✅ local digest (`rynix.attest.v1`) | `deps_attest_write_verify_and_tamper` |
-| HTTP ≥3 paths / extra fiber smokes | ⏳ | (not Phase 14 Wave A) |
+| HTTP ≥3 paths / extra fiber smokes | ✅ | `http_loop_3paths` |
 
 ## CI
 

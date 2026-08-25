@@ -1,6 +1,6 @@
 # Phase 14 — Real `.wasm` via clang (no WASI)
 
-**Status:** **Phase 14 Waves A–B complete** (2026-08-25)  
+**Status:** **Phase 14 complete** (Waves A–C, 2026-08-25)  
 **After:** Phase 13 complete ([PHASE13.md](PHASE13.md)) · peer verdict ([VERDICT.md](VERDICT.md))
 
 ## North star
@@ -10,7 +10,8 @@
    `clang --target=wasm32-unknown-unknown` (no host `rt/`, no WASI libc).
 2. Gate skips cleanly when the host clang cannot target wasm32.
 3. Sigstore-lite as a **protocol** is refused; Wave B ships an honest local
-   digest bundle instead (`rynix.attest.v1`). Deeper HTTP/fiber smokes stay later.
+   digest bundle instead (`rynix.attest.v1`). Wave C adds triple-path HTTP loop
+   smokes — still not a general router.
 
 ## Locked choice (among Phase 14 candidates)
 
@@ -18,11 +19,11 @@
 |-----------|----------|
 | `emit-ll` → real `.wasm` via clang (no full WASI) | **Lock Wave A** (closes [P13-L1](PHASE13.md)) |
 | Local package lock/sign (Sigstore-lite) | **Wave B as local digest attest** (not Rekor) |
-| Deeper I/O (HTTP ≥3 paths / fiber smokes) | Later — 2-path loop already green in Phase 13 |
+| Deeper I/O (HTTP ≥3 paths / fiber smokes) | **Follow-on Wave C** (`http_loop_3paths`) |
 
 ## Order
 
-`0 (docs locks) → A (emit-wasm + clang link smoke) → B (local digest attest)`
+`0 (docs locks) → A (emit-wasm + clang link smoke) → B (local digest attest) → C (HTTP 3-path loop)`
 
 ## Locked decisions
 
@@ -36,6 +37,7 @@
 | P14-L6 | Suite5 `nested`/`sum` residue vs End is noise-level; **no** Phase 14 wave for micro-opts unless a ≤1h compiler win with checksum lock. |
 | P14-L7 | Wave B is **local digest attest** (`rynix.attest.v1.json`), not Rekor/Fulcio/OIDC. Name the file after the schema; do not claim Sigstore protocol. |
 | P14-L8 | `deps --attest` writes lock + attest; `--attest-verify` fails on missing file or `lock_sha256`/pin mismatch. Gate: `deps_attest_write_verify_and_tamper`. |
+| P14-L9 | Wave C adds **`http_serve_loop_3paths_json_i64`** (bounded triple-route GET); not a general router. Gate: `http_loop_3paths`. |
 
 ## Gates
 
@@ -43,6 +45,7 @@
 |------|-----------|--------|
 | A | `emit_wasm_clang_produces_wasm` | real `.wasm` magic via `emit-wasm` |
 | B | `deps_attest_write_verify_and_tamper` | local digest attest (not Rekor) |
+| C | `http_loop_3paths` | triple-path bounded HTTP loop |
 
 ## Refuse
 

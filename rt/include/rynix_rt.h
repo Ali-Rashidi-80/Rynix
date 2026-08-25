@@ -86,6 +86,12 @@ int64_t rynix_rt_http_serve_loop_json_i64(int64_t port, const char *path,
 int64_t rynix_rt_http_serve_loop_2paths_json_i64(int64_t port, const char *path_a,
                                                  int64_t value_a, const char *path_b,
                                                  int64_t value_b, int64_t max_reqs);
+/* Triple-path bounded loop: matching GETs on `path_a`, `path_b`, or `path_c`
+ * (with their values) count toward `max_reqs`. Same return contract. */
+int64_t rynix_rt_http_serve_loop_3paths_json_i64(int64_t port, const char *path_a,
+                                                 int64_t value_a, const char *path_b,
+                                                 int64_t value_b, const char *path_c,
+                                                 int64_t value_c, int64_t max_reqs);
 
 /* ---- binary framing (length-prefixed) --------------------------------- */
 int64_t rynix_rt_frame_send(int64_t fd, const char *data, int64_t n);
