@@ -97,6 +97,7 @@ const fn utf8_len(b: u8) -> u32 {
 }
 
 /// A lazy, allocation-free lexer over one source file.
+#[derive(Clone)]
 pub struct Lexer<'src> {
     src: &'src [u8],
     /// Global offset of `src[0]` (see `SourceMap` / ADR-0003).

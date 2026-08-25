@@ -1,0 +1,24 @@
+## Match on nullary enum variant paths (Phase 21-C / ADR-0015)
+
+enum Color
+  Red
+  Green
+  Blue
+end
+
+def main() -> i64
+  let c = Green
+  let mut n = 0
+  match c
+    Red
+      n = 1
+    Green
+      n = 2
+    Blue
+      n = 3
+    _
+      n = 0
+  end
+  print_i64(n)
+  return 0
+end

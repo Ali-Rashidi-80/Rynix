@@ -38,6 +38,7 @@ ad-hoc scraping.
 - Phase 15: Node runs `emit-wasm` `main` (no WASI) ([docs/PHASE15.md](docs/PHASE15.md))
 - Phase 16: honesty + `path_param` HTTP + MCP path-first ([docs/PHASE16.md](docs/PHASE16.md)); Niche-10 map ([docs/adr/0013-niche-10-scorecard.md](docs/adr/0013-niche-10-scorecard.md)); Raft deferred ([docs/adr/0012-deferred-consensus.md](docs/adr/0012-deferred-consensus.md))
 - Phase 20 complete: WASM host-import `env.print_i64` + package/INSTALL polish; Niche-10 certified ([docs/NICHE10.md](docs/NICHE10.md))
+- Phase 21: MCP path-first remainder + match enum variants + product example ([docs/PHASE21.md](docs/PHASE21.md))
 - Install: one-path clang Win/Linux — [INSTALL.md](INSTALL.md)
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 

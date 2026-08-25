@@ -17,10 +17,16 @@ Then **Extensions: Install from VSIX** or open this folder in VS Code and **Run 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `rynix.compilerPath` | `rynixc` | Compiler on PATH |
-| `rynix.enableLsp` | `true` | Start language server |
+| `rynix.enableLsp` | `true` | Start language server (diag / def / completion / rename) |
+| `rynix.enableCodeLens` | `true` | check / alloc / impact CodeLens |
+| `rynix.enableHover` | `true` | Soft-builtin hover tips |
 
 ## Features
 
 - TextMate grammar for Rynix v0.1
-- Diagnostics from `rynixc check` pipeline
-- Go-to-definition via sema `path_resolution`
+- LSP via `vscode-languageclient` → `rynixc lsp-serve`:
+  - diagnostics (`textDocument/publishDiagnostics`)
+  - hover / go-to-definition
+  - **completion** (`textDocument/completion` — local/`def`/`let`)
+  - **rename** (`textDocument/rename` — in-document)
+- CodeLens: check / explain-alloc / impact (CLI spawn, not LSP)

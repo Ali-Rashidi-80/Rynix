@@ -1,0 +1,14 @@
+## Product sample: path_param HTTP loop + TLS one-shot (Phase 21-B)
+##
+## Compiles and lowers to the real soft builtins. Network pairing is gated by
+## rt/tests/http_loop_path_param_smoke.c and rt/tests/http_tls_product_smoke.c
+## (size_echo_gates). Port 0 is invalid so runtimes return errors without
+## binding — this file proves the product surface is callable from .ryx.
+
+def main() -> i64
+  let loop_rc = http_serve_loop_path_param_json_i64(0, "/items/", 2)
+  print_i64(loop_rc)
+  let tls_rc = http_tls_serve_once_json_i64(0, "/api", 42)
+  print_i64(tls_rc)
+  return 0
+end

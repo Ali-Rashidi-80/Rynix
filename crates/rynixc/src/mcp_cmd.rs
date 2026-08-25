@@ -78,26 +78,24 @@ fn tool_defs() -> Value {
     json!([
         {
             "name": "diagnostics",
-            "description": "Alias of rynix_check — structured diagnostics for a source string",
+            "description": "Alias of rynix_check — structured diagnostics. Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "source": { "type": "string" },
-                    "path": { "type": "string" }
-                },
-                "required": ["source"]
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
             }
         },
         {
             "name": "rynix_check",
-            "description": "Lex+parse+sema a Rynix source string; return diagnostics",
+            "description": "Lex+parse+sema; return diagnostics. Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "source": { "type": "string" },
-                    "path": { "type": "string" }
-                },
-                "required": ["source"]
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
             }
         },
         {
@@ -138,11 +136,13 @@ fn tool_defs() -> Value {
         },
         {
             "name": "apply_fix",
-            "description": "Apply the first suggested Fix from diagnostics, if any",
+            "description": "Apply the first suggested Fix from diagnostics, if any. Prefer path (reads disk); returns fixed text (does not write).",
             "inputSchema": {
                 "type": "object",
-                "properties": { "source": { "type": "string" } },
-                "required": ["source"]
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
             }
         },
         {
@@ -216,27 +216,25 @@ fn tool_defs() -> Value {
         },
         {
             "name": "rynix_context",
-            "description": "Budgeted interface outline (rynix.context.v1)",
+            "description": "Budgeted interface outline (rynix.context.v1). Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "source": { "type": "string" },
-                    "path": { "type": "string" },
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" },
                     "budget": { "type": "integer", "minimum": 1 }
-                },
-                "required": ["source"]
+                }
             }
         },
         {
             "name": "rynix_security",
-            "description": "Pattern CWE-798-class scan (rynix.security.v1)",
+            "description": "Pattern CWE-798-class scan (rynix.security.v1). Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "source": { "type": "string" },
-                    "path": { "type": "string" }
-                },
-                "required": ["source"]
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
             }
         },
         {
@@ -410,17 +408,75 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         return Ok(json!({ "content": [{ "type": "text", "text": report.to_string() }] }));
     }
 
+    // Path-first check / apply_fix / context / security.
+    if name == "rynix_check" || name == "diagnostics" {
+        let path_arg = args.get("path").and_then(|p| p.as_str());
+        let source_arg = args.get("source").and_then(|s| s.as_str());
+        let (label, text) = resolve_label_and_text(path_arg, source_arg)?;
+        let out = check_source(&label, &text);
+        return Ok(json!({ "content": [{ "type": "text", "text": out }] }));
+    }
+    if name == "apply_fix" {
+        let path_arg = args.get("path").and_then(|p| p.as_str());
+        let source_arg = args.get("source").and_then(|s| s.as_str());
+        let (_label, text) = resolve_label_and_text(path_arg, source_arg)?;
+        let fixed = apply_fix_source(&text);
+        return Ok(json!({ "content": [{ "type": "text", "text": fixed }] }));
+    }
+    if name == "rynix_context" {
+        let path_arg = args.get("path").and_then(|p| p.as_str());
+        let source_arg = args.get("source").and_then(|s| s.as_str());
+        let arena = AstArena::new();
+        let (label, parsed) = resolve_path_or_source(path_arg, source_arg, &arena)?;
+        if parsed.sink.error_count() > 0 {
+            return Err(rpc_error(-32000, "parse/sema errors"));
+        }
+        let budget = args
+            .get("budget")
+            .and_then(|b| b.as_u64())
+            .unwrap_or(2000) as usize;
+        let budget = budget.max(1);
+        let all = crate::agent_lib::slice_lines(&parsed);
+        let mut lines = Vec::new();
+        let mut used = 0usize;
+        let mut truncated = false;
+        for line in all {
+            let add = if lines.is_empty() {
+                line.len()
+            } else {
+                line.len() + 1
+            };
+            if used + add > budget {
+                truncated = true;
+                break;
+            }
+            used += add;
+            lines.push(line);
+        }
+        let report = json!({
+            "schema": "rynix.context.v1",
+            "path": label,
+            "budget": budget,
+            "chars_used": used,
+            "truncated": truncated,
+            "lines": lines,
+        });
+        return Ok(json!({ "content": [{ "type": "text", "text": report.to_string() }] }));
+    }
+    if name == "rynix_security" {
+        let path_arg = args.get("path").and_then(|p| p.as_str());
+        let source_arg = args.get("source").and_then(|s| s.as_str());
+        let (label, text) = resolve_label_and_text(path_arg, source_arg)?;
+        let report = scan_source(&label, &text);
+        return Ok(json!({ "content": [{ "type": "text", "text": report.to_json().to_string() }] }));
+    }
+
     let source = args
         .get("source")
         .and_then(|s| s.as_str())
         .ok_or_else(|| rpc_error(-32602, "missing source"))?;
 
     match name {
-        "rynix_check" | "diagnostics" => {
-            let path = args.get("path").and_then(|p| p.as_str()).unwrap_or("mcp.ryx");
-            let text = check_source(path, source);
-            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
-        }
         "rynix_format" => {
             let formatted = format_source(source)?;
             Ok(json!({ "content": [{ "type": "text", "text": formatted }] }))
@@ -436,60 +492,6 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
         "ast_query" => {
             let dump = ast_source(source)?;
             Ok(json!({ "content": [{ "type": "text", "text": dump }] }))
-        }
-        "apply_fix" => {
-            let fixed = apply_fix_source(source);
-            Ok(json!({ "content": [{ "type": "text", "text": fixed }] }))
-        }
-        "rynix_context" => {
-            let path = args
-                .get("path")
-                .and_then(|p| p.as_str())
-                .unwrap_or("mcp.ryx");
-            let budget = args
-                .get("budget")
-                .and_then(|b| b.as_u64())
-                .unwrap_or(2000) as usize;
-            let budget = budget.max(1);
-            let arena = AstArena::new();
-            let parsed = crate::agent_lib::parse_text(path, source, &arena);
-            if parsed.sink.error_count() > 0 {
-                return Err(rpc_error(-32000, "parse/sema errors"));
-            }
-            let all = crate::agent_lib::slice_lines(&parsed);
-            let mut lines = Vec::new();
-            let mut used = 0usize;
-            let mut truncated = false;
-            for line in all {
-                let add = if lines.is_empty() {
-                    line.len()
-                } else {
-                    line.len() + 1
-                };
-                if used + add > budget {
-                    truncated = true;
-                    break;
-                }
-                used += add;
-                lines.push(line);
-            }
-            let report = json!({
-                "schema": "rynix.context.v1",
-                "path": path,
-                "budget": budget,
-                "chars_used": used,
-                "truncated": truncated,
-                "lines": lines,
-            });
-            Ok(json!({ "content": [{ "type": "text", "text": report.to_string() }] }))
-        }
-        "rynix_security" => {
-            let path = args
-                .get("path")
-                .and_then(|p| p.as_str())
-                .unwrap_or("mcp.ryx");
-            let report = scan_source(path, source);
-            Ok(json!({ "content": [{ "type": "text", "text": report.to_json().to_string() }] }))
         }
         other => Err(rpc_error(-32602, format!("unknown tool: {other}"))),
     }
@@ -590,6 +592,24 @@ fn resolve_path_or_source<'a>(
             let parsed = crate::agent_lib::parse_text("mcp.ryx", source, arena);
             Ok(("mcp.ryx".to_string(), parsed))
         }
+        (None, None) => Err(rpc_error(-32602, "missing path or source")),
+    }
+}
+
+/// Path-first text resolution (no parse): for check / security / apply_fix.
+fn resolve_label_and_text(
+    path_arg: Option<&str>,
+    source_arg: Option<&str>,
+) -> Result<(String, String), Value> {
+    match (path_arg, source_arg) {
+        (Some(path), None) => {
+            let text = std::fs::read_to_string(path).map_err(|e| {
+                rpc_error(-32000, format!("failed to read {path}: {e}"))
+            })?;
+            Ok((path.to_string(), text))
+        }
+        (Some(path), Some(source)) => Ok((path.to_string(), source.to_string())),
+        (None, Some(source)) => Ok(("mcp.ryx".to_string(), source.to_string())),
         (None, None) => Err(rpc_error(-32602, "missing path or source")),
     }
 }

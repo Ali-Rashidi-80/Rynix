@@ -1433,6 +1433,54 @@ fn enum_value_roundtrip() {
 }
 
 #[test]
+fn enum_match_variant_roundtrip() {
+    build_run_fixture("enum_match_variant", "2");
+}
+
+#[test]
+fn example_http_path_param_tls_checks() {
+    let root = repo_root();
+    let example = root.join("examples/11_http_path_param_tls.ryx");
+    let check = rynixc()
+        .args([
+            "check",
+            example.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("check");
+    assert!(
+        check.status.success(),
+        "example 11 check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll_path = root.join("target/test-11_http_path_param_tls.ll");
+    let emit = rynixc()
+        .args([
+            "emit-ll",
+            example.to_str().unwrap(),
+            "-o",
+            ll_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("emit-ll");
+    assert!(
+        emit.status.success(),
+        "example 11 emit-ll failed:\n{}",
+        String::from_utf8_lossy(&emit.stderr)
+    );
+    let text = std::fs::read_to_string(&ll_path).expect("read ll");
+    assert!(
+        text.contains("rynix_rt_http_serve_loop_path_param_json_i64"),
+        "missing path_param call"
+    );
+    assert!(
+        text.contains("rynix_rt_http_tls_serve_once_json_i64"),
+        "missing http_tls call"
+    );
+}
+
+#[test]
 fn agent_skill_mentions_emit_wasm_and_attest() {
     let skill = repo_root().join(".agents/skills/rynix/SKILL.md");
     let text = std::fs::read_to_string(&skill).expect("read agent skill");
@@ -1702,6 +1750,86 @@ fn mcp_precheck_path_file() {
 }
 
 #[test]
+fn mcp_check_path_file() {
+    let path = example("02_match_loop.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let (resp, err) = mcp_tools_call("rynix_check", serde_json::json!({ "path": path_str }));
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    assert!(
+        text.contains("\"ok\":true") || text.trim().is_empty() || text.contains("rynix.diag"),
+        "expected clean check or diag, got: {text}"
+    );
+    let err = err.expect("fail-closed response");
+    assert!(
+        err.get("error").is_some(),
+        "missing path must fail-closed with error: {err}"
+    );
+}
+
+#[test]
+fn mcp_context_path_file() {
+    let path = example("02_match_loop.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let (resp, err) = mcp_tools_call(
+        "rynix_context",
+        serde_json::json!({ "path": path_str, "budget": 500 }),
+    );
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    assert!(
+        text.contains("rynix.context.v1"),
+        "expected context schema, got: {text}"
+    );
+    let err = err.expect("fail-closed response");
+    assert!(
+        err.get("error").is_some(),
+        "missing path must fail-closed with error: {err}"
+    );
+}
+
+#[test]
+fn mcp_security_path_file() {
+    let path = example("02_match_loop.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let (resp, err) = mcp_tools_call("rynix_security", serde_json::json!({ "path": path_str }));
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    assert!(
+        text.contains("rynix.security.v1"),
+        "expected security schema, got: {text}"
+    );
+    let err = err.expect("fail-closed response");
+    assert!(
+        err.get("error").is_some(),
+        "missing path must fail-closed with error: {err}"
+    );
+}
+
+#[test]
+fn mcp_apply_fix_path_file() {
+    // apply_fix with path: read disk; may be no-op fix on clean file.
+    let path = example("01_hello.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let (resp, err) = mcp_tools_call("apply_fix", serde_json::json!({ "path": path_str }));
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    assert!(
+        text.contains("def ") || text.contains("main"),
+        "expected source text back, got: {text}"
+    );
+    let err = err.expect("fail-closed response");
+    assert!(
+        err.get("error").is_some(),
+        "missing path must fail-closed with error: {err}"
+    );
+}
+
+#[test]
 fn verify_phase19_path_mcp_contract() {
     let root = repo_root();
     let contract = root.join("docs/contracts/phase19_path_mcp.contract.toml");
@@ -1727,6 +1855,35 @@ fn verify_phase19_path_mcp_contract() {
     assert_eq!(v["schema"], "rynix.verify.v1");
     assert_eq!(v["status"], "passed");
     assert_eq!(v["contract"], "phase19-path-mcp");
+    assert_eq!(v["ran_tests"], false);
+}
+
+#[test]
+fn verify_phase21_roi_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase21_roi.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "verify failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["schema"], "rynix.verify.v1");
+    assert_eq!(v["status"], "passed");
+    assert_eq!(v["contract"], "phase21-roi");
     assert_eq!(v["ran_tests"], false);
 }
 

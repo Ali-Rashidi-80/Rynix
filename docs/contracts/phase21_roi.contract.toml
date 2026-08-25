@@ -1,0 +1,64 @@
+# Phase 21 — MCP path-first remainder + match variants + product example
+
+[contract]
+name = "phase21-roi"
+
+[[evidence]]
+id = "mcp-check-path"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_check_path_file"
+
+[[evidence]]
+id = "mcp-context-path"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_context_path_file"
+
+[[evidence]]
+id = "mcp-security-path"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_security_path_file"
+
+[[evidence]]
+id = "mcp-apply-fix-path"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_apply_fix_path_file"
+
+[[evidence]]
+id = "enum-match-variant"
+kind = "cargo_test"
+package = "rynixc"
+filter = "enum_match_variant_roundtrip"
+
+[[evidence]]
+id = "example-http-path-tls"
+kind = "cargo_test"
+package = "rynixc"
+filter = "example_http_path_param_tls_checks"
+
+[[evidence]]
+id = "phase21-doc"
+kind = "file"
+path = "docs/PHASE21.md"
+contains = "path-first"
+
+[[evidence]]
+id = "adr-0015"
+kind = "file"
+path = "docs/adr/0015-match-enum-variants.md"
+contains = "nullary"
+
+[[evidence]]
+id = "changelog"
+kind = "file"
+path = "CHANGELOG.md"
+contains = "0.1"
+
+[[evidence]]
+id = "vscode-completion"
+kind = "file"
+path = "editors/vscode/README.md"
+contains = "completion"

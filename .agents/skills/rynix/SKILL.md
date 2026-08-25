@@ -39,14 +39,17 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
 - Roadmap / phases: `docs/ROADMAP.md`, `docs/LEAD_AHEAD.md`, `docs/PHASE14.md`, `docs/PHASE15.md`,
   `docs/PHASE16.md`
 - Contracts: `docs/contracts/wave1.contract.toml`, `wave12_manifest.contract.toml`,
-  `phase19_path_mcp.contract.toml` (path-first MCP + LSP completion/rename)
+  `phase19_path_mcp.contract.toml` (path-first MCP + LSP completion/rename),
+  `phase21_roi.contract.toml` (MCP path-first remainder + match variants)
 - vs End verdict: `docs/VERDICT.md`, `docs/END_PEER_GAP.md`
 - Soft builtins and std: README Soft builtins + `std/*.ryx` (`std::fs`, `std::crypto`,
   HTTP loop `_2paths_` / `_3paths_` / `path_param`)
 - LSP (`rynixc lsp-serve`): diagnostics, hover, go-to-definition, **completion**
   (local/module `def` + `let` near cursor), **rename** (in-document local symbol)
-- MCP: prefer `rynix_graph` / `rynix_impact` / `rynix_precheck` with filesystem `path`
-  (path-first; fail-closed on missing file); inline `source` still works when no path
+- MCP: prefer filesystem `path` (path-first; fail-closed on missing file) for
+  `rynix_graph` / `rynix_impact` / `rynix_precheck` / `rynix_check` /
+  `rynix_context` / `rynix_security` / `apply_fix`; inline `source` still works
+- Language: `match` on nullary enum variant idents ([ADR-0015](../../docs/adr/0015-match-enum-variants.md))
 - Memory: escape / region / linear move (`RYX2011`) / `#^ effect: pure` (`RYX2012`)
 - Reserved stubs rejected: `tensor` / `signal` / `agent` → `RYX2013`
 

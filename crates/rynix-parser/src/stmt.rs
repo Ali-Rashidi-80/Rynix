@@ -225,10 +225,21 @@ impl<'arena> Parser<'arena, '_, '_> {
     }
 
     fn at_match_pattern(&mut self) -> bool {
-        matches!(
-            self.peek().kind,
-            TokenKind::IntLit | TokenKind::True | TokenKind::False
-        ) || (self.at(TokenKind::Ident) && self.text(self.peek().span) == "_")
+        match self.peek().kind {
+            TokenKind::IntLit | TokenKind::True | TokenKind::False => true,
+            TokenKind::Ident => {
+                // `_` wildcard, or nullary variant path ending the arm header line.
+                // Disambiguate from body stmts: `print_i64(...)` / `x = 1` are not patterns.
+                if self.text(self.peek().span) == "_" {
+                    return true;
+                }
+                matches!(
+                    self.peek_next().kind,
+                    TokenKind::Newline | TokenKind::End | TokenKind::Else | TokenKind::Eof
+                )
+            }
+            _ => false,
+        }
     }
 
     fn parse_match_pattern(&mut self) -> MatchPat<'arena> {

@@ -54,7 +54,7 @@ SoA SSA, block args, DCE/const-fold/simplify-cfg/BCE, interpreter.
 **Immutable lets** bind as SSA values; **`let mut`** stays alloc/load/store.
 **`for` / `break` / `continue`** lower to real CFG.
 **Field** access via `field_offsets` + `gep_i64`.
-**`match`** on int/bool/`_` (+ `else`) → `icmp`/`br` chains.
+**`match`** on int/bool/`_`/nullary enum variants (+ `else`) → `icmp`/`br` chains.
 **Methods** `.len` / `.push` / `.get` / `.insert` by receiver kind.
 
 ## Phase 6 — Escape ✅
@@ -227,6 +227,21 @@ Raft deferred ([ADR-0012](adr/0012-deferred-consensus.md)). Order: `0→A→B→
 | 18 | Product HTTP(+TLS): header, bounded body, keep-alive, TLS path | ✅ `http_header_i64_smoke`, `http_body_bounded_smoke`, `http_keepalive_bounded_smoke`, `http_tls_product_smoke` |
 | 19 | LSP completion+rename; MCP path-first trio; agent contract | ✅ `completion_lists_fn_and_let`, `rename_local_updates_def_and_refs`, `mcp_impact_path_file`, `mcp_precheck_path_file`, `verify_phase19_path_mcp_contract` |
 | 20 | WASM host-import `print_i64`; package/INSTALL polish; Niche-10 certify | ✅ `emit_wasm_host_print_i64`, `package_ux_new_deps_attest`, `install_one_path_clang_win_linux`, `niche10_scorecard_links_gates` — [NICHE10.md](NICHE10.md) |
+
+## Phase 21 — ROI after Niche-10
+
+Plan: **[PHASE21.md](PHASE21.md)**. MCP path-first remainder, product example,
+match on enum variants ([ADR-0015](adr/0015-match-enum-variants.md)), CHANGELOG,
+VS Code completion/rename docs.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| Hyg | README headers + CodeLens honesty | ✅ |
+| A | MCP `check` / `context` / `security` / `apply_fix` path-first | ✅ `mcp_*_path_file` |
+| B | `examples/11_http_path_param_tls.ryx` | ✅ `example_http_path_param_tls_checks` |
+| C | `match` nullary enum variants | ✅ `enum_match_variant_roundtrip` |
+| D | CHANGELOG (no push unless asked) | ✅ |
+| E | VS Code LSP completion/rename client honesty | ✅ |
 
 ## Follow-on (post-13 / parallel)
 
