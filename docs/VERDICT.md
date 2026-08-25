@@ -3,7 +3,9 @@
 **Date:** 2026-08-25  
 **Peer:** [IrMaho/End](https://github.com/IrMaho/End) `main` @ **`cf5bef3`**  
 (local clone `D:\0\End-peer`, `git fetch` + `pull --ff-only` — **no peer source edits**)  
-**This repo:** Rynix Phase 12 complete ([LEAD_AHEAD.md](LEAD_AHEAD.md))
+**This repo:** Rynix Phase 14 complete ([PHASE14.md](PHASE14.md)); Phase 15
+Wave A in flight ([PHASE15.md](PHASE15.md)). Phase 12 product realness:
+[LEAD_AHEAD.md](LEAD_AHEAD.md).
 
 This document answers one question under audit rules:
 
@@ -51,7 +53,8 @@ Full methodology: [END_PEER_GAP.md](END_PEER_GAP.md). Positioning: [COMPARE.md](
 | WebSocket | — / incomplete | RFC 6455 + wire smokes | **Rynix** |
 | Agent CLI | ~60 names, uneven depth | graph/slice/impact/eval/patch/verify… | Tie on overlap; End broader **names** |
 | **MCP** | **Absent** | **18 tools** (`mcp-serve`) | **Rynix** |
-| Packages | Local path; **PubGrub theater** | Path + local index (scan + sparse) + unity/semver/lock/workspace | **Rynix** |
+| Packages | Local path; **PubGrub theater** | Path + local index (scan + sparse) + unity/semver/lock/workspace + **local digest attest** | **Rynix** |
+| WASM | Text / toy surface | `emit-ll --target=wasm32` + **`emit-wasm`** (real `\0asm`) + Node run gate (Phase 15) — **no WASI** | **Rynix** (honest subset) |
 | Memory / escape | Real region/borrow subset | Escape + move + `#^ effect: pure` + explain-alloc | **Rynix** (transparency) |
 | Editor LSP | LSP server; VS Code **without** LanguageClient | `lsp-serve` + **LanguageClient** + CodeLens + workspace goto | **Rynix** |
 | Microbench fairness | suite12 (different programs; checksum caveats) | Suite5 **C↔Rynix CI** + optional End slot | **Rynix** |

@@ -31,6 +31,7 @@ ad-hoc scraping.
 - Phase 12 complete: [docs/LEAD_AHEAD.md](docs/LEAD_AHEAD.md)
 - Phase 13: `emit-ll --target=wasm32-unknown-unknown`; `[build].optimize` + `--opt`/`--no-opt` ([docs/PHASE13.md](docs/PHASE13.md))
 - Phase 14: `emit-wasm` → real `.wasm` via clang (no WASI / no `rt/`); `deps --attest` → `rynix.attest.v1` local digest ([docs/PHASE14.md](docs/PHASE14.md))
+- Phase 15: Node runs `emit-wasm` `main` (no WASI) ([docs/PHASE15.md](docs/PHASE15.md))
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 
 ## Honesty rules

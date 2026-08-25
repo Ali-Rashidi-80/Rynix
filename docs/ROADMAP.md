@@ -197,6 +197,14 @@ Plan: **[PHASE14.md](PHASE14.md)**. Locked Wave A over Sigstore-lite / deeper I/
 | B | Local digest attest (`rynix.attest.v1.json`, not Rekor) | ✅ `deps_attest_write_verify_and_tamper` |
 | C | Triple-path HTTP loop (`http_serve_loop_3paths_json_i64`) | ✅ `http_loop_3paths` |
 
+## Phase 15 — Run emitted `.wasm` (Node, no WASI)
+
+Plan: **[PHASE15.md](PHASE15.md)**. Closes the emit→execute loop without WASI.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | Node instantiates `emit-wasm` module; `main()===42` | ✅ `emit_wasm_node_runs_main` |
+
 ## Follow-on (post-13 / parallel)
 
 | Item | Status | Gate |

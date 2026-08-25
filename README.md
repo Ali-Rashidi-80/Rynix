@@ -309,7 +309,8 @@ portable. CLI `--opt` / `--no-opt` win when present; otherwise
 ([PHASE13.md](docs/PHASE13.md)). Cross emit: `rynixc emit-ll file.ryx
 --target=wasm32-unknown-unknown` (clang `-c` smoke); `rynixc emit-wasm file.ryx
 -o out.wasm` links a real `\0asm` binary via clang (no WASI / no `rt/` —
-[PHASE14.md](docs/PHASE14.md)). Broken path deps fail the build gate. Resolve with
+[PHASE14.md](docs/PHASE14.md)); Node can run `main` on arith fixtures
+([PHASE15.md](docs/PHASE15.md)). Broken path deps fail the build gate. Resolve with
 `rynixc deps [path] --error-format=json`
 (includes a `lock` object). Pin with `rynixc deps --lock` → `rynix.lock.toml` at package or workspace root;
 `--locked` requires a matching pin. Attest with `rynixc deps --attest` →

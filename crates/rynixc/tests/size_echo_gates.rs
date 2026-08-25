@@ -1327,6 +1327,66 @@ fn emit_wasm_clang_produces_wasm() {
 }
 
 #[test]
+fn emit_wasm_node_runs_main() {
+    let Some(_clang) = clang_with_wasm_link() else {
+        eprintln!("skip: no clang that can link wasm32 freestanding .wasm");
+        return;
+    };
+    if Command::new("node").arg("--version").output().is_err() {
+        eprintln!("skip: node not on PATH");
+        return;
+    }
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("target")).ok();
+
+    let wasm = root.join("target/wasm_arith_run.wasm");
+    let _ = std::fs::remove_file(&wasm);
+    let status = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .current_dir(&root)
+        .args([
+            "emit-wasm",
+            "testdata/wasm_arith.ryx",
+            "-o",
+            wasm.to_str().unwrap(),
+        ])
+        .status()
+        .expect("emit-wasm");
+    assert!(status.success(), "emit-wasm failed");
+
+    let script = root.join("target/wasm_arith_run_check.mjs");
+    std::fs::write(
+        &script,
+        r#"import fs from "node:fs";
+const buf = fs.readFileSync("target/wasm_arith_run.wasm");
+const { instance } = await WebAssembly.instantiate(buf, {});
+if (typeof instance.exports.main !== "function") {
+  console.error("missing export main");
+  process.exit(1);
+}
+const got = instance.exports.main();
+if (got !== 42) {
+  console.error("main() returned", got, "want 42");
+  process.exit(1);
+}
+console.log("emit_wasm_node_runs_main ok");
+"#,
+    )
+    .unwrap();
+    let run = Command::new("node")
+        .current_dir(&root)
+        .arg("target/wasm_arith_run_check.mjs")
+        .output()
+        .expect("node wasm run");
+    assert!(
+        run.status.success(),
+        "node failed to run emit-wasm module:\nstdout={}\nstderr={}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+}
+
+#[test]
 fn build_respects_manifest_optimize() {
     let Some(_clang) = clang() else {
         eprintln!("skip: no clang on PATH");
