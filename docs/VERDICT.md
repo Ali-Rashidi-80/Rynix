@@ -4,7 +4,7 @@
 **Peer:** [IrMaho/End](https://github.com/IrMaho/End) `main` @ **`cf5bef3`**  
 (local clone `D:\0\End-peer`, `git fetch` + `pull --ff-only` — **no peer source edits**)  
 **This repo:** Rynix Phase 14 complete ([PHASE14.md](PHASE14.md)); Phase 15
-Wave A in flight ([PHASE15.md](PHASE15.md)). Phase 12 product realness:
+Wave A complete ([PHASE15.md](PHASE15.md)). Phase 12 product realness:
 [LEAD_AHEAD.md](LEAD_AHEAD.md).
 
 This document answers one question under audit rules:
