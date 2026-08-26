@@ -62,6 +62,12 @@ pub fn run(options: &BuildOptions) -> ExitCode {
             .and_then(|p| p.file_stem())
             .map_or_else(|| PathBuf::from("a.out"), PathBuf::from)
     });
+    // MSVC/MinGW clang both honor an explicit `.exe` on `-o`.
+    let out_bin = if cfg!(windows) && out_bin.extension().is_none() {
+        out_bin.with_extension("exe")
+    } else {
+        out_bin
+    };
 
     let ll_path = out_bin.with_extension("ll");
     if let Err(e) = std::fs::write(&ll_path, &result.ll) {
@@ -314,23 +320,25 @@ fn link_clang(
     rt_root: &Path,
 ) -> ExitCode {
     let mut cmd = Command::new(clang);
-    // Competitive flags aligned with peer C11 toolchains (End/GCC-style):
-    // full LTO, unroll, omit FP, strip — without changing RIR semantics.
+    // Competitive flags aligned with peer C11 toolchains (End/GCC-style).
+    // Textual .ll often lacks a matching module triple; rem-heavy loops may
+    // decline forced vectorize — don't fail the build on those notes.
     cmd.arg("-O3")
-        .arg("-flto")
         .arg("-funroll-loops")
         .arg("-fomit-frame-pointer")
         .arg("-finline-functions")
         .arg("-ffunction-sections")
         .arg("-fdata-sections")
-        // Textual .ll often lacks a matching module triple; rem-heavy loops may
-        // decline forced vectorize — don't fail the build on those notes.
         .arg("-Wno-override-module")
         .arg("-Wno-pass-failed");
-    // GNU ld / MinGW lld accept `--gc-sections`. MSVC `lld-link` only warns and
-    // may mishandle `-fuse-ld=lld` + GNU-style `-Wl` — keep those for MinGW/Unix.
-    if clang_is_mingw_like(clang) || !cfg!(windows) {
-        cmd.arg("-fuse-ld=lld").arg("-Wl,--gc-sections").arg("-s");
+    // LTO + GNU ld flags: MinGW/Unix only. MSVC `lld-link` rejects `--gc-sections`
+    // and often fails LTO against textual .ll from rynixc.
+    let gnu_link = clang_is_mingw_like(clang) || !cfg!(windows);
+    if gnu_link {
+        cmd.arg("-flto")
+            .arg("-fuse-ld=lld")
+            .arg("-Wl,--gc-sections")
+            .arg("-s");
     }
     if std::env::var("CI").is_err() && std::env::var("GITHUB_ACTIONS").is_err() {
         cmd.arg("-march=native");
