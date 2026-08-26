@@ -633,13 +633,13 @@ fn emit_inst(
         Inst::IConst(n) => {
             let name = ctx.tmp();
             let _ = writeln!(out, "  {name} = add i64 0, {n}");
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::FConst(n) => {
             let name = ctx.tmp();
             // Debug float formatting is accepted by LLVM's textual parser.
             let _ = writeln!(out, "  {name} = fadd double 0.0, {n:?}");
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::BConst(b) => {
             let name = ctx.tmp();
@@ -648,7 +648,7 @@ fn emit_inst(
                 "  {name} = add i1 0, {}",
                 i32::from(*b)
             );
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::SConst(sym) => {
             let s = ctx.interner.resolve(*sym);
@@ -656,14 +656,14 @@ fn emit_inst(
                 .strings
                 .iter()
                 .position(|x| x == s)
-                .expect("string collected");
+                .unwrap_or_else(|| unreachable!("string collected"));
             // Globals of array type decay to ptr in calls; bind the global directly.
-            ctx.bind(result.unwrap(), format!("@.str.{idx}"));
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), format!("@.str.{idx}"));
         }
         Inst::Nil => {
             let name = ctx.tmp();
             let _ = writeln!(out, "  {name} = add i64 0, 0");
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::IAdd(a, b) => bin_i(out, ctx, func, result, "add", a, b),
         Inst::ISub(a, b) => bin_i(out, ctx, func, result, "sub", a, b),
@@ -680,7 +680,7 @@ fn emit_inst(
                 let x = ctx.val(*a);
                 let name = ctx.tmp();
                 let _ = writeln!(out, "  {name} = lshr i64 {x}, {shift}");
-                ctx.bind(result.unwrap(), name);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
             }
             Some(UdivPlan::Mulhu { magic, shift }) => {
                 emit_udiv_mulhu(out, ctx, result, a, magic, shift);
@@ -702,7 +702,7 @@ fn emit_inst(
         Inst::INeg(a) => {
             let name = ctx.tmp();
             let _ = writeln!(out, "  {name} = sub i64 0, {}", ctx.val(*a));
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::FAdd(a, b) => bin_f(out, ctx, result, "fadd", a, b),
         Inst::FSub(a, b) => bin_f(out, ctx, result, "fsub", a, b),
@@ -711,7 +711,7 @@ fn emit_inst(
         Inst::FNeg(a) => {
             let name = ctx.tmp();
             let _ = writeln!(out, "  {name} = fneg double {}", ctx.val(*a));
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::ICmp(op, a, b) => {
             let name = ctx.tmp();
@@ -743,7 +743,7 @@ fn emit_inst(
                 };
                 let _ = writeln!(out, "  {name} = icmp {pred} i64 {va}, {vb}");
             }
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::FCmp(op, a, b) => {
             let name = ctx.tmp();
@@ -754,12 +754,12 @@ fn emit_inst(
                 ctx.val(*a),
                 ctx.val(*b)
             );
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::BNot(a) => {
             let name = ctx.tmp();
             let _ = writeln!(out, "  {name} = xor i1 {}, true", ctx.val(*a));
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::BAnd(a, b) => {
             let name = ctx.tmp();
@@ -769,7 +769,7 @@ fn emit_inst(
                 ctx.val(*a),
                 ctx.val(*b)
             );
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::BOr(a, b) => {
             let name = ctx.tmp();
@@ -779,7 +779,7 @@ fn emit_inst(
                 ctx.val(*a),
                 ctx.val(*b)
             );
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::ZExtI64(a) => {
             let name = ctx.tmp();
@@ -788,7 +788,7 @@ fn emit_inst(
                 "  {name} = zext i1 {} to i64",
                 ctx.val(*a)
             );
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::CtPop(a) => {
             let name = ctx.tmp();
@@ -797,7 +797,7 @@ fn emit_inst(
                 "  {name} = call i64 @llvm.ctpop.i64(i64 {})",
                 ctx.val(*a)
             );
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::Cttz(a) => {
             let name = ctx.tmp();
@@ -806,7 +806,7 @@ fn emit_inst(
                 "  {name} = call i64 @llvm.cttz.i64(i64 {}, i1 false)",
                 ctx.val(*a)
             );
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::Alloc { site, ty, .. } => {
             let place = placement_for(ctx.placement, ctx.fid, *site);
@@ -835,7 +835,7 @@ fn emit_inst(
                     );
                 }
             }
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::Load(p) => {
             let name = ctx.tmp();
@@ -851,13 +851,13 @@ fn emit_inst(
             if matches!(result_ty, Some(IrTy::Str) | Some(IrTy::Ptr)) && lty == "i64" {
                 let name2 = ctx.tmp();
                 let _ = writeln!(out, "  {name2} = inttoptr i64 {name} to ptr");
-                ctx.bind(result.unwrap(), name2);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name2);
             } else if lty == "i8" {
                 let name2 = ctx.tmp();
                 let _ = writeln!(out, "  {name2} = trunc i8 {name} to i1");
-                ctx.bind(result.unwrap(), name2);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name2);
             } else {
-                ctx.bind(result.unwrap(), name);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
             }
         }
         Inst::Store { ptr, value } => {
@@ -887,7 +887,7 @@ fn emit_inst(
                 ctx.val(*base),
                 ctx.val(*index)
             );
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::BoundsCheck { index, len } => {
             let ok_lo = ctx.tmp();
@@ -924,7 +924,7 @@ fn emit_inst(
                 "  {name} = load i64, ptr {}, align 8",
                 ctx.val(*base)
             );
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::LoadIndex { base, index } => {
             let one = ctx.tmp();
@@ -943,7 +943,7 @@ fn emit_inst(
                 ctx.val(*base)
             );
             let _ = writeln!(out, "  {name} = load i64, ptr {slot}, align 8");
-            ctx.bind(result.unwrap(), name);
+            ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
         }
         Inst::Free { ptr, .. } => {
             let _ = writeln!(
@@ -980,7 +980,7 @@ fn emit_inst(
                     "  {name} = call {rty} @{cname}({args})",
                     args = arg_s.join(", ")
                 );
-                ctx.bind(result.unwrap(), name);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
             }
         }
         Inst::CallExt { name, args, ret } => {
@@ -1022,7 +1022,7 @@ fn emit_inst(
                     .unwrap_or_else(|| "0".into());
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_opaque_i64(i64 {arg})");
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_heap_alloc" {
                 let size = args
                     .first()
@@ -1033,7 +1033,7 @@ fn emit_inst(
                     out,
                     "  {t} = call ptr @rynix_rt_heap_alloc(i64 {size})"
                 );
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_spawn" {
                 // Prefer named fiber entry: first arg is often an SConst of the fn name.
                 let fn_ptr = args
@@ -1098,7 +1098,7 @@ fn emit_inst(
             } else if n == "now_ms" || n == "rynix_rt_now_ms" {
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_now_ms()");
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_vec_i64_new"
                 || n == "rynix_rt_vec_str_new"
                 || n == "rynix_rt_map_i64_new"
@@ -1111,7 +1111,7 @@ fn emit_inst(
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {trunc} = trunc i64 {rid} to i32");
                 let _ = writeln!(out, "  {t} = call ptr @{n}(i32 {trunc})");
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_kv_put" {
                 let kv = ctx.val(args[0]);
                 let key = ctx.val(args[1]);
@@ -1125,12 +1125,12 @@ fn emit_inst(
                 let key = ctx.val(args[1]);
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_kv_get(ptr {kv}, ptr {key})");
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_kv_len" {
                 let kv = ctx.val(args[0]);
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_kv_len(ptr {kv})");
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_vec_i64_push" {
                 let v = ctx.val(args[0]);
                 let x = ctx.val(args[1]);
@@ -1171,7 +1171,7 @@ fn emit_inst(
                     out,
                     "  {t} = call i64 @rynix_rt_map_str_i64_get(ptr {m}, ptr {k})"
                 );
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_map_str_str_get" {
                 let m = ctx.val(args[0]);
                 let k = ctx.val(args[1]);
@@ -1180,28 +1180,28 @@ fn emit_inst(
                     out,
                     "  {t} = call ptr @rynix_rt_map_str_str_get(ptr {m}, ptr {k})"
                 );
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_map_str_i64_len" {
                 let m = ctx.val(args[0]);
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_map_str_i64_len(ptr {m})");
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_map_str_str_len" {
                 let m = ctx.val(args[0]);
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_map_str_str_len(ptr {m})");
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_vec_str_get" {
                 let v = ctx.val(args[0]);
                 let i = ctx.val(args[1]);
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call ptr @rynix_rt_vec_str_get(ptr {v}, i64 {i})");
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_vec_str_len" {
                 let v = ctx.val(args[0]);
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_vec_str_len(ptr {v})");
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_vec_i64_get"
                 || n == "rynix_rt_vec_i64_len"
                 || n == "rynix_rt_map_i64_get"
@@ -1228,7 +1228,7 @@ fn emit_inst(
                     "  {t} = call i64 @{n}({args})",
                     args = arg_s.join(", ")
                 );
-                ctx.bind(result.unwrap(), t);
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
             } else if n == "rynix_rt_tcp_close" {
                 let fd = args.first().map(|a| ctx.val(*a)).unwrap_or_else(|| "0".into());
                 let _ = writeln!(out, "  call void @rynix_rt_tcp_close(i64 {fd})");
@@ -1255,7 +1255,7 @@ fn emit_inst(
                         "  {t} = call {rty} @{n}({args})",
                         args = arg_s.join(", ")
                     );
-                    ctx.bind(result.unwrap(), t);
+                    ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), t);
                 }
             }
         }
@@ -1354,7 +1354,7 @@ fn bin_i(
     let bv = i64_operand(func, ctx, *b);
     let name = ctx.tmp();
     let _ = writeln!(out, "  {name} = {op} i64 {av}, {bv}");
-    ctx.bind(result.unwrap(), name);
+    ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
 }
 
 fn i64_operand(func: &rynix_rir::Function, ctx: &EmitCtx<'_>, v: ValueId) -> String {
@@ -1426,12 +1426,12 @@ fn emit_udiv_mulhu(
     let _ = writeln!(out, "  {hi128} = lshr i128 {prod}, 64");
     let _ = writeln!(out, "  {hi} = trunc i128 {hi128} to i64");
     if shift == 0 {
-        ctx.bind(result.unwrap(), hi);
+        ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), hi);
         return;
     }
     let q = ctx.tmp();
     let _ = writeln!(out, "  {q} = lshr i64 {hi}, {shift}");
-    ctx.bind(result.unwrap(), q);
+    ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), q);
 }
 
 /// Signed `sdiv` by `2^shift` without a variable divisor (LLVM-friendly, trunc toward zero).
@@ -1452,7 +1452,7 @@ fn emit_signed_sdiv_pow2(
     let _ = writeln!(out, "  {t} = add i64 {x}, {adj}");
     let q = ctx.tmp();
     let _ = writeln!(out, "  {q} = ashr i64 {t}, {shift}");
-    ctx.bind(result.unwrap(), q);
+    ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), q);
 }
 
 /// Signed `srem` by `2^shift` via quotient reconstruction (matches Rynix `/` + `%` semantics).
@@ -1478,7 +1478,7 @@ fn emit_signed_srem_pow2(
     let _ = writeln!(out, "  {prod} = mul i64 {q}, {divisor}");
     let r = ctx.tmp();
     let _ = writeln!(out, "  {r} = sub i64 {x}, {prod}");
-    ctx.bind(result.unwrap(), r);
+    ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), r);
 }
 
 fn bin_f(
@@ -1493,7 +1493,7 @@ fn bin_f(
     let bv = ctx.val(*b);
     let name = ctx.tmp();
     let _ = writeln!(out, "  {name} = {op} double {av}, {bv}");
-    ctx.bind(result.unwrap(), name);
+    ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name);
 }
 
 fn icmp_pred(op: CmpOp) -> &'static str {

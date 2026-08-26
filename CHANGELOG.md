@@ -8,6 +8,7 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ### Added
 
+- Phase 26: `lower/` + `lsp/` decomp (ADR-0019/0020), unwrap budget gate, contract schema.
 - Phase 25: `Map[str, str]` mono ([ADR-0018](docs/adr/0018-map-str-str-mono.md)).
 - Phase 25: LSP `textDocument/documentSymbol`.
 - Example `examples/13_http_map_str_str.ryx`.

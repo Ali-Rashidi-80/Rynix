@@ -291,6 +291,17 @@ Plan: **[PHASE25.md](PHASE25.md)**.
 | C | `examples/13_http_map_str_str.ryx` | ✅ `example_map_str_str_product_checks` |
 | D | Contract `phase25_golden` | ✅ `verify_phase25_golden_contract` |
 
+## Phase 26 — Maturity decompose
+
+Plan: **[PHASE26.md](PHASE26.md)**.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | `lower/` decomp ([ADR-0019](adr/0019-lower-decomp.md)) | ✅ `lower_decomp_invariants` |
+| B | `lsp/` decomp ([ADR-0020](adr/0020-lsp-decomp.md)) | ✅ `lsp_decomp_parity` |
+| C | unwrap budget ≤60 | ✅ `unwrap_budget_gate` |
+| E–G | contract schema / deny deferral / sanitizer scaffold | ✅ named gates |
+
 ## Follow-on (post-13 / parallel)
 
 | Item | Status | Gate |

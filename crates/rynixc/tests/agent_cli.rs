@@ -2160,6 +2160,136 @@ fn verify_phase25_golden_contract() {
 }
 
 #[test]
+fn lower_decomp_invariants() {
+    let root = repo_root();
+    assert!(root.join("crates/rynix-rir/src/lower/mod.rs").is_file());
+    assert!(root.join("docs/adr/0019-lower-decomp.md").is_file());
+    assert!(!root.join("crates/rynix-rir/src/lower.rs").exists());
+    let adr = std::fs::read_to_string(root.join("docs/adr/0019-lower-decomp.md")).unwrap();
+    assert!(adr.contains("lower/"));
+    // Behavior smoke: Map[str,str] still lowers/runs after decomp.
+    build_run_fixture("map_str_str_roundtrip", "2");
+}
+
+#[test]
+fn lsp_decomp_parity() {
+    let root = repo_root();
+    assert!(root.join("crates/rynixc/src/lsp/mod.rs").is_file());
+    assert!(root.join("docs/adr/0020-lsp-decomp.md").is_file());
+    let thin = std::fs::read_to_string(root.join("crates/rynixc/src/lsp_cmd.rs")).unwrap();
+    assert!(
+        thin.contains("pub use crate::lsp") || thin.contains("crate::lsp::"),
+        "lsp_cmd should re-export lsp module"
+    );
+}
+
+#[test]
+fn unwrap_budget_gate() {
+    let root = repo_root();
+    let script = root.join("scripts/audit_unwrap.py");
+    assert!(script.is_file(), "missing scripts/audit_unwrap.py");
+    let out = std::process::Command::new("python")
+        .arg(&script)
+        .current_dir(&root)
+        .output()
+        .or_else(|_| {
+            std::process::Command::new("python3")
+                .arg(&script)
+                .current_dir(&root)
+                .output()
+        })
+        .expect("run audit_unwrap.py");
+    assert!(
+        out.status.success(),
+        "unwrap budget exceeded:\n{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+#[test]
+fn contract_schema_gate() {
+    let root = repo_root();
+    assert!(root.join("docs/schemas/rynix.contract.v1.json").is_file());
+    assert!(root.join("docs/adr/0021-phase-contract-schema.md").is_file());
+    let dir = root.join("docs/contracts");
+    let mut n = 0;
+    for ent in std::fs::read_dir(&dir).unwrap() {
+        let ent = ent.unwrap();
+        let name = ent.file_name().to_string_lossy().to_string();
+        if !name.ends_with(".contract.toml") {
+            continue;
+        }
+        let text = std::fs::read_to_string(ent.path()).unwrap();
+        assert!(
+            text.contains("[contract]") && text.contains("name"),
+            "{name} missing [contract] name"
+        );
+        assert!(
+            text.contains("[[evidence]]"),
+            "{name} missing [[evidence]]"
+        );
+        n += 1;
+    }
+    assert!(n >= 5, "expected several contracts, got {n}");
+}
+
+#[test]
+fn cargo_deny_or_deferral() {
+    let root = repo_root();
+    let deny = root.join("deny.toml");
+    let defer = root.join("docs/CARGO_DENY_DEFERRAL.md");
+    assert!(
+        deny.is_file() || defer.is_file(),
+        "need deny.toml or CARGO_DENY_DEFERRAL.md"
+    );
+}
+
+#[test]
+fn sanitizer_scaffold_documented() {
+    let text =
+        std::fs::read_to_string(repo_root().join("docs/SANITIZER_SCAFFOLD.md")).unwrap();
+    assert!(text.contains("fsanitize"));
+    assert!(text.contains("Phase 27"));
+}
+
+#[test]
+fn repo_url_real() {
+    let text = std::fs::read_to_string(repo_root().join("Cargo.toml")).unwrap();
+    assert!(
+        text.contains("repository = \"https://github.com/"),
+        "workspace repository must be a real GitHub URL"
+    );
+    assert!(!text.contains("example.invalid"));
+}
+
+#[test]
+fn verify_phase26_maturity_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase26_maturity.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "verify failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["status"], "passed");
+    assert_eq!(v["contract"], "phase26-maturity");
+}
+
+#[test]
 fn agent_skill_mentions_completion_rename_path_mcp() {
     let skill = repo_root().join(".agents/skills/rynix/SKILL.md");
     let text = std::fs::read_to_string(&skill).expect("read agent skill");

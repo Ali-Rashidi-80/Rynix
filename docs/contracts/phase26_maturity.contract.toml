@@ -1,0 +1,52 @@
+# Phase 26 — maturity decompose
+
+[contract]
+name = "phase26-maturity"
+
+[[evidence]]
+id = "lower-decomp"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lower_decomp_invariants"
+
+[[evidence]]
+id = "lsp-decomp"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lsp_decomp_parity"
+
+[[evidence]]
+id = "unwrap-budget"
+kind = "cargo_test"
+package = "rynixc"
+filter = "unwrap_budget_gate"
+
+[[evidence]]
+id = "contract-schema"
+kind = "cargo_test"
+package = "rynixc"
+filter = "contract_schema_gate"
+
+[[evidence]]
+id = "cargo-deny-or-defer"
+kind = "cargo_test"
+package = "rynixc"
+filter = "cargo_deny_or_deferral"
+
+[[evidence]]
+id = "sanitizer-scaffold"
+kind = "cargo_test"
+package = "rynixc"
+filter = "sanitizer_scaffold_documented"
+
+[[evidence]]
+id = "phase26-doc"
+kind = "file"
+path = "docs/PHASE26.md"
+contains = "Maturity decompose"
+
+[[evidence]]
+id = "adr-0019"
+kind = "file"
+path = "docs/adr/0019-lower-decomp.md"
+contains = "lower/"

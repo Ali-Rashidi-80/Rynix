@@ -1,0 +1,16 @@
+# docs/contracts/_template.contract.toml
+
+[contract]
+name = "phaseNN-theme"
+
+[[evidence]]
+id = "gate-name"
+kind = "cargo_test"
+package = "rynixc"
+filter = "named_gate"
+
+[[evidence]]
+id = "phase-doc"
+kind = "file"
+path = "docs/PHASENN.md"
+contains = "Phase"

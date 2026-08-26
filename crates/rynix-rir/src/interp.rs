@@ -97,34 +97,34 @@ fn eval_func(
             });
             match inst {
                 Inst::IConst(n) => {
-                    vals.insert(result_vid.unwrap(), InterpValue::I64(*n));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::I64(*n));
                 }
                 Inst::FConst(n) => {
-                    vals.insert(result_vid.unwrap(), InterpValue::F64(*n));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::F64(*n));
                 }
                 Inst::BConst(b) => {
-                    vals.insert(result_vid.unwrap(), InterpValue::Bool(*b));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::Bool(*b));
                 }
                 Inst::SConst(s) => {
                     vals.insert(
-                        result_vid.unwrap(),
+                        result_vid.unwrap_or_else(|| unreachable!("invariant")),
                         InterpValue::Str(interner.resolve(*s).to_string()),
                     );
                 }
                 Inst::Nil => {
-                    vals.insert(result_vid.unwrap(), InterpValue::Unit);
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::Unit);
                 }
                 Inst::IAdd(a, b) => {
-                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x + y)?);
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), iop(&vals, *a, *b, |x, y| x + y)?);
                 }
                 Inst::ISub(a, b) => {
-                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x - y)?);
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), iop(&vals, *a, *b, |x, y| x - y)?);
                 }
                 Inst::IMul(a, b) => {
-                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x * y)?);
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), iop(&vals, *a, *b, |x, y| x * y)?);
                 }
                 Inst::IDiv(a, b) => {
-                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x / y)?);
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), iop(&vals, *a, *b, |x, y| x / y)?);
                 }
                 Inst::UDiv(a, b) => {
                     let InterpValue::I64(x) = get(&vals, *a)? else {
@@ -137,12 +137,12 @@ fn eval_func(
                         return Err(InterpError::Trap("udiv by zero".into()));
                     }
                     vals.insert(
-                        result_vid.unwrap(),
+                        result_vid.unwrap_or_else(|| unreachable!("invariant")),
                         InterpValue::I64(((x as u64) / (y as u64)) as i64),
                     );
                 }
                 Inst::IRem(a, b) => {
-                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x % y)?);
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), iop(&vals, *a, *b, |x, y| x % y)?);
                 }
                 Inst::URem(a, b) => {
                     let InterpValue::I64(x) = get(&vals, *a)? else {
@@ -155,15 +155,15 @@ fn eval_func(
                         return Err(InterpError::Trap("urem div".into()));
                     }
                     vals.insert(
-                        result_vid.unwrap(),
+                        result_vid.unwrap_or_else(|| unreachable!("invariant")),
                         InterpValue::I64((x as u64).rem_euclid(y as u64) as i64),
                     );
                 }
                 Inst::IAnd(a, b) => {
-                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x & y)?);
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), iop(&vals, *a, *b, |x, y| x & y)?);
                 }
                 Inst::IOr(a, b) => {
-                    vals.insert(result_vid.unwrap(), iop(&vals, *a, *b, |x, y| x | y)?);
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), iop(&vals, *a, *b, |x, y| x | y)?);
                 }
                 Inst::LShr(a, b) => {
                     let InterpValue::I64(x) = get(&vals, *a)? else {
@@ -173,7 +173,7 @@ fn eval_func(
                         return Err(InterpError::Trap("lshr".into()));
                     };
                     vals.insert(
-                        result_vid.unwrap(),
+                        result_vid.unwrap_or_else(|| unreachable!("invariant")),
                         InterpValue::I64(((x as u64) >> (y as u32)) as i64),
                     );
                 }
@@ -185,7 +185,7 @@ fn eval_func(
                         return Err(InterpError::Trap("lshl".into()));
                     };
                     vals.insert(
-                        result_vid.unwrap(),
+                        result_vid.unwrap_or_else(|| unreachable!("invariant")),
                         InterpValue::I64(((x as u64) << (y as u32)) as i64),
                     );
                 }
@@ -193,7 +193,7 @@ fn eval_func(
                     let InterpValue::I64(x) = get(&vals, *a)? else {
                         return Err(InterpError::Trap("ineg".into()));
                     };
-                    vals.insert(result_vid.unwrap(), InterpValue::I64(-x));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::I64(-x));
                 }
                 Inst::ICmp(op, a, b) => {
                     let xa = get(&vals, *a)?;
@@ -216,7 +216,7 @@ fn eval_func(
                         },
                         _ => return Err(InterpError::Trap("icmp".into())),
                     };
-                    vals.insert(result_vid.unwrap(), InterpValue::Bool(r));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::Bool(r));
                 }
                 Inst::BAnd(a, b) => {
                     let InterpValue::Bool(x) = get(&vals, *a)? else {
@@ -225,7 +225,7 @@ fn eval_func(
                     let InterpValue::Bool(y) = get(&vals, *b)? else {
                         return Err(InterpError::Trap("band".into()));
                     };
-                    vals.insert(result_vid.unwrap(), InterpValue::Bool(x && y));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::Bool(x && y));
                 }
                 Inst::BOr(a, b) => {
                     let InterpValue::Bool(x) = get(&vals, *a)? else {
@@ -234,14 +234,14 @@ fn eval_func(
                     let InterpValue::Bool(y) = get(&vals, *b)? else {
                         return Err(InterpError::Trap("bor".into()));
                     };
-                    vals.insert(result_vid.unwrap(), InterpValue::Bool(x || y));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::Bool(x || y));
                 }
                 Inst::ZExtI64(a) => {
                     let InterpValue::Bool(b) = get(&vals, *a)? else {
                         return Err(InterpError::Trap("zext_i64".into()));
                     };
                     vals.insert(
-                        result_vid.unwrap(),
+                        result_vid.unwrap_or_else(|| unreachable!("invariant")),
                         InterpValue::I64(i64::from(b)),
                     );
                 }
@@ -250,7 +250,7 @@ fn eval_func(
                         return Err(InterpError::Trap("ctpop".into()));
                     };
                     vals.insert(
-                        result_vid.unwrap(),
+                        result_vid.unwrap_or_else(|| unreachable!("invariant")),
                         InterpValue::I64(n.count_ones() as i64),
                     );
                 }
@@ -263,13 +263,13 @@ fn eval_func(
                     } else {
                         n.trailing_zeros() as i64
                     };
-                    vals.insert(result_vid.unwrap(), InterpValue::I64(tz));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::I64(tz));
                 }
                 Inst::BNot(a) => {
                     let InterpValue::Bool(x) = get(&vals, *a)? else {
                         return Err(InterpError::Trap("bnot".into()));
                     };
-                    vals.insert(result_vid.unwrap(), InterpValue::Bool(!x));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::Bool(!x));
                 }
                 Inst::Alloc { ty, .. } => {
                     let init = match ty {
@@ -281,7 +281,7 @@ fn eval_func(
                     };
                     let idx = mem.len() as u32;
                     mem.push(init);
-                    vals.insert(result_vid.unwrap(), InterpValue::Ptr(idx));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::Ptr(idx));
                 }
                 Inst::RegionCreate { .. } | Inst::RegionReset { .. } | Inst::Free { .. } => {
                     // Runtime markers — no-op in the oracle interpreter.
@@ -299,7 +299,7 @@ fn eval_func(
                         },
                         _ => return Err(InterpError::Trap("gep base".into())),
                     };
-                    vals.insert(result_vid.unwrap(), slot);
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), slot);
                 }
                 Inst::BoundsCheck { index, len } => {
                     let idx = match get(&vals, *index)? {
@@ -319,7 +319,7 @@ fn eval_func(
                         InterpValue::Arr(a) => arrays[a as usize][0],
                         _ => return Err(InterpError::Trap("array_len".into())),
                     };
-                    vals.insert(result_vid.unwrap(), InterpValue::I64(n));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::I64(n));
                 }
                 Inst::LoadIndex { base, index } => {
                     let idx = match get(&vals, *index)? {
@@ -330,15 +330,15 @@ fn eval_func(
                         InterpValue::Arr(a) => arrays[a as usize][(idx + 1) as usize],
                         _ => return Err(InterpError::Trap("load_index base".into())),
                     };
-                    vals.insert(result_vid.unwrap(), InterpValue::I64(n));
+                    vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), InterpValue::I64(n));
                 }
                 Inst::Load(p) => match get(&vals, *p)? {
                     InterpValue::Ptr(idx) => {
-                        vals.insert(result_vid.unwrap(), mem[idx as usize].clone());
+                        vals.insert(result_vid.unwrap_or_else(|| unreachable!("invariant")), mem[idx as usize].clone());
                     }
                     InterpValue::Slot { arr, idx } => {
                         vals.insert(
-                            result_vid.unwrap(),
+                            result_vid.unwrap_or_else(|| unreachable!("invariant")),
                             InterpValue::I64(arrays[arr as usize][idx as usize]),
                         );
                     }
