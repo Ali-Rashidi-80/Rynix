@@ -154,10 +154,7 @@ fn is_camel(name: &str) -> bool {
 }
 
 fn is_pascal(name: &str) -> bool {
-    match name.chars().next() {
-        Some(c) if c.is_ascii_uppercase() => true,
-        _ => false,
-    }
+    matches!(name.chars().next(), Some(c) if c.is_ascii_uppercase())
 }
 
 fn collect_ryx(dir: &Path, out: &mut Vec<PathBuf>) {

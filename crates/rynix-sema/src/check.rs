@@ -189,102 +189,108 @@ impl<'a> Checker<'a> {
 
         // Region Vec/Map (i64 + str monomorphs) — soft std surface.
         let unit = self.types.ty_unit;
-        let i = self.types.ty_int;
-        let s = self.types.ty_str;
-        let v = self.types.ty_vec;
+        let ty_i = self.types.ty_int;
+        let ty_s = self.types.ty_str;
+        let ty_v = self.types.ty_vec;
         let vs = self.types.ty_vec_str;
-        let m = self.types.ty_map;
-        self.soft_fn("vec_new", vec![i], v);
-        self.soft_fn("vec_push", vec![v, i], unit);
-        self.soft_fn("vec_get", vec![v, i], i);
-        self.soft_fn("vec_len", vec![v], i);
-        self.soft_fn("vec_str_new", vec![i], vs);
-        self.soft_fn("vec_str_push", vec![vs, s], unit);
-        self.soft_fn("vec_str_get", vec![vs, i], s);
-        self.soft_fn("vec_str_len", vec![vs], i);
-        self.soft_fn("map_new", vec![i], m);
-        self.soft_fn("map_insert", vec![m, i, i], unit);
-        self.soft_fn("map_get", vec![m, i], i);
-        self.soft_fn("map_len", vec![m], i);
+        let ty_m = self.types.ty_map;
+        self.soft_fn("vec_new", vec![ty_i], ty_v);
+        self.soft_fn("vec_push", vec![ty_v, ty_i], unit);
+        self.soft_fn("vec_get", vec![ty_v, ty_i], ty_i);
+        self.soft_fn("vec_len", vec![ty_v], ty_i);
+        self.soft_fn("vec_str_new", vec![ty_i], vs);
+        self.soft_fn("vec_str_push", vec![vs, ty_s], unit);
+        self.soft_fn("vec_str_get", vec![vs, ty_i], ty_s);
+        self.soft_fn("vec_str_len", vec![vs], ty_i);
+        self.soft_fn("map_new", vec![ty_i], ty_m);
+        self.soft_fn("map_insert", vec![ty_m, ty_i, ty_i], unit);
+        self.soft_fn("map_get", vec![ty_m, ty_i], ty_i);
+        self.soft_fn("map_len", vec![ty_m], ty_i);
         let msi = self.types.ty_map_str_i64;
-        self.soft_fn("map_str_i64_new", vec![i], msi);
-        self.soft_fn("map_str_i64_insert", vec![msi, s, i], unit);
-        self.soft_fn("map_str_i64_get", vec![msi, s], i);
-        self.soft_fn("map_str_i64_len", vec![msi], i);
+        self.soft_fn("map_str_i64_new", vec![ty_i], msi);
+        self.soft_fn("map_str_i64_insert", vec![msi, ty_s, ty_i], unit);
+        self.soft_fn("map_str_i64_get", vec![msi, ty_s], ty_i);
+        self.soft_fn("map_str_i64_len", vec![msi], ty_i);
         let mss = self.types.ty_map_str_str;
-        self.soft_fn("map_str_str_new", vec![i], mss);
-        self.soft_fn("map_str_str_insert", vec![mss, s, s], unit);
-        self.soft_fn("map_str_str_get", vec![mss, s], s);
-        self.soft_fn("map_str_str_len", vec![mss], i);
+        self.soft_fn("map_str_str_new", vec![ty_i], mss);
+        self.soft_fn("map_str_str_insert", vec![mss, ty_s, ty_s], unit);
+        self.soft_fn("map_str_str_get", vec![mss, ty_s], ty_s);
+        self.soft_fn("map_str_str_len", vec![mss], ty_i);
 
         let vec_sym = self.interner.intern("Vec");
         let vec_def = self.alloc_def(DefKind::BuiltinType { name: vec_sym });
         self.scopes.define(self.module_scope, vec_sym, vec_def);
-        self.def_types.insert(vec_def, v);
+        self.def_types.insert(vec_def, ty_v);
         let map_sym = self.interner.intern("Map");
         let map_def = self.alloc_def(DefKind::BuiltinType { name: map_sym });
         self.scopes.define(self.module_scope, map_sym, map_def);
-        self.def_types.insert(map_def, m);
+        self.def_types.insert(map_def, ty_m);
 
         // TCP soft surface (recv/send take ptr buffers — soft args are i64 slots).
-        let s = self.types.ty_str;
-        self.soft_fn("tcp_listen", vec![i], i);
-        self.soft_fn("tcp_accept", vec![i], i);
-        self.soft_fn("tcp_connect", vec![s, i], i);
-        self.soft_fn("tcp_recv", vec![i, i, i], i);
-        self.soft_fn("tcp_send", vec![i, i, i], i);
-        self.soft_fn("tcp_close", vec![i], unit);
+        self.soft_fn("tcp_listen", vec![ty_i], ty_i);
+        self.soft_fn("tcp_accept", vec![ty_i], ty_i);
+        self.soft_fn("tcp_connect", vec![ty_s, ty_i], ty_i);
+        self.soft_fn("tcp_recv", vec![ty_i, ty_i, ty_i], ty_i);
+        self.soft_fn("tcp_send", vec![ty_i, ty_i, ty_i], ty_i);
+        self.soft_fn("tcp_close", vec![ty_i], unit);
 
         // JSON / HTTP soft std (v0.1).
-        let s = self.types.ty_str;
-        self.soft_fn("json_get_i64", vec![s, s], i);
-        self.soft_fn("json_has_i64", vec![s, s], i);
-        self.soft_fn("http_get_json_i64", vec![s, i, s, s], i);
-        self.soft_fn("http_post_json_i64", vec![s, i, s, s, s], i);
-        self.soft_fn("http_serve_once_json_i64", vec![i, s, i], i);
-        self.soft_fn("http_serve_once_echo_json_i64", vec![i, s, s], i);
-        self.soft_fn("http_serve_loop_json_i64", vec![i, s, i, i], i);
+        self.soft_fn("json_get_i64", vec![ty_s, ty_s], ty_i);
+        self.soft_fn("json_has_i64", vec![ty_s, ty_s], ty_i);
+        self.soft_fn("http_get_json_i64", vec![ty_s, ty_i, ty_s, ty_s], ty_i);
+        self.soft_fn("http_post_json_i64", vec![ty_s, ty_i, ty_s, ty_s, ty_s], ty_i);
+        self.soft_fn("http_serve_once_json_i64", vec![ty_i, ty_s, ty_i], ty_i);
+        self.soft_fn("http_serve_once_echo_json_i64", vec![ty_i, ty_s, ty_s], ty_i);
+        self.soft_fn("http_serve_loop_json_i64", vec![ty_i, ty_s, ty_i, ty_i], ty_i);
         self.soft_fn(
             "http_serve_loop_2paths_json_i64",
-            vec![i, s, i, s, i, i],
-            i,
+            vec![ty_i, ty_s, ty_i, ty_s, ty_i, ty_i],
+            ty_i,
         );
         self.soft_fn(
             "http_serve_loop_3paths_json_i64",
-            vec![i, s, i, s, i, s, i, i],
-            i,
+            vec![ty_i, ty_s, ty_i, ty_s, ty_i, ty_s, ty_i, ty_i],
+            ty_i,
         );
-        self.soft_fn("http_serve_loop_path_param_json_i64", vec![i, s, i], i);
-        self.soft_fn("http_serve_loop_header_json_i64", vec![i, s, s, i], i);
-        self.soft_fn("http_serve_loop_post_echo_json_i64", vec![i, s, s, i, i], i);
-        self.soft_fn("http_serve_loop_keepalive_json_i64", vec![i, s, i, i], i);
-        self.soft_fn("http_tls_serve_once_json_i64", vec![i, s, i], i);
-        self.soft_fn("http_tls_get_json_i64", vec![s, i, s, s], i);
-        self.soft_fn("frame_serve_once_echo", vec![i], i);
-        self.soft_fn("frame_client_echo", vec![s, i, s], i);
-        self.soft_fn("tls_serve_once_echo", vec![i], i);
-        self.soft_fn("tls_client_echo", vec![s, i, s], i);
+        self.soft_fn("http_serve_loop_path_param_json_i64", vec![ty_i, ty_s, ty_i], ty_i);
+        self.soft_fn("http_serve_loop_header_json_i64", vec![ty_i, ty_s, ty_s, ty_i], ty_i);
+        self.soft_fn(
+            "http_serve_loop_post_echo_json_i64",
+            vec![ty_i, ty_s, ty_s, ty_i, ty_i],
+            ty_i,
+        );
+        self.soft_fn(
+            "http_serve_loop_keepalive_json_i64",
+            vec![ty_i, ty_s, ty_i, ty_i],
+            ty_i,
+        );
+        self.soft_fn("http_tls_serve_once_json_i64", vec![ty_i, ty_s, ty_i], ty_i);
+        self.soft_fn("http_tls_get_json_i64", vec![ty_s, ty_i, ty_s, ty_s], ty_i);
+        self.soft_fn("frame_serve_once_echo", vec![ty_i], ty_i);
+        self.soft_fn("frame_client_echo", vec![ty_s, ty_i, ty_s], ty_i);
+        self.soft_fn("tls_serve_once_echo", vec![ty_i], ty_i);
+        self.soft_fn("tls_client_echo", vec![ty_s, ty_i, ty_s], ty_i);
 
         // Crypto + string-key KV (EndCrypto / EndKV class; evidence via KAT smoke).
-        let p = self.types.ty_ptr;
-        self.soft_fn("sha256_first_i64", vec![s], i);
-        self.soft_fn("hmac_sha256_first_i64", vec![s, s], i);
-        self.soft_fn("aes128_gcm_nist_empty_tag_first_i64", vec![], i);
-        self.soft_fn("ws_accept_key_eq", vec![s, s], i);
-        self.soft_fn("ws_accept_sha1_first_i64", vec![s], i);
-        self.soft_fn("ws_frame_roundtrip_ok", vec![], i);
-        self.soft_fn("ws_serve_once_echo", vec![i], i);
-        self.soft_fn("ws_client_echo", vec![s, i, s], i);
-        self.soft_fn("kv_new", vec![i], p);
-        self.soft_fn("kv_put", vec![p, s, i], unit);
-        self.soft_fn("kv_get", vec![p, s], i);
-        self.soft_fn("kv_len", vec![p], i);
+        let ty_p = self.types.ty_ptr;
+        self.soft_fn("sha256_first_i64", vec![ty_s], ty_i);
+        self.soft_fn("hmac_sha256_first_i64", vec![ty_s, ty_s], ty_i);
+        self.soft_fn("aes128_gcm_nist_empty_tag_first_i64", vec![], ty_i);
+        self.soft_fn("ws_accept_key_eq", vec![ty_s, ty_s], ty_i);
+        self.soft_fn("ws_accept_sha1_first_i64", vec![ty_s], ty_i);
+        self.soft_fn("ws_frame_roundtrip_ok", vec![], ty_i);
+        self.soft_fn("ws_serve_once_echo", vec![ty_i], ty_i);
+        self.soft_fn("ws_client_echo", vec![ty_s, ty_i, ty_s], ty_i);
+        self.soft_fn("kv_new", vec![ty_i], ty_p);
+        self.soft_fn("kv_put", vec![ty_p, ty_s, ty_i], unit);
+        self.soft_fn("kv_get", vec![ty_p, ty_s], ty_i);
+        self.soft_fn("kv_len", vec![ty_p], ty_i);
         // Portable path filesystem (fopen-backed).
-        self.soft_fn("fs_write_file", vec![s, s], i);
-        self.soft_fn("fs_read_file", vec![s], s);
-        self.soft_fn("fs_read_file_eq", vec![s, s], i);
-        self.soft_fn("fs_exists", vec![s], i);
-        self.soft_fn("fs_remove_file", vec![s], i);
+        self.soft_fn("fs_write_file", vec![ty_s, ty_s], ty_i);
+        self.soft_fn("fs_read_file", vec![ty_s], ty_s);
+        self.soft_fn("fs_read_file_eq", vec![ty_s, ty_s], ty_i);
+        self.soft_fn("fs_exists", vec![ty_s], ty_i);
+        self.soft_fn("fs_remove_file", vec![ty_s], ty_i);
     }
 
     fn soft_fn(&mut self, name: &str, params: Vec<TypeId>, ret: TypeId) {
@@ -414,13 +420,12 @@ impl<'a> Checker<'a> {
                 let payload = v.payload.map(|p| self.lower_type(p, self.module_scope));
                 let enum_ty = self.types.enum_type(def);
                 // Nullary variant: value of enum type; payload variant: fn(payload) -> enum
-                let vty = match payload {
-                    Some(p) => self.types.fn_type(vec![p], enum_ty),
-                    None => {
-                        self.variant_disc.insert(vdef, disc);
-                        disc += 1;
-                        enum_ty
-                    }
+                let vty = if let Some(p) = payload {
+                    self.types.fn_type(vec![p], enum_ty)
+                } else {
+                    self.variant_disc.insert(vdef, disc);
+                    disc += 1;
+                    enum_ty
                 };
                 self.def_types.insert(vdef, vty);
                 variants.insert(v.name.name, (vdef, payload));
@@ -852,17 +857,17 @@ impl<'a> Checker<'a> {
                             self.interner.resolve(kind.name()),
                         ));
                     }
-                } else if let Some(seg) = p.segments.last() {
-                    if let Some(def) = self.scopes.lookup(scope, seg.name) {
-                        let kind = &self.defs[def.index() as usize];
-                        if matches!(kind, DefKind::Local { .. } | DefKind::Param { .. })
-                            && !kind.is_mutable()
-                        {
-                            self.sink.emit(errors::immutable_assign(
-                                p.span,
-                                self.interner.resolve(seg.name),
-                            ));
-                        }
+                } else if let Some(seg) = p.segments.last()
+                    && let Some(def) = self.scopes.lookup(scope, seg.name)
+                {
+                    let kind = &self.defs[def.index() as usize];
+                    if matches!(kind, DefKind::Local { .. } | DefKind::Param { .. })
+                        && !kind.is_mutable()
+                    {
+                        self.sink.emit(errors::immutable_assign(
+                            p.span,
+                            self.interner.resolve(seg.name),
+                        ));
                     }
                 }
             }
@@ -1221,7 +1226,7 @@ impl<'a> Checker<'a> {
                 ));
             }
         }
-        for (name, _) in &fields {
+        for name in fields.keys() {
             if !seen.contains(name) {
                 self.sink.emit(errors::type_mismatch(
                     lit.span,

@@ -35,6 +35,7 @@ impl EffectSet {
         self.0 & other.0 == other.0
     }
 
+    #[must_use]
     pub fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
     }
@@ -78,11 +79,10 @@ fn source_line_containing(source: &str, span: Span, base: u32) -> Option<&str> {
     if lo > source.len() {
         return None;
     }
-    let start = source[..lo].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let start = source[..lo].rfind('\n').map_or(0, |i| i + 1);
     let end = source[lo..]
         .find('\n')
-        .map(|i| lo + i)
-        .unwrap_or(source.len());
+        .map_or(source.len(), |i| lo + i);
     Some(&source[start..end])
 }
 
@@ -106,6 +106,7 @@ pub fn line_declares_pure(source: &str, span: Span, base: u32) -> bool {
 }
 
 /// Infer + check purity for all functions in `module`.
+#[allow(clippy::too_many_arguments, clippy::implicit_hasher)]
 pub fn check_module_effects(
     module: &Module<'_>,
     source: &str,

@@ -279,6 +279,7 @@ impl<'src> Lexer<'src> {
         Token::new(TokenKind::Unknown, span)
     }
 
+    #[allow(clippy::too_many_lines)] // maximal-munch table for every punct byte
     fn punct(&mut self, sink: &mut dyn DiagSink) -> Token {
         use TokenKind::{
             Amp, Arrow, BangEq, Colon, ColonColon, Comma, Dot, DotDot, DotDotEq, Eq, EqEq, Gt, GtEq,
@@ -375,6 +376,9 @@ impl<'src> Lexer<'src> {
                 if self.eat(b'>') {
                     Pipe
                 } else {
+                    // `||` is one Unknown so the fix can replace the pair with `or`.
+                    // Lone `|` is also Unknown (Rynix uses `or`, not bitwise-or sugar).
+                    let _ = self.eat(b'|');
                     let span = self.span_from(start);
                     sink.emit(errors::unknown_char(span, self.slice(start, self.pos)));
                     return Token::new(TokenKind::Unknown, span);

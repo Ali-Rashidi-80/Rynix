@@ -61,6 +61,11 @@ module_name_repetitions = "allow"
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+# Style noise that fights dense lowering/match CFGs; keep pedantic local-warn only.
+collapsible_if = "allow"
+collapsible_match = "allow"
+question_mark = "allow"
+empty_line_after_doc_comments = "allow"
 
 # The compiler itself is built for maximum performance and minimum size.
 [profile.release]

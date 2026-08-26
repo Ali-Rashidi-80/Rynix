@@ -169,74 +169,24 @@ impl Dumper<'_> {
             Stmt::Continue(_) => self.atom("(continue)"),
             Stmt::Loop(l) => {
                 self.open("loop");
-                for s in l.body {
-                    self.stmt(s);
-                }
+                self.stmts(l.body);
                 self.close();
             }
             Stmt::Region(r) => {
                 self.open("region");
-                for s in r.body {
-                    self.stmt(s);
-                }
+                self.stmts(r.body);
                 self.close();
             }
             Stmt::For(f) => {
                 self.open(&format!("for {}", self.name(f.binder)));
                 self.expr(f.iter);
                 self.open("body");
-                for s in f.body {
-                    self.stmt(s);
-                }
+                self.stmts(f.body);
                 self.close();
                 self.close();
             }
-            Stmt::If(i) => {
-                self.open("if");
-                for (idx, arm) in i.arms.iter().enumerate() {
-                    self.open(if idx == 0 { "arm" } else { "elif" });
-                    self.expr(arm.cond);
-                    self.open("body");
-                    for s in arm.body {
-                        self.stmt(s);
-                    }
-                    self.close();
-                    self.close();
-                }
-                if let Some(body) = i.else_body {
-                    self.open("else");
-                    for s in body {
-                        self.stmt(s);
-                    }
-                    self.close();
-                }
-                self.close();
-            }
-            Stmt::Match(m) => {
-                self.open("match");
-                self.expr(m.scrutinee);
-                for arm in m.arms {
-                    self.open("arm");
-                    match &arm.pattern {
-                        crate::MatchPat::Wildcard(_) => self.atom("_"),
-                        crate::MatchPat::Literal(e) => self.expr(e),
-                    }
-                    self.open("body");
-                    for s in arm.body {
-                        self.stmt(s);
-                    }
-                    self.close();
-                    self.close();
-                }
-                if let Some(body) = m.else_body {
-                    self.open("else");
-                    for s in body {
-                        self.stmt(s);
-                    }
-                    self.close();
-                }
-                self.close();
-            }
+            Stmt::If(i) => self.stmt_if(i),
+            Stmt::Match(m) => self.stmt_match(m),
             Stmt::Expr(e) => {
                 self.open("expr");
                 self.expr(e.expr);
@@ -244,6 +194,52 @@ impl Dumper<'_> {
             }
             Stmt::Error(_) => self.atom("(error)"),
         }
+    }
+
+    fn stmts(&mut self, body: &[Stmt<'_>]) {
+        for s in body {
+            self.stmt(s);
+        }
+    }
+
+    fn stmt_if(&mut self, i: &crate::IfStmt<'_>) {
+        self.open("if");
+        for (idx, arm) in i.arms.iter().enumerate() {
+            self.open(if idx == 0 { "arm" } else { "elif" });
+            self.expr(arm.cond);
+            self.open("body");
+            self.stmts(arm.body);
+            self.close();
+            self.close();
+        }
+        if let Some(body) = i.else_body {
+            self.open("else");
+            self.stmts(body);
+            self.close();
+        }
+        self.close();
+    }
+
+    fn stmt_match(&mut self, m: &crate::MatchStmt<'_>) {
+        self.open("match");
+        self.expr(m.scrutinee);
+        for arm in m.arms {
+            self.open("arm");
+            match &arm.pattern {
+                crate::MatchPat::Wildcard(_) => self.atom("_"),
+                crate::MatchPat::Literal(e) => self.expr(e),
+            }
+            self.open("body");
+            self.stmts(arm.body);
+            self.close();
+            self.close();
+        }
+        if let Some(body) = m.else_body {
+            self.open("else");
+            self.stmts(body);
+            self.close();
+        }
+        self.close();
     }
 
     fn expr(&mut self, expr: &Expr<'_>) {

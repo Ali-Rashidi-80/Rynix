@@ -967,12 +967,11 @@ fn extract_workspace_from_inline_table(rhs: &str) -> bool {
 }
 
 fn parse_string_assign(line: &str, key: &str) -> Option<String> {
-    let prefix = format!("{key}");
     let line = line.trim();
-    if !line.starts_with(&prefix) {
+    if !line.starts_with(key) {
         return None;
     }
-    let rest = line[prefix.len()..].trim_start();
+    let rest = line[key.len()..].trim_start();
     if !rest.starts_with('=') {
         return None;
     }
@@ -987,12 +986,11 @@ fn parse_string_assign(line: &str, key: &str) -> Option<String> {
 
 /// `files = ["a.ryx", "b.ryx"]` — inline string array only.
 fn parse_string_array_assign(line: &str, key: &str) -> Option<Vec<String>> {
-    let prefix = format!("{key}");
     let line = line.trim();
-    if !line.starts_with(&prefix) {
+    if !line.starts_with(key) {
         return None;
     }
-    let rest = line[prefix.len()..].trim_start();
+    let rest = line[key.len()..].trim_start();
     if !rest.starts_with('=') {
         return None;
     }
@@ -1012,12 +1010,11 @@ fn parse_string_array_assign(line: &str, key: &str) -> Option<Vec<String>> {
 }
 
 fn parse_bool_assign(line: &str, key: &str) -> Option<bool> {
-    let prefix = format!("{key}");
     let line = line.trim();
-    if !line.starts_with(&prefix) {
+    if !line.starts_with(key) {
         return None;
     }
-    let rest = line[prefix.len()..].trim_start();
+    let rest = line[key.len()..].trim_start();
     if !rest.starts_with('=') {
         return None;
     }
