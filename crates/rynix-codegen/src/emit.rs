@@ -87,6 +87,10 @@ pub fn emit_llvm_with_target(
     out.push_str("declare void @rynix_rt_map_str_i64_insert(ptr, ptr, i64)\n");
     out.push_str("declare i64 @rynix_rt_map_str_i64_get(ptr, ptr)\n");
     out.push_str("declare i64 @rynix_rt_map_str_i64_len(ptr)\n");
+    out.push_str("declare ptr @rynix_rt_map_str_str_new(i32)\n");
+    out.push_str("declare void @rynix_rt_map_str_str_insert(ptr, ptr, ptr)\n");
+    out.push_str("declare ptr @rynix_rt_map_str_str_get(ptr, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_map_str_str_len(ptr)\n");
     out.push_str("declare i64 @rynix_rt_tcp_listen(i64)\n");
     out.push_str("declare i64 @rynix_rt_tcp_accept(i64)\n");
     out.push_str("declare i64 @rynix_rt_tcp_connect(ptr, i64)\n");
@@ -1099,6 +1103,7 @@ fn emit_inst(
                 || n == "rynix_rt_vec_str_new"
                 || n == "rynix_rt_map_i64_new"
                 || n == "rynix_rt_map_str_i64_new"
+                || n == "rynix_rt_map_str_str_new"
                 || n == "rynix_rt_kv_new"
             {
                 let rid = args.first().map(|a| ctx.val(*a)).unwrap_or_else(|| "0".into());
@@ -1150,6 +1155,14 @@ fn emit_inst(
                     out,
                     "  call void @rynix_rt_map_str_i64_insert(ptr {m}, ptr {k}, i64 {val})"
                 );
+            } else if n == "rynix_rt_map_str_str_insert" {
+                let m = ctx.val(args[0]);
+                let k = ctx.val(args[1]);
+                let val = ctx.val(args[2]);
+                let _ = writeln!(
+                    out,
+                    "  call void @rynix_rt_map_str_str_insert(ptr {m}, ptr {k}, ptr {val})"
+                );
             } else if n == "rynix_rt_map_str_i64_get" {
                 let m = ctx.val(args[0]);
                 let k = ctx.val(args[1]);
@@ -1159,10 +1172,24 @@ fn emit_inst(
                     "  {t} = call i64 @rynix_rt_map_str_i64_get(ptr {m}, ptr {k})"
                 );
                 ctx.bind(result.unwrap(), t);
+            } else if n == "rynix_rt_map_str_str_get" {
+                let m = ctx.val(args[0]);
+                let k = ctx.val(args[1]);
+                let t = ctx.tmp();
+                let _ = writeln!(
+                    out,
+                    "  {t} = call ptr @rynix_rt_map_str_str_get(ptr {m}, ptr {k})"
+                );
+                ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_map_str_i64_len" {
                 let m = ctx.val(args[0]);
                 let t = ctx.tmp();
                 let _ = writeln!(out, "  {t} = call i64 @rynix_rt_map_str_i64_len(ptr {m})");
+                ctx.bind(result.unwrap(), t);
+            } else if n == "rynix_rt_map_str_str_len" {
+                let m = ctx.val(args[0]);
+                let t = ctx.tmp();
+                let _ = writeln!(out, "  {t} = call i64 @rynix_rt_map_str_str_len(ptr {m})");
                 ctx.bind(result.unwrap(), t);
             } else if n == "rynix_rt_vec_str_get" {
                 let v = ctx.val(args[0]);

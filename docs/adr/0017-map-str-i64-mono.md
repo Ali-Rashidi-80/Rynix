@@ -16,7 +16,7 @@ maps (counts, path scores) without parametric `Map[K,V]`.
   `.get` / `.len` on `Map[str, i64]` receivers).
 - Runtime: open-addressed table of `const char *` keys (NUL C strings; pointer
   identity + `strcmp`; no key deep-copy).
-- Do **not** claim parametric maps; `Map[str, str]` deferred.
+- Do **not** claim parametric maps; further monos additive ([ADR-0018](0018-map-str-str-mono.md)).
 
 ## Consequences
 

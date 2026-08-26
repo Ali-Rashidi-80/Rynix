@@ -1,0 +1,40 @@
+# Phase 25 — Map[str,str] + documentSymbol + golden lock
+
+[contract]
+name = "phase25-golden"
+
+[[evidence]]
+id = "map-str-str"
+kind = "cargo_test"
+package = "rynixc"
+filter = "map_str_str_roundtrip"
+
+[[evidence]]
+id = "document-symbol"
+kind = "cargo_test"
+package = "rynixc"
+filter = "document_symbol_lists_fn"
+
+[[evidence]]
+id = "example-map-str-str"
+kind = "cargo_test"
+package = "rynixc"
+filter = "example_map_str_str_product_checks"
+
+[[evidence]]
+id = "phase25-doc"
+kind = "file"
+path = "docs/PHASE25.md"
+contains = "Map[str, str]"
+
+[[evidence]]
+id = "adr-0018"
+kind = "file"
+path = "docs/adr/0018-map-str-str-mono.md"
+contains = "MapStrStr"
+
+[[evidence]]
+id = "golden-path-quality"
+kind = "file"
+path = "docs/GOLDEN_PATH.md"
+contains = "Quality-10"

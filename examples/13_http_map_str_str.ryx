@@ -1,0 +1,15 @@
+## Product sample: path_param HTTP + Map[str,str] headers-shaped (Phase 25-C)
+##
+## Compiles/lowers to real soft builtins. Network pairing stays in rt/tests.
+
+def main() -> i64
+  let headers: Map[str, str] = map_str_str_new(0)
+  headers.insert("content-type", "application/json")
+  headers.insert("x-request-id", "demo-1")
+  print_i64(headers.len())
+  let _ct = headers.get("content-type")
+
+  let loop_rc = http_serve_loop_path_param_json_i64(0, "/items/", 2)
+  print_i64(loop_rc)
+  return 0
+end

@@ -277,9 +277,19 @@ Plan: **[PHASE24.md](PHASE24.md)**.
 ## Golden path (post-24)
 
 Canonical next plan: **[GOLDEN_PATH.md](GOLDEN_PATH.md)** — **Quality-10**
-(8.7→≥9.0 axes; Security ≥9.0), Phases **25–30**, Tracks G/R, refuse set,
-DoD. Default execute: Phase 25 (`Map[str,str]` + `documentSymbol`); then
-Phase 26 mature decompose (lower/lsp/unwrap) before generics theater.
+(8.7→≥9.0 axes; Security ≥9.0), Phases **25–30**, Tracks **G/C/R**, refuse set,
+DoD. Default execute after Phase 25: Phase 26 mature decompose.
+
+## Phase 25 — Map[str,str] + documentSymbol
+
+Plan: **[PHASE25.md](PHASE25.md)**.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | `Map[str, str]` mono ([ADR-0018](adr/0018-map-str-str-mono.md)) | ✅ `map_str_str_roundtrip` |
+| B | LSP `documentSymbol` | ✅ `document_symbol_lists_fn` |
+| C | `examples/13_http_map_str_str.ryx` | ✅ `example_map_str_str_product_checks` |
+| D | Contract `phase25_golden` | ✅ `verify_phase25_golden_contract` |
 
 ## Follow-on (post-13 / parallel)
 

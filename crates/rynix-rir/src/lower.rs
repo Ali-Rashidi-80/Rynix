@@ -109,6 +109,7 @@ fn map_ty(analysis: &Analysis, ty: TypeId) -> IrTy {
         | TypeKind::VecStr
         | TypeKind::Map
         | TypeKind::MapStrI64
+        | TypeKind::MapStrStr
         | TypeKind::Slice(_)
         | TypeKind::Struct(_)
         | TypeKind::Fn { .. } => IrTy::Ptr,
@@ -4759,14 +4760,17 @@ impl LowerCtx<'_, '_> {
         let soft = match (method.as_str(), kind) {
             ("insert", Some(TypeKind::Map)) => "map_insert",
             ("insert", Some(TypeKind::MapStrI64)) => "map_str_i64_insert",
+            ("insert", Some(TypeKind::MapStrStr)) => "map_str_str_insert",
             ("push", Some(TypeKind::Vec)) => "vec_push",
             ("push", Some(TypeKind::VecStr)) => "vec_str_push",
             ("get", Some(TypeKind::Map)) => "map_get",
             ("get", Some(TypeKind::MapStrI64)) => "map_str_i64_get",
+            ("get", Some(TypeKind::MapStrStr)) => "map_str_str_get",
             ("get", Some(TypeKind::Vec)) => "vec_get",
             ("get", Some(TypeKind::VecStr)) => "vec_str_get",
             ("len", Some(TypeKind::Map)) => "map_len",
             ("len", Some(TypeKind::MapStrI64)) => "map_str_i64_len",
+            ("len", Some(TypeKind::MapStrStr)) => "map_str_str_len",
             ("len", Some(TypeKind::Vec)) => "vec_len",
             ("len", Some(TypeKind::VecStr)) => "vec_str_len",
             (other, _) => other,
@@ -4807,6 +4811,12 @@ impl LowerCtx<'_, '_> {
             }
             "map_str_i64_get" => (self.interner.intern("rynix_rt_map_str_i64_get"), IrTy::I64),
             "map_str_i64_len" => (self.interner.intern("rynix_rt_map_str_i64_len"), IrTy::I64),
+            "map_str_str_new" => (self.interner.intern("rynix_rt_map_str_str_new"), IrTy::Ptr),
+            "map_str_str_insert" => {
+                (self.interner.intern("rynix_rt_map_str_str_insert"), IrTy::Unit)
+            }
+            "map_str_str_get" => (self.interner.intern("rynix_rt_map_str_str_get"), IrTy::Str),
+            "map_str_str_len" => (self.interner.intern("rynix_rt_map_str_str_len"), IrTy::I64),
             "tcp_listen" => (self.interner.intern("rynix_rt_tcp_listen"), IrTy::I64),
             "tcp_accept" => (self.interner.intern("rynix_rt_tcp_accept"), IrTy::I64),
             "tcp_connect" => (self.interner.intern("rynix_rt_tcp_connect"), IrTy::I64),

@@ -8,6 +8,9 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ### Added
 
+- Phase 25: `Map[str, str]` mono ([ADR-0018](docs/adr/0018-map-str-str-mono.md)).
+- Phase 25: LSP `textDocument/documentSymbol`.
+- Example `examples/13_http_map_str_str.ryx`.
 - Phase 24: `Map[str, i64]` mono ([ADR-0017](docs/adr/0017-map-str-i64-mono.md)).
 - Example `examples/12_http_vec_map_str.ryx`.
 

@@ -52,8 +52,16 @@ and not “parametric generics shipped or fail.”
 
 **Weighted Quality-10:** every axis ≥ **9.0**, Security ≥ **9.0**, unwrap
 budget gate green, decompose gates green, Niche-10 still certified.
-**Does not require:** 1 GiB/s lexer, GitHub stars, Coq fiber proof, or
-parametric `Vec[T]`.
+Performance may stay at report **9.0** without Q-Full D-* work.
+Deployment ≥9.0 under Q-Core = CI sanitize scaffold (**26-F**) + honesty docs
+(**27-E**, PRODUCTION_READINESS); remote Release (**30**) raises it further but
+is **not** required for Q-Core lock.
+**Does not require:** 1 GiB/s lexer, GitHub stars, Coq fiber proof,
+parametric `Vec[T]`, or tarpaulin ≥80% (R18).
+
+**Axis re-score method (non-theater):** when a phase claims an axis move, update
+a one-row table in that phase’s `PHASE*.md` with: prior score, new score,
+**named gate(s)** that justify the delta. No gate → no score change.
 
 ### Capacity honesty (from Quality Plan appendix)
 
@@ -100,8 +108,11 @@ The HTML 90-day plan estimates **~744h**; ~20h/week × 13 ≈ **227h**. Gap is r
 | R14 | Niche-11 / “stars ≥1K” / playground CDN as Quality-10 gates | Marketing ≠ maturity |
 | R15 | Coq/Isabelle fiber proof as **required** Quality-10 | Optional research; B-5 HTML → Track R |
 | R16 | Steal ADR-0018 for “Generics design” | **0018 = `Map[str,str]` mono only** |
+| R17 | Mobile NDK/iOS / Discord-as-gate / chat-platform marketing | LEAD_AHEAD §0b; Track C is docs/process only |
+| R18 | HTML **KPI-1** tarpaulin ≥80% as Quality-10 gate | Prefer targeted gates; coverage % → Track R optional |
+| R19 | llama.cpp **FFI product** as default wave | R4 covers reimpl; honest FFI+smoke → Track R only |
 
-Revisit of R1–R8 / R13 requires a **new ADR** + acceptance gates before any wave starts.
+Revisit of R1–R8 / R13 / R17–R19 requires a **new ADR** + acceptance gates before any wave starts.
 
 ---
 
@@ -138,7 +149,7 @@ Closes analysis weakness #1 (next mono) and AI-tooling depth; locks this plan.
 |------|--------|--------------|-----|
 | 0 | Lock this GOLDEN_PATH + ROADMAP pointer | file contains “Quality-10” | — |
 | A | `Map[str, str]` mono (`map_str_str_*`) | `map_str_str_roundtrip` | **0018** |
-| B | `documentSymbol` LSP | `document_symbol_lists_fn` | — |
+| B | `documentSymbol` LSP (+ VS Code client capability if needed) | `document_symbol_lists_fn` | — |
 | C | Example: HTTP + `Map[str,str]` headers-shaped demo | `example_map_str_str_product_checks` | — |
 | D | Contract `phase25_golden.contract.toml` + skill/AGENTS touch | `verify_phase25_golden_contract` | — |
 
@@ -156,12 +167,14 @@ Plan doc when started: `docs/PHASE25.md`.
 |------|--------|------|-----|
 | A | Split `rynix-rir` `lower.rs` → `lower/` (≤~900 LOC/file) | `lower_decomp_invariants` (existing rir tests + snapshots identical) | **0019** (decomp) |
 | B | Split `lsp_cmd.rs` → `lsp/` | `lsp_decomp_parity` (JSON-RPC corpus identical) | **0020** |
-| C | unwrap/expect budget in `crates/*/src` (non-test) ≤ agreed N | `unwrap_budget_gate` | — |
-| D | Repository URL (**done**) + CODEOWNERS/issue templates | `repo_metadata_gate` (URL real; templates Track C) | — |
+| C | unwrap/expect in `crates/*/src` (non-test) **N ≤ 60** (HTML A-5) | `unwrap_budget_gate` | — |
+| D | Repository URL when known (`repo_url_real`); CODEOWNERS/issue templates → Track C / **29-I** | `repo_url_real` *or* documented placeholder deferral | — |
 | E | Phase-contract schema + CI template (one phase / PR discipline) | `contract_schema_gate` | **0021** |
 | F | Sanitizer CI scaffold (continue-on-error ok) + clippy discipline | `sanitizer_scaffold_documented` | — |
+| G ∥ | `cargo deny` advisories *or* documented deferral (HTML B-8; not sanitizer) | `cargo_deny_or_deferral` | — |
 
 **Out:** behavior changes, lsp-types dep (→ Track R), remote push.
+Unsafe-block count: red-flag only — **do not increase** beyond current src count; no separate wave.
 
 ---
 
@@ -178,6 +191,7 @@ Raises Security axis from **7.6 → ≥9.0**.
 | E | Threat model doc (STRIDE) under `docs/SECURITY_THREAT_MODEL.md` | file + link from SECURITY.md | — |
 | F ∥ | Windows Job Object sandbox *or* documented deferral | `windows_sandbox_or_deferral` | 0022 amend |
 | G ∥ | `emit-ll` / no-clang-link fast path smoke (analysis #2 DX) | `emit_ll_no_link_smoke` | — |
+| H ∥ | CWE matrix beyond 798: document current scanner scope + one additive class *or* deferral (HTML B-10) | `security_cwe_matrix_or_deferral` | — |
 
 **Out:** seccomp as hard Quality-10 requirement (nice-to-have after A); Coq fiber proof; claim “untrusted .ryx is safe.”
 
@@ -187,7 +201,7 @@ Raises Security axis from **7.6 → ≥9.0**.
 
 | Wave | Theme | Gate | ADR |
 |------|--------|------|-----|
-| A | `textDocument/formatting` → fmt; thin highlight/prepareRename | `lsp_formatting_applies_fmt` | — |
+| A | `textDocument/formatting` → fmt; thin highlight/prepareRename; wire VS Code client if capability shipped | `lsp_formatting_applies_fmt` | — |
 | B | MCP parity audit (`slice` tool if missing) + path-first docs | `mcp_slice_or_documented_absence` | — |
 | C | `std::crypto` facade HMAC/AES (soft remains real) | `std_crypto_hmac_aes_import_ok` | SPEC |
 | D | ADR for payload enums **or** written deferral | ADR-0024 status | **0024** |
@@ -262,8 +276,13 @@ Only after a **dedicated Accepted ADR** (number **after** 0024; **not** 0018):
 | D-11 | Perf regression CI | Q-Full |
 | E-2 | Playground | Marketing; not maturity gate |
 | E-10 | External security audit | After **27**; optional paid review |
+| B-10 | CWE expand beyond 798 | **27-H** (matrix or deferral) |
 | E-7 | API docgen tool | After Track G / real std defs |
 | — | `mcp_cmd.rs` split | Mirror **26-B** pattern; additive anytime |
+| — | llama.cpp FFI (honest) | Track R; default refuse **R19** |
+| — | Honest Sigstore @ scale | Track R / post-adoption; theater stays **R5** |
+| — | HTML KPI-1 tarpaulin ≥80% | Track R optional; Quality refuse **R18** |
+| — | Mobile NDK/iOS | Refuse **R17** |
 
 ### Track C — Community / process *(HTML E-3…E-6, E-14…E-15; weakness #10)*
 
@@ -305,9 +324,9 @@ Do **not** schedule “v0.2.0 with generics” as Phase 30. v0.2 = Track G Accep
 | B-5 | Track R |
 | B-6 | Track R |
 | B-7 | **27-E** |
-| B-8 | **26-F** optional |
+| B-8 | **26-G** `cargo_deny_or_deferral` (not sanitizer 26-F) |
 | B-9 | **27-F** |
-| B-10 | post-27 additive |
+| B-10 | **27-H** `security_cwe_matrix_or_deferral` |
 | C-1 | **Track G** ADR design (not 0018) |
 | C-2 | **Track G** TypeKind refactor |
 | C-3 | **Track G** parser generics |
@@ -329,7 +348,7 @@ Do **not** schedule “v0.2.0 with generics” as Phase 30. v0.2 = Track G Accep
 | E-9 LSP 10+ | **25-B** documentSymbol; **28-A** format; codeAction/inlay → post-28 |
 | E-10 | Track R |
 | E-11 Niche-11 | **R14** refuse until ADR |
-| E-12 | End **29** + **30-E** scoreboard |
+| E-12 | End **29** self-scoreboard + **30-E** PRODUCTION_READINESS Quality-10 row (external audit = E-10 Track R) |
 | E-13 v0.2.0 | Track v0.2 + user ask |
 
 ### Analysis report — 8 strategic suggestions
@@ -389,13 +408,8 @@ Do **not** invent an in-memory clang daemon as a Quality-10 requirement (D-9 sta
 
 ## 9. Immediate next action (execute now)
 
-**Start Phase 25** as written in §4:
+**Phase 25 closed.** Next: **Phase 26** (maturity decompose) per §4.
 
-1. Create `docs/PHASE25.md` + ADR-0018 for **`Map[str,str]` mono** (not generics).
-2. Implement Wave A → B → C → D.
-3. Commit locally; **do not push**.
-
-When Phase 25 closes, open **Phase 26 (maturity decompose)** before more language theater.
 Do **not** start Track G / Phase 30 without explicit user direction + ADR.
 
 ---
@@ -406,22 +420,23 @@ Do **not** start Track G / Phase 30 without explicit user direction + ADR.
 |------|--------|
 | 2026-08-25 | Initial golden path locked from post-P24 inventory (~45 items → Phases 25–30 + refuse). |
 | 2026-08-26 | **Quality-10 absorb:** Analysis Report (8.7, 10 weaknesses) + Golden Quality Plan (A–E) merged; Security/decompose/fuzz elevated; parametric generics → Track G; ADR-0018 reserved for `Map[str,str]`; capacity Q-Core default; refuse R13–R16. |
-| 2026-08-26 | **Final coverage audit:** all 56 HTML tasks A-1…E-15 named; Track C (RFC/CONTRIBUTING/tutorial/retro); D-1…D-11 explicit in Track R; analysis strategic 1–8; `emit_ll_no_link` **27-G**; multiline **28-H**; gaps E-3…E-7/E-14/E-15 closed. |
+| 2026-08-26 | **Subagent audit close:** R17–R19; unwrap N=60; B-8→26-G; B-10→27-H; axis re-score method; Deployment Q-Core without Phase 30; VS Code wire note on 25-B/28-A; KPI-1 refuse; LEAD_AHEAD re-entry mapped. |
 
 ---
 
 ## 11. Final coverage audit (do-not-ship-without)
 
-**Verdict:** nothing material from the two Desktop reports is *unmapped*.
-Items intentionally **not** default Quality-10 gates remain in Track G / R / C / refuse.
+**Verdict (post subagent round):** inventory **PASS** (56/56 + 10 weaknesses + 8 strategic).
+Gate specificity gaps from audit are **closed** in §0 / §2 / §4 / §6.
+Q-Core plan is **complete enough to execute Phase 25**.
 
 | Source | Count | Status |
 |--------|------:|--------|
 | Analysis 10 weaknesses | 10 | All in §3 |
 | Analysis 8 strategic | 8 | All in §6 |
 | HTML tasks A-1…E-15 | 56 | All in §6 checklist |
-| Scoreboard 11 axes | 11 | All in §0 |
+| Scoreboard 11 axes | 11 | All in §0 + re-score method |
 | Capacity honesty | 2 paths | §0 Q-Core default |
-| Cursor todos | Phase 25–27 + 28–30 rollup | Match §9 |
+| Subagent todos | plan-hygiene + Phase 25–30 | See Cursor plan |
 
 **Ready to execute Phase 25** when user says start.

@@ -66,7 +66,7 @@ parked). `tcp_accept` / `tcp_connect` use uring when the ring is ready.
 | `rynix_rt_fs_remove_file` | `i64(path)` | Unlink (`0`; missing → `0`) |
 | `rynix_rt_aes128_gcm_nist_empty_tag_first_i64` | `i64()` | AES-GCM NIST empty tag (BCrypt/OpenSSL) |
 | `rynix_rt_kv_new` / `_put` / `_get` / `_len` | region string→i64 map | Arena KV (soft std) |
-| `rynix_rt_vec_i64_*` / `vec_str_*` / `map_i64_*` / `map_str_i64_*` | (see header) | Region Vec/Map monos |
+| `rynix_rt_vec_i64_*` / `vec_str_*` / `map_i64_*` / `map_str_i64_*` / `map_str_str_*` | (see header) | Region Vec/Map monos |
 | `rynix_rt_uring_*` | Linux + `RYNIX_RT_URING` | Fiber-aware SQE read/write/accept/connect + poll/wait |
 | `rynix_rt_iocp_*` | Windows + `RYNIX_RT_IOCP` | associate/recv/send/**accept**/**connect** + poll/wait |
 

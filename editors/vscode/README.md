@@ -27,5 +27,5 @@ Then **Extensions: Install from VSIX** or open this folder in VS Code and **Run 
 - LSP via `vscode-languageclient` → `rynixc lsp-serve`:
   - diagnostics (`textDocument/publishDiagnostics`)
   - hover / go-to-definition
-  - **completion** / **rename** / **references** / **workspace/symbol**
+  - **completion** / **rename** / **references** / **workspace/symbol** / **documentSymbol**
 - CodeLens: check / explain-alloc / impact (CLI spawn, not LSP)

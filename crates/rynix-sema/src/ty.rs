@@ -38,6 +38,8 @@ pub enum TypeKind {
     Map,
     /// Region Map[str, i64] handle (ADR-0017).
     MapStrI64,
+    /// Region Map[str, str] handle (ADR-0018).
+    MapStrStr,
     Slice(TypeId),
     Fn {
         params: Vec<TypeId>,
@@ -68,6 +70,7 @@ pub struct TypeCtx {
     pub ty_vec_str: TypeId,
     pub ty_map: TypeId,
     pub ty_map_str_i64: TypeId,
+    pub ty_map_str_str: TypeId,
     pub ty_module: TypeId,
 }
 
@@ -95,6 +98,7 @@ impl TypeCtx {
             ty_vec_str: TypeId(0),
             ty_map: TypeId(0),
             ty_map_str_i64: TypeId(0),
+            ty_map_str_str: TypeId(0),
             ty_module: TypeId(0),
         };
         ctx.ty_error = ctx.intern(TypeKind::Error);
@@ -110,6 +114,7 @@ impl TypeCtx {
         ctx.ty_vec_str = ctx.intern(TypeKind::VecStr);
         ctx.ty_map = ctx.intern(TypeKind::Map);
         ctx.ty_map_str_i64 = ctx.intern(TypeKind::MapStrI64);
+        ctx.ty_map_str_str = ctx.intern(TypeKind::MapStrStr);
         ctx.ty_module = ctx.intern(TypeKind::Module);
         ctx
     }
@@ -192,6 +197,7 @@ impl TypeCtx {
             TypeKind::VecStr => "Vec[str]".into(),
             TypeKind::Map => "Map[i64, i64]".into(),
             TypeKind::MapStrI64 => "Map[str, i64]".into(),
+            TypeKind::MapStrStr => "Map[str, str]".into(),
             TypeKind::Module => "<module>".into(),
             TypeKind::Slice(e) => format!("[{}]", self.display(*e, resolve_name, interner)),
             TypeKind::Fn { params, ret } => {

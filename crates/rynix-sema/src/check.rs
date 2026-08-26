@@ -211,6 +211,11 @@ impl<'a> Checker<'a> {
         self.soft_fn("map_str_i64_insert", vec![msi, s, i], unit);
         self.soft_fn("map_str_i64_get", vec![msi, s], i);
         self.soft_fn("map_str_i64_len", vec![msi], i);
+        let mss = self.types.ty_map_str_str;
+        self.soft_fn("map_str_str_new", vec![i], mss);
+        self.soft_fn("map_str_str_insert", vec![mss, s, s], unit);
+        self.soft_fn("map_str_str_get", vec![mss, s], s);
+        self.soft_fn("map_str_str_len", vec![mss], i);
 
         let vec_sym = self.interner.intern("Vec");
         let vec_def = self.alloc_def(DefKind::BuiltinType { name: vec_sym });
@@ -496,14 +501,17 @@ impl<'a> Checker<'a> {
                         let k_str = self.types.compatible(k, self.types.ty_str);
                         let v_ok = self.types.compatible(v, self.types.ty_int)
                             || matches!(self.types.kind(v), TypeKind::Error);
+                        let v_str = self.types.compatible(v, self.types.ty_str);
                         if k_ok && v_ok {
                             self.types.ty_map
                         } else if k_str && v_ok {
                             self.types.ty_map_str_i64
+                        } else if k_str && v_str {
+                            self.types.ty_map_str_str
                         } else {
                             self.sink.emit(errors::type_mismatch(
                                 *span,
-                                "Map[i64, i64] or Map[str, i64]",
+                                "Map[i64, i64], Map[str, i64], or Map[str, str]",
                                 &format!(
                                     "Map[{}, {}]",
                                     self.display_ty(k),
@@ -985,12 +993,16 @@ impl<'a> Checker<'a> {
                     (TypeKind::Map, "insert") => self.types.ty_unit,
                     (TypeKind::MapStrI64, "len" | "get") => self.types.ty_int,
                     (TypeKind::MapStrI64, "insert") => self.types.ty_unit,
+                    (TypeKind::MapStrStr, "len") => self.types.ty_int,
+                    (TypeKind::MapStrStr, "get") => self.types.ty_str,
+                    (TypeKind::MapStrStr, "insert") => self.types.ty_unit,
                     (TypeKind::Module, _) => expected.unwrap_or(self.types.ty_error),
                     (
                         TypeKind::Vec
                         | TypeKind::VecStr
                         | TypeKind::Map
                         | TypeKind::MapStrI64
+                        | TypeKind::MapStrStr
                         | TypeKind::Slice(_),
                         _,
                     ) => {
@@ -1468,6 +1480,7 @@ impl<'a> Checker<'a> {
                 | TypeKind::VecStr
                 | TypeKind::Map
                 | TypeKind::MapStrI64
+                | TypeKind::MapStrStr
                 | TypeKind::Ptr
                 | TypeKind::Slice(_)
                 | TypeKind::Struct(_)

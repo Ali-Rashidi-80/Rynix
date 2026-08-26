@@ -113,7 +113,8 @@ impl LanguageServer {
                         },
                         "renameProvider": true,
                         "referencesProvider": true,
-                        "workspaceSymbolProvider": true
+                        "workspaceSymbolProvider": true,
+                        "documentSymbolProvider": true
                     },
                     "serverInfo": {
                         "name": "rynixc-lsp",
@@ -138,6 +139,7 @@ impl LanguageServer {
             "textDocument/rename" => Some(self.rename(req)),
             "textDocument/references" => Some(self.references(req)),
             "workspace/symbol" => Some(self.workspace_symbol(req)),
+            "textDocument/documentSymbol" => Some(self.document_symbol(req)),
             "textDocument/didClose" => {
                 if let Some(params) = &req.params {
                     if let Some(uri) = params["textDocument"]["uri"].as_str() {
@@ -559,6 +561,63 @@ impl LanguageServer {
                     }
                 }));
             }
+        }
+        symbols.sort_by(|a, b| {
+            a["name"]
+                .as_str()
+                .unwrap_or("")
+                .cmp(b["name"].as_str().unwrap_or(""))
+        });
+        json!({ "jsonrpc": "2.0", "id": req.id, "result": symbols })
+    }
+
+    fn document_symbol(&self, req: &LspRequest) -> Value {
+        let empty = json!([]);
+        let Some(params) = &req.params else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let Some(uri) = params["textDocument"]["uri"].as_str() else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let Some(doc) = self.documents.get(uri) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let arena = AstArena::new();
+        let mut interner = rynix_span::Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(&arena, &mut interner, &doc.text, 0, &mut sink);
+        let analysis = analyze(module, &mut interner, &mut sink);
+        let mut sources = SourceMap::new();
+        let label = doc.path.to_string_lossy();
+        sources.add_owned(label.as_ref(), doc.text.clone());
+        let mut symbols = Vec::new();
+        for def in &analysis.defs {
+            let (kind, name_sym, span) = match def {
+                DefKind::Fn { name, span, .. } => (12u8, *name, *span),
+                DefKind::Struct { name, span, .. } => (23u8, *name, *span),
+                DefKind::Enum { name, span, .. } => (10u8, *name, *span),
+                DefKind::Variant { name, span, .. } => (22u8, *name, *span),
+                _ => continue,
+            };
+            let name = interner.resolve(name_sym).to_string();
+            let (_f, start) = sources.line_col(span.lo());
+            let (_, end) = sources.line_col(span.hi());
+            let range = json!({
+                "start": {
+                    "line": start.line.saturating_sub(1),
+                    "character": start.col.saturating_sub(1)
+                },
+                "end": {
+                    "line": end.line.saturating_sub(1),
+                    "character": end.col.saturating_sub(1)
+                }
+            });
+            symbols.push(json!({
+                "name": name,
+                "kind": kind,
+                "range": range,
+                "selectionRange": range
+            }));
         }
         symbols.sort_by(|a, b| {
             a["name"]
@@ -1580,6 +1639,38 @@ mod tests {
         assert!(
             names.iter().any(|n| *n == "helper"),
             "expected helper in workspace symbols: {names:?}"
+        );
+    }
+
+    #[test]
+    fn document_symbol_lists_fn() {
+        let src = "def helper() -> i64\n  return 1\nend\ndef main() -> i64\n  return helper()\nend\n";
+        let mut server = LanguageServer::new();
+        server.documents.insert(
+            "file:///test.ryx".into(),
+            Document {
+                path: PathBuf::from("test.ryx"),
+                text: src.into(),
+                version: 1,
+            },
+        );
+        let req = LspRequest {
+            id: Some(json!(1)),
+            method: "textDocument/documentSymbol".into(),
+            params: Some(json!({
+                "textDocument": { "uri": "file:///test.ryx" }
+            })),
+        };
+        let resp = server.document_symbol(&req);
+        let arr = resp["result"].as_array().expect("result array");
+        let names: Vec<&str> = arr.iter().filter_map(|s| s["name"].as_str()).collect();
+        assert!(
+            names.iter().any(|n| *n == "helper"),
+            "expected helper in document symbols: {names:?}"
+        );
+        assert!(
+            names.iter().any(|n| *n == "main"),
+            "expected main in document symbols: {names:?}"
         );
     }
 }
