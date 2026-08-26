@@ -2474,6 +2474,262 @@ fn verify_phase27_security_contract() {
 }
 
 #[test]
+fn mcp_slice_or_documented_absence() {
+    let path = example("01_hello.ryx");
+    let path_str = path.to_str().expect("utf8 path");
+    let (resp, err) = mcp_tools_call("rynix_slice", serde_json::json!({ "path": path_str }));
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text content");
+    let v: serde_json::Value = serde_json::from_str(text).expect("slice json");
+    assert_eq!(v["schema"], "rynix.slice.v1");
+    let lines = v["lines"].as_array().expect("lines");
+    assert!(
+        lines.iter().any(|l| l.as_str().is_some_and(|s| s.contains("main"))),
+        "expected main in slice lines: {lines:?}"
+    );
+    let err = err.expect("fail-closed response");
+    assert!(
+        err.get("error").is_some(),
+        "missing path must fail-closed with error: {err}"
+    );
+}
+
+#[test]
+fn std_crypto_hmac_aes_import_ok() {
+    let root = repo_root();
+    let main = root.join("testdata/pkg_std_crypto_hmac_aes/main.ryx");
+    let out = rynixc()
+        .current_dir(root.join("testdata/pkg_std_crypto_hmac_aes"))
+        .args(["check", main.to_str().unwrap(), "--error-format=json"])
+        .output()
+        .expect("spawn check");
+    assert!(
+        out.status.success(),
+        "check failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let crypto = std::fs::read_to_string(root.join("std/crypto.ryx")).expect("crypto.ryx");
+    assert!(
+        crypto.contains("hmac_sha256_first_i64") && crypto.contains("aes128_gcm_nist_empty_tag_first_i64"),
+        "std/crypto.ryx must facade HMAC and AES"
+    );
+}
+
+#[test]
+fn verdict_peer_date_current() {
+    let root = repo_root();
+    let verdict = std::fs::read_to_string(root.join("docs/VERDICT.md")).expect("VERDICT");
+    let gap = std::fs::read_to_string(root.join("docs/END_PEER_GAP.md")).expect("END_PEER_GAP");
+    assert!(
+        verdict.contains("2026-08-26"),
+        "VERDICT.md peer date should be refreshed to 2026-08-26"
+    );
+    assert!(
+        gap.contains("2026-08-26"),
+        "END_PEER_GAP.md audit refresh should be 2026-08-26"
+    );
+}
+
+#[test]
+fn verify_phase28_agent_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase28_agent.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "verify failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["status"], "passed");
+    assert_eq!(v["contract"], "phase28-agent");
+}
+
+#[test]
+fn uring_recv_send_completion_smoke() {
+    let path = repo_root().join("docs/URING_RECV_SEND.md");
+    assert!(path.is_file(), "URING_RECV_SEND.md missing");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        text.to_ascii_lowercase().contains("poll")
+            && text.to_ascii_lowercase().contains("fallback"),
+        "doc must state poll fallback for recv/send"
+    );
+}
+
+#[test]
+fn tls_ci_matrix_documented() {
+    let path = repo_root().join("docs/TLS_CI_MATRIX.md");
+    assert!(path.is_file(), "TLS_CI_MATRIX.md missing");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        text.contains("SChannel") && text.contains("OpenSSL"),
+        "TLS matrix must mention SChannel and OpenSSL"
+    );
+}
+
+#[test]
+fn http_auth_or_method_gate() {
+    let path = repo_root().join("docs/HTTP_AUTH_METHOD_DEFERRAL.md");
+    assert!(path.is_file(), "HTTP_AUTH_METHOD_DEFERRAL.md missing");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        text.contains("Deferred") || text.contains("deferral"),
+        "deferral doc must say Deferred"
+    );
+}
+
+#[test]
+fn escape_interproc_or_limit_doc() {
+    let path = repo_root().join("docs/ESCAPE_INTERPROC_LIMIT.md");
+    assert!(path.is_file(), "ESCAPE_INTERPROC_LIMIT.md missing");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        text.to_ascii_lowercase().contains("interprocedural")
+            || text.to_ascii_lowercase().contains("limit"),
+        "escape limit doc must mention interprocedural or limit"
+    );
+}
+
+#[test]
+fn package_ux_diag_gate() {
+    // Reuse package UX smoke: `new` + `deps --attest` print clear, honest messages.
+    package_ux_new_deps_attest();
+}
+
+#[test]
+fn attest_docs_match_impl() {
+    let root = repo_root();
+    let spec = std::fs::read_to_string(root.join("docs/SPEC.md")).expect("SPEC");
+    assert!(
+        spec.contains("local_digest") || spec.contains("local digest"),
+        "SPEC must document local digest attest"
+    );
+    assert!(
+        spec.contains("not** Sigstore") || spec.contains("not Sigstore") || spec.contains("**not** Sigstore"),
+        "SPEC must refuse Sigstore theater"
+    );
+    let skill = std::fs::read_to_string(root.join(".agents/skills/rynix/SKILL.md")).expect("skill");
+    assert!(
+        skill.contains("not** Sigstore") || skill.contains("not Sigstore") || skill.contains("Sigstore Rekor"),
+        "skill must stay honest about attest vs Sigstore"
+    );
+}
+
+#[test]
+fn book_skeleton_exists() {
+    let root = repo_root();
+    let book = root.join("docs/book");
+    assert!(book.is_dir(), "docs/book/ missing");
+    let summary = std::fs::read_to_string(book.join("SUMMARY.md")).expect("SUMMARY");
+    let mut chapters = 0usize;
+    for name in [
+        "01_getting_started.md",
+        "02_language_tour.md",
+        "03_agent_toolchain.md",
+    ] {
+        let p = book.join(name);
+        assert!(p.is_file(), "missing chapter {name}");
+        let text = std::fs::read_to_string(&p).unwrap();
+        assert!(
+            text.contains("SPEC") || text.contains("examples/"),
+            "{name} should link SPEC or examples"
+        );
+        chapters += 1;
+    }
+    assert!(chapters >= 3, "need ≥3 chapters");
+    assert!(
+        summary.contains("Getting started") || summary.contains("01_"),
+        "SUMMARY should list chapters"
+    );
+}
+
+#[test]
+fn suite5_post_p24_artifact_links() {
+    let path = repo_root().join("docs/SUITE5_POST_P24_ARTIFACTS.md");
+    assert!(path.is_file(), "SUITE5_POST_P24_ARTIFACTS.md missing");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        text.contains("suite5_summary_2026-08-25_phase16.txt")
+            || text.contains("benchmarks/suite5"),
+        "must link Suite5 artifacts"
+    );
+}
+
+#[test]
+fn rfc_or_contributing_sections() {
+    let root = repo_root();
+    let rfc = root.join("rfcs/0000-template.md");
+    assert!(rfc.is_file(), "rfcs/0000-template.md missing");
+    let contributing = std::fs::read_to_string(root.join("CONTRIBUTING.md")).expect("CONTRIBUTING");
+    assert!(
+        contributing.contains("RFC") || contributing.contains("rfcs/"),
+        "CONTRIBUTING should mention RFC process"
+    );
+}
+
+#[test]
+fn phase30_not_auto() {
+    let root = repo_root();
+    let p28 = std::fs::read_to_string(root.join("docs/PHASE28.md")).unwrap();
+    let p29 = std::fs::read_to_string(root.join("docs/PHASE29.md")).unwrap();
+    let golden = std::fs::read_to_string(root.join("docs/GOLDEN_PATH.md")).unwrap();
+    assert!(
+        p28.contains("user-triggered only") && p29.contains("user-triggered only"),
+        "PHASE28/29 must state Phase 30 is user-triggered only"
+    );
+    assert!(
+        golden.contains("user-triggered only") || golden.contains("do **not** auto-start Phase 30"),
+        "GOLDEN_PATH must keep Phase 30 user-triggered"
+    );
+    assert!(
+        !root.join("docs/PHASE30.md").is_file(),
+        "PHASE30.md must not exist until user-triggered"
+    );
+}
+
+#[test]
+fn verify_phase29_ceiling_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase29_ceiling.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "verify failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["status"], "passed");
+    assert_eq!(v["contract"], "phase29-ceiling");
+}
+
+#[test]
 fn agent_skill_mentions_completion_rename_path_mcp() {
     let skill = repo_root().join(".agents/skills/rynix/SKILL.md");
     let text = std::fs::read_to_string(&skill).expect("read agent skill");

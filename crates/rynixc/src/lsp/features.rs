@@ -1,6 +1,6 @@
-//! Completion, rename, and references handlers.
+//! Completion, rename, references, and formatting handlers.
 
-use rynix_ast::AstArena;
+use rynix_ast::{format_module, AstArena};
 use rynix_diag::VecSink;
 use rynix_sema::analyze;
 use rynix_span::SourceMap;
@@ -198,4 +198,55 @@ impl LanguageServer {
         }
         json!({ "jsonrpc": "2.0", "id": req.id, "result": locs })
     }
+
+    /// `textDocument/formatting` — full-document edit via `format_module` (same as `rynixc fmt`).
+    pub(crate) fn formatting(&self, req: &LspRequest) -> Value {
+        let empty = json!([]);
+        let Some(params) = &req.params else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let uri = params["textDocument"]["uri"].as_str().unwrap_or_default();
+        let Some(doc) = self.documents.get(uri) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+
+        let arena = AstArena::new();
+        let mut interner = rynix_span::Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(&arena, &mut interner, &doc.text, 0, &mut sink);
+        if sink.error_count() > 0 {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        }
+        let formatted = format_module(module, &interner, &doc.text, 0);
+        if formatted == doc.text {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        }
+
+        let (end_line, end_col) = lsp_end_position(&doc.text);
+        json!({
+            "jsonrpc": "2.0",
+            "id": req.id,
+            "result": [{
+                "range": {
+                    "start": { "line": 0, "character": 0 },
+                    "end": { "line": end_line, "character": end_col }
+                },
+                "newText": formatted
+            }]
+        })
+    }
+}
+
+fn lsp_end_position(text: &str) -> (u32, u32) {
+    let mut line = 0u32;
+    let mut col = 0u32;
+    for ch in text.chars() {
+        if ch == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
 }

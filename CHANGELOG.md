@@ -8,6 +8,12 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ### Added
 
+- Phase 29: uring/TLS/HTTP honesty docs, WASM host-import `env.print` (str), Book
+  skeleton (`docs/book/`), Suite5 artifact links, RFC template + CONTRIBUTING RFCs
+  section, `phase29_ceiling` contract. Phase 30 remains user-triggered only.
+- Phase 28: LSP `textDocument/formatting`, MCP `rynix_slice`, `std::crypto`
+  HMAC/AES import facade, ADR-0024 Deferred (payload enums), peer date refresh,
+  `phase28_agent` contract.
 - Phase 27: `--sandbox=docker|none` (ADR-0022), RIR/sema sanitize of `system`/`exec*`
   (ADR-0023), STRIDE threat model, CWE matrix, sandbox skip/Windows deferral docs,
   `parse_no_crash` fuzz target + seed, `phase27_security` contract.

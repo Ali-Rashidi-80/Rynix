@@ -49,11 +49,12 @@ pub fn emit_llvm_with_target(
     out.push('\n');
 
     // Runtime declarations.
-    out.push_str("declare void @rynix_rt_print(ptr)\n");
-    // Freestanding wasm: print_i64 is a host import (env.print_i64), not rt/.
+    // Freestanding wasm: `print` / `print_i64` are host imports (env.*), not rt/.
     if wasm_host {
+        out.push_str("declare void @print(ptr) #1\n");
         out.push_str("declare void @print_i64(i64) #0\n");
     } else {
+        out.push_str("declare void @rynix_rt_print(ptr)\n");
         out.push_str("declare void @rynix_rt_print_i64(i64)\n");
     }
     out.push_str("declare i64 @rynix_rt_opaque_i64(i64)\n");
@@ -211,6 +212,9 @@ pub fn emit_llvm_with_target(
         out.push_str(
             "attributes #0 = { \"wasm-import-module\"=\"env\" \"wasm-import-name\"=\"print_i64\" }\n",
         );
+        out.push_str(
+            "attributes #1 = { \"wasm-import-module\"=\"env\" \"wasm-import-name\"=\"print\" }\n",
+        );
     }
 
     out
@@ -307,7 +311,7 @@ struct EmitCtx<'a> {
     fid: FuncId,
     placement: &'a FxHashMap<(u32, u32), Placement>,
     next_tmp: u32,
-    /// Freestanding wasm32: call host-import `env.print_i64` instead of `rynix_rt_*`.
+    /// Freestanding wasm32: call host-import `env.print_i64` / `env.print` instead of `rynix_rt_*`.
     wasm_host: bool,
 }
 
@@ -993,7 +997,12 @@ fn emit_inst(
                     let _ = writeln!(out, "  {t} = inttoptr i64 0 to ptr");
                     t
                 };
-                let _ = writeln!(out, "  call void @rynix_rt_print(ptr {arg})");
+                let callee = if ctx.wasm_host {
+                    "print"
+                } else {
+                    "rynix_rt_print"
+                };
+                let _ = writeln!(out, "  call void @{callee}(ptr {arg})");
                 if let Some(r) = result {
                     let t = ctx.tmp();
                     let _ = writeln!(out, "  {t} = add i64 0, 0");

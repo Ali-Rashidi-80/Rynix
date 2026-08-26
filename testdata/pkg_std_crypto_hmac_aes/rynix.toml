@@ -1,0 +1,4 @@
+[package]
+name = "pkg_std_crypto_hmac_aes"
+version = "0.1.0"
+entry = "main.ryx"

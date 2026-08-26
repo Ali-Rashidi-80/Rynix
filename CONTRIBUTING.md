@@ -30,3 +30,14 @@ cd editors/vscode && npm install && npm run compile
 - Do not mark ROADMAP ✅ without in-tree tests.
 - Suite5 Notes must disclose strength reductions (see [benchmarks/suite5/README.md](benchmarks/suite5/README.md)).
 - Keep machine-local ms tables dated and marked as sample runs.
+
+## RFCs (Track C)
+
+Non-trivial language or process proposals use the RFC template:
+
+1. Copy [rfcs/0000-template.md](rfcs/0000-template.md) to `rfcs/NNNN-slug.md`.
+2. Discuss in a PR; Accepted RFCs may require a follow-on ADR + named gate.
+3. Do not invent End-style domain theater or mark ROADMAP ✅ without evidence.
+
+Good first issues (when labeled): docs typos, example polish, gate naming —
+never Absolute-10 marketing stubs.

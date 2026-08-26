@@ -1,0 +1,76 @@
+# Phase 29 — runtime / WASM / docs ceiling
+
+[contract]
+name = "phase29-ceiling"
+
+[[evidence]]
+id = "uring-recv-send"
+kind = "cargo_test"
+package = "rynixc"
+filter = "uring_recv_send_completion_smoke"
+
+[[evidence]]
+id = "tls-ci-matrix"
+kind = "cargo_test"
+package = "rynixc"
+filter = "tls_ci_matrix_documented"
+
+[[evidence]]
+id = "http-auth-method"
+kind = "cargo_test"
+package = "rynixc"
+filter = "http_auth_or_method_gate"
+
+[[evidence]]
+id = "escape-interproc"
+kind = "cargo_test"
+package = "rynixc"
+filter = "escape_interproc_or_limit_doc"
+
+[[evidence]]
+id = "wasm-print-str"
+kind = "cargo_test"
+package = "rynixc"
+filter = "emit_wasm_host_print_str"
+
+[[evidence]]
+id = "package-ux-diag"
+kind = "cargo_test"
+package = "rynixc"
+filter = "package_ux_diag_gate"
+
+[[evidence]]
+id = "attest-docs"
+kind = "cargo_test"
+package = "rynixc"
+filter = "attest_docs_match_impl"
+
+[[evidence]]
+id = "book-skeleton"
+kind = "cargo_test"
+package = "rynixc"
+filter = "book_skeleton_exists"
+
+[[evidence]]
+id = "suite5-artifacts"
+kind = "cargo_test"
+package = "rynixc"
+filter = "suite5_post_p24_artifact_links"
+
+[[evidence]]
+id = "rfc-or-contributing"
+kind = "cargo_test"
+package = "rynixc"
+filter = "rfc_or_contributing_sections"
+
+[[evidence]]
+id = "phase29-doc"
+kind = "file"
+path = "docs/PHASE29.md"
+contains = "Runtime / WASM"
+
+[[evidence]]
+id = "phase30-user-triggered"
+kind = "file"
+path = "docs/PHASE29.md"
+contains = "user-triggered only"

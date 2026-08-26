@@ -267,3 +267,39 @@ fn document_symbol_lists_fn() {
         "expected main in document symbols: {names:?}"
     );
 }
+
+#[test]
+fn lsp_formatting_applies_fmt() {
+    // Messy spacing — formatter should canonicalize like `rynixc fmt`.
+    let src = "def   main()->i64\nreturn 1\nend\n";
+    let mut server = LanguageServer::new();
+    server.documents.insert(
+        "file:///test.ryx".into(),
+        Document {
+            path: PathBuf::from("test.ryx"),
+            text: src.into(),
+            version: 1,
+        },
+    );
+    let req = LspRequest {
+        id: Some(json!(1)),
+        method: "textDocument/formatting".into(),
+        params: Some(json!({
+            "textDocument": { "uri": "file:///test.ryx" },
+            "options": { "tabSize": 2, "insertSpaces": true }
+        })),
+    };
+    let resp = server.formatting(&req);
+    let edits = resp["result"].as_array().expect("result array");
+    assert_eq!(edits.len(), 1, "expected one full-document TextEdit: {edits:?}");
+    let new_text = edits[0]["newText"].as_str().expect("newText");
+    assert!(
+        new_text.contains("def main() -> i64"),
+        "expected fmt spacing around -> : {new_text:?}"
+    );
+    assert!(
+        new_text.contains("  return 1"),
+        "expected indented return: {new_text:?}"
+    );
+    assert_ne!(new_text, src, "formatting should change messy input");
+}

@@ -1,9 +1,9 @@
 //! `rynixc mcp-serve` — JSON-RPC 2.0 over stdio (Content-Length framing).
 //!
 //! Tools: `diagnostics`/`rynix_check`, `rynix_format`, `rynix_explain_alloc`,
-//! `compile`, `ast_query`, `apply_fix`, `rynix_graph`, `rynix_impact`, `rynix_eval`,
-//! `rynix_arch`, `rynix_verify`, `rynix_precheck`, `rynix_context`, `rynix_security`,
-//! `rynix_scope`, `rynix_deps`, `rynix_dna`.
+//! `compile`, `ast_query`, `apply_fix`, `rynix_graph`, `rynix_slice`, `rynix_impact`,
+//! `rynix_eval`, `rynix_arch`, `rynix_verify`, `rynix_precheck`, `rynix_context`,
+//! `rynix_security`, `rynix_scope`, `rynix_deps`, `rynix_dna`.
 
 #![allow(clippy::too_many_lines)]
 
@@ -156,6 +156,17 @@ fn tool_defs() -> Value {
         {
             "name": "rynix_graph",
             "description": "Emit rynix.graph.v1 (functions + static call edges). Prefer path (reads disk); source is optional inline body.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "source": { "type": "string" },
+                    "path": { "type": "string", "description": "Filesystem .ryx path (path-first)" }
+                }
+            }
+        },
+        {
+            "name": "rynix_slice",
+            "description": "Compact interface outline (rynix.slice.v1) — same as `rynixc slice`. Prefer path (reads disk); source is optional inline body.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -385,6 +396,24 @@ fn tools_call(params: &Value) -> Result<Value, Value> {
             crate::agent_lib::graph_json_text(&label, &mut parsed)
         };
         return Ok(json!({ "content": [{ "type": "text", "text": g.to_string() }] }));
+    }
+
+    // Path-first slice (parity with `rynixc slice`).
+    if name == "rynix_slice" {
+        let path_arg = args.get("path").and_then(|p| p.as_str());
+        let source_arg = args.get("source").and_then(|s| s.as_str());
+        let arena = AstArena::new();
+        let (label, parsed) = resolve_path_or_source(path_arg, source_arg, &arena)?;
+        if parsed.sink.error_count() > 0 {
+            return Err(rpc_error(-32000, "parse/sema errors"));
+        }
+        let lines = crate::agent_lib::slice_lines(&parsed);
+        let report = json!({
+            "schema": "rynix.slice.v1",
+            "path": label,
+            "lines": lines,
+        });
+        return Ok(json!({ "content": [{ "type": "text", "text": report.to_string() }] }));
     }
 
     // Path-first impact / precheck (same fail-closed disk read as graph).

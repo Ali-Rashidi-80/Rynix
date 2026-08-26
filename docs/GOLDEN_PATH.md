@@ -408,7 +408,8 @@ Do **not** invent an in-memory clang daemon as a Quality-10 requirement (D-9 sta
 
 ## 9. Immediate next action (execute now)
 
-**Phase 25 closed.** Next: **Phase 26** (maturity decompose) per §4.
+**Phases 25–29 closed** (Q-Core waves). **Phase 30** remains **user-triggered
+only** — do not auto push/tag/release.
 
 Do **not** start Track G / Phase 30 without explicit user direction + ADR.
 

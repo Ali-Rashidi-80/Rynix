@@ -1,5 +1,5 @@
 //! Minimal LSP server on stdio: full-sync documents, diagnostics, go-to-definition,
-//! hover, completion, rename, references, and workspace symbols.
+//! hover, completion, rename, references, workspace/document symbols, and formatting.
 
 #![allow(
     clippy::collapsible_if,

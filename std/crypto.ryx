@@ -1,10 +1,14 @@
-## std.crypto — thin SHA wrapper (SPEC 6.5, LEAD_AHEAD L10).
-## Soft HMAC / AES remain docs-only this phase (no facade defs).
+## std.crypto — thin SHA / HMAC / AES wrappers (SPEC 6.5, Phase 28-C).
+## Soft builtins remain the real ABI; these defs are import facades.
 
 def sha256_first_i64(data: str) -> i64
   return sha256_first_i64(data)
 end
 
-## Soft (call directly; not wrapped here):
-## hmac_sha256_first_i64(key, data) -> i64
-## aes128_gcm_nist_empty_tag_first_i64() -> i64
+def hmac_sha256_first_i64(key: str, data: str) -> i64
+  return hmac_sha256_first_i64(key, data)
+end
+
+def aes128_gcm_nist_empty_tag_first_i64() -> i64
+  return aes128_gcm_nist_empty_tag_first_i64()
+end

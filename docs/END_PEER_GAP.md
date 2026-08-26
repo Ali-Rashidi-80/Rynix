@@ -4,7 +4,7 @@
 
 Reference: [IrMaho/End](https://github.com/IrMaho/End) (v0.4.x positioning, 2026).
 
-## Peer snapshot (audit refresh 2026-08-25)
+## Peer snapshot (audit refresh 2026-08-26)
 
 | Field | Value |
 |-------|--------|

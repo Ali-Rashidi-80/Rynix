@@ -16,7 +16,7 @@ ad-hoc scraping.
 - Diagnostics: `--error-format=json` → NDJSON `rynix.diag.v1`
   (schema: `docs/schemas/rynix.diag.v1.json`)
 - Alloc transparency: `rynixc check file.ryx --explain-alloc --error-format=json`
-- MCP: `rynixc mcp-serve` (18 tools: graph, impact, eval, arch, verify, precheck, context, security, scope, deps, dna, …)
+- MCP: `rynixc mcp-serve` (19 tools: graph, slice, impact, eval, arch, verify, precheck, context, security, scope, deps, dna, …)
 - Structure: `rynixc graph file.ryx` / `rynixc slice file.ryx`
 - Contracts: `rynixc verify --contract=docs/contracts/wave1.contract.toml`
   (manifest build: `docs/contracts/wave12_manifest.contract.toml`;
@@ -30,7 +30,7 @@ ad-hoc scraping.
 - Conventions: `rynixc dna` → `rynix.dna.v1` (heuristic; not “80 layers”)
 - Scaffold: `rynixc new <name>` → local package; next: `rynixc build` (cwd / entry)
 - Soft HTTP: one-shot + bounded loop (header / body / keep-alive / path_param) +
-  HTTP-over-TLS; `import std::fs` / `std::crypto` (SHA)
+  HTTP-over-TLS; `import std::fs` / `std::crypto` (SHA / HMAC / AES facades)
 - `eval`: arith/print-oriented; unsupported CallExt hard-fails (no zero-default)
 - Phase 12 complete: [docs/LEAD_AHEAD.md](docs/LEAD_AHEAD.md)
 - Phase 13: `emit-ll --target=wasm32-unknown-unknown`; `[build].optimize` + `--opt`/`--no-opt` ([docs/PHASE13.md](docs/PHASE13.md))
@@ -43,8 +43,10 @@ ad-hoc scraping.
 - Phase 23: LSP refs/symbols + `Enum::Variant` + `Vec[str]` ([docs/PHASE23.md](docs/PHASE23.md))
 - Phase 24: `Map[str, i64]` + product example ([docs/PHASE24.md](docs/PHASE24.md))
 - Phase 25: `Map[str, str]` mono ([ADR-0018](docs/adr/0018-map-str-str-mono.md));
-  Phase 26 maturity; **Phase 27** security ([docs/PHASE27.md](docs/PHASE27.md),
-  ADR-0022/0023)
+  Phase 26 maturity; Phase 27 security ([docs/PHASE27.md](docs/PHASE27.md),
+  ADR-0022/0023); **Phase 28** agent polish ([docs/PHASE28.md](docs/PHASE28.md),
+  ADR-0024 Deferred); **Phase 29** docs/WASM ceiling ([docs/PHASE29.md](docs/PHASE29.md)).
+  Phase 30 remains user-triggered only.
 - **Golden path (Quality-10, Phases 25–30):** [docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md)
 - Install: one-path clang Win/Linux — [INSTALL.md](INSTALL.md)
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)

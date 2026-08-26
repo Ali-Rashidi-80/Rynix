@@ -7,7 +7,7 @@ description: Honest agent guide for the Rynix systems language — compile with 
 
 Rynix (`.ryx`) is an AI-native systems language: Zero-GC escape path, colorless
 fibers, textual LLVM → clang, machine-readable diagnostics (`rynix.diag.v1`),
-and **MCP** (`rynixc mcp-serve`, 18 tools).
+and **MCP** (`rynixc mcp-serve`, 19 tools).
 
 Do **not** invent End-style `feature` / `skill` / `task` / `agent` language
 keywords, UI canvas, fake TLS, or CDN registry rows. Deferred work lives in ADRs.
@@ -27,8 +27,10 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
 - Path deps: `rynixc deps` → `rynix.deps.v1`; `--lock` / `--locked`;
   `--attest` / `--attest-verify` → `rynix.attest.v1.json` (local digest, **not** Sigstore Rekor)
 - WASM: `emit-ll --target=wasm32-unknown-unknown`; `emit-wasm -o out.wasm` (clang,
-  no WASI / no `rt/`); Node can run arith `main` and host-import `env.print_i64`
-  ([docs/PHASE15.md](../../docs/PHASE15.md), [docs/NICHE10.md](../../docs/NICHE10.md))
+  no WASI / no `rt/`); Node can run arith `main` and host-import `env.print_i64` /
+  `env.print` (str)
+  ([docs/PHASE15.md](../../docs/PHASE15.md), [docs/NICHE10.md](../../docs/NICHE10.md),
+  [docs/PHASE29.md](../../docs/PHASE29.md))
 - Runtime: `--runtime=portable` (default) | `iocp` (Windows) | `uring` (Linux)
 - Contracts: `rynixc verify --contract=docs/contracts/…`
 - Agent write: `patch --write` needs `rynix.scope.toml` or `--force-write`
@@ -38,22 +40,26 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
 - Spec: `docs/SPEC.md`
 - Roadmap / phases: `docs/ROADMAP.md`, `docs/LEAD_AHEAD.md`, `docs/PHASE14.md`, `docs/PHASE15.md`,
   `docs/PHASE16.md`, **`docs/GOLDEN_PATH.md`** (Quality-10; Phases 25–30 + Tracks G/C/R);
-  Phase 27 security: [PHASE27.md](../../docs/PHASE27.md), ADR-0022/0023
+  Phase 27 security: [PHASE27.md](../../docs/PHASE27.md), ADR-0022/0023;
+  Phase 28–29: [PHASE28.md](../../docs/PHASE28.md), [PHASE29.md](../../docs/PHASE29.md)
+  (Phase 30 user-triggered only)
 - Contracts: `docs/contracts/wave1.contract.toml`, `wave12_manifest.contract.toml`,
   `phase19_path_mcp.contract.toml` (path-first MCP + LSP completion/rename),
   `phase21_roi.contract.toml` (MCP path-first remainder + match variants),
   `phase22_inline_mcp.contract.toml` (inline match+return + MCP format/compile),
   `phase23_depth.contract.toml` (LSP refs + Enum::Variant + Vec[str]),
   `phase24_map_str.contract.toml` (Map[str,i64] + example 12),
-  `phase25_golden.contract.toml` (Map[str,str] + documentSymbol + example 13)
+  `phase25_golden.contract.toml` (Map[str,str] + documentSymbol + example 13),
+  `phase28_agent.contract.toml`, `phase29_ceiling.contract.toml`
 - vs End verdict: `docs/VERDICT.md`, `docs/END_PEER_GAP.md`
-- Soft builtins and std: README Soft builtins + `std/*.ryx` (`std::fs`, `std::crypto`,
+- Soft builtins and std: README Soft builtins + `std/*.ryx` (`std::fs`, `std::crypto`
+  SHA/HMAC/AES facades,
   HTTP loop `_2paths_` / `_3paths_` / `path_param`); `Vec[i64]` / `Vec[str]` /
   `Map[i64,i64]` / `Map[str,i64]` / `Map[str,str]` mono
 - LSP (`rynixc lsp-serve`): diagnostics, hover, go-to-definition, **completion**,
-  **rename**, **references**, **workspace/symbol**, **documentSymbol**
+  **rename**, **references**, **workspace/symbol**, **documentSymbol**, **formatting**
 - MCP: prefer filesystem `path` (path-first; fail-closed on missing file) for
-  `rynix_graph` / `rynix_impact` / `rynix_precheck` / `rynix_check` /
+  `rynix_graph` / `rynix_slice` / `rynix_impact` / `rynix_precheck` / `rynix_check` /
   `rynix_context` / `rynix_security` / `apply_fix` / `rynix_format` /
   `rynix_explain_alloc` / `compile` / `ast_query`; inline `source` still works
 - Language: `match` on nullary enum variants + `Enum::Variant` paths

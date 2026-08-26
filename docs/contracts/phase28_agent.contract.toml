@@ -1,0 +1,46 @@
+# Phase 28 — agent polish contract
+
+[contract]
+name = "phase28-agent"
+
+[[evidence]]
+id = "lsp-formatting"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lsp_formatting_applies_fmt"
+
+[[evidence]]
+id = "mcp-slice"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_slice_or_documented_absence"
+
+[[evidence]]
+id = "std-crypto-hmac-aes"
+kind = "cargo_test"
+package = "rynixc"
+filter = "std_crypto_hmac_aes_import_ok"
+
+[[evidence]]
+id = "verdict-peer-date"
+kind = "cargo_test"
+package = "rynixc"
+filter = "verdict_peer_date_current"
+
+[[evidence]]
+id = "phase28-doc"
+kind = "file"
+path = "docs/PHASE28.md"
+contains = "Agent polish"
+
+[[evidence]]
+id = "adr-0024"
+kind = "file"
+path = "docs/adr/0024-payload-enums.md"
+contains = "Status"
+
+[[evidence]]
+id = "phase30-user-triggered"
+kind = "file"
+path = "docs/PHASE28.md"
+contains = "user-triggered only"

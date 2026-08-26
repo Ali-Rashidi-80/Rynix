@@ -195,9 +195,10 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   void client.start();
 
-  // LSP completion/rename: LanguageClient negotiates capabilities from
-  // rynixc lsp-serve (`completionProvider` / `renameProvider`). No extra
-  // vscode.languages.register* is required — keep clientOptions minimal.
+  // LSP completion/rename/formatting: LanguageClient negotiates capabilities from
+  // rynixc lsp-serve (`completionProvider` / `renameProvider` /
+  // `documentFormattingProvider`). No extra vscode.languages.register* is
+  // required — keep clientOptions minimal.
 }
 
 export function deactivate(): Thenable<void> | undefined {

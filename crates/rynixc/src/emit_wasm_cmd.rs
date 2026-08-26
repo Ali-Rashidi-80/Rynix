@@ -4,6 +4,7 @@
 //! may appear in the `.ll`; they must remain uncalled for a successful nostdlib
 //! link of arith-only programs. `print_i64` is a host import (`env.print_i64`)
 //! so Node (or another host) can supply it without WASI (Phase 20-A).
+//! `print` is likewise a host import (`env.print`) for string output (Phase 29-E).
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};

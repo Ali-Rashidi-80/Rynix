@@ -278,7 +278,8 @@ Plan: **[PHASE24.md](PHASE24.md)**.
 
 Canonical next plan: **[GOLDEN_PATH.md](GOLDEN_PATH.md)** — **Quality-10**
 (8.7→≥9.0 axes; Security ≥9.0), Phases **25–30**, Tracks **G/C/R**, refuse set,
-DoD. Default execute after Phase 26: Phase 27 security posture.
+DoD. Default execute after Phase 27: Phase 28–29 (agent polish + docs ceiling).
+**Phase 30** remains user-triggered only (no auto push/tag/release).
 
 ## Phase 25 — Map[str,str] + documentSymbol
 
@@ -316,6 +317,37 @@ Plan: **[PHASE27.md](PHASE27.md)**.
 | F ∥ | Windows Job Object deferral | ✅ `windows_sandbox_or_deferral` |
 | G ∥ | `emit-ll` no-link smoke | ✅ `emit_ll_no_link_smoke` |
 | H ∥ | CWE matrix honesty | ✅ `security_cwe_matrix_or_deferral` |
+
+## Phase 28 — Agent polish + language depth
+
+Plan: **[PHASE28.md](PHASE28.md)**.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | LSP `textDocument/formatting` | ✅ `lsp_formatting_applies_fmt` |
+| B | MCP `rynix_slice` path-first | ✅ `mcp_slice_or_documented_absence` |
+| C | `std::crypto` HMAC/AES facade | ✅ `std_crypto_hmac_aes_import_ok` |
+| D | ADR-0024 payload enums | ✅ Deferred ([0024](adr/0024-payload-enums.md)) |
+| E | Payload match | skip (0024 Deferred) |
+| F | Struct `bool` | skip (PHASE28 Out) |
+| G | VERDICT peer date | ✅ `verdict_peer_date_current` |
+| H | Multiline strings | skip (PHASE28 Out) |
+
+## Phase 29 — Runtime / WASM / docs ceiling
+
+Plan: **[PHASE29.md](PHASE29.md)**.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | uring recv/send honesty | ✅ `uring_recv_send_completion_smoke` |
+| B | TLS CI matrix | ✅ `tls_ci_matrix_documented` |
+| C | HTTP auth/method | ✅ `http_auth_or_method_gate` (deferral) |
+| D | Escape interproc limit | ✅ `escape_interproc_or_limit_doc` |
+| E | WASM `env.print` str | ✅ `emit_wasm_host_print_str` |
+| F | Package UX + attest docs | ✅ `package_ux_diag_gate`, `attest_docs_match_impl` |
+| G | Book skeleton | ✅ `book_skeleton_exists` |
+| H | Suite5 artifact links | ✅ `suite5_post_p24_artifact_links` |
+| I | RFC / CONTRIBUTING Track C | ✅ `rfc_or_contributing_sections` |
 
 ## Follow-on (post-13 / parallel)
 

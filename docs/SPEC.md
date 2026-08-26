@@ -459,11 +459,13 @@ end
 ```
 
 `import std::fs` / `import std::crypto` load thin `def` wrappers over soft
-`fs_*` / `sha256_first_i64` (HMAC/AES stay soft-only; no facade this phase).
+`fs_*` / `sha256_first_i64` / `hmac_sha256_first_i64` /
+`aes128_gcm_nist_empty_tag_first_i64` (soft remains the real ABI).
 
 Evidence: `std/math.ryx`, `testdata/pkg_std_app`, `build_pkg_std_app_loads_math`;
 `std/fs.ryx`, `testdata/pkg_std_fs`, `build_fs_via_std_import`;
-`std/crypto.ryx`, `testdata/pkg_std_crypto`, `build_crypto_sha_via_std`.
+`std/crypto.ryx`, `testdata/pkg_std_crypto`, `build_crypto_sha_via_std`;
+`testdata/pkg_std_crypto_hmac_aes`, `std_crypto_hmac_aes_import_ok`.
 
 ### 6.6 Workspace monorepo
 

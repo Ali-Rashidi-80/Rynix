@@ -1,12 +1,10 @@
 # Verdict — Rynix vs End (who is ahead?)
 
-**Date:** 2026-08-25  
+**Date:** 2026-08-26  
 **Peer:** [IrMaho/End](https://github.com/IrMaho/End) `main` @ **`cf5bef3`**  
 (local clone `D:\0\End-peer`, `git fetch` + `pull --ff-only` — **no peer source edits**)  
-**This repo:** Rynix Phase 15 complete ([PHASE15.md](PHASE15.md)); Phase 16 in
-progress ([PHASE16.md](PHASE16.md)) toward Niche-10
-([ADR-0013](adr/0013-niche-10-scorecard.md)). Phase 12 product realness:
-[LEAD_AHEAD.md](LEAD_AHEAD.md).
+**This repo:** Rynix Quality-10 Phases 25–29 ([GOLDEN_PATH.md](GOLDEN_PATH.md));
+Niche-10 certified ([NICHE10.md](NICHE10.md)).
 
 This document answers one question under audit rules:
 
@@ -53,7 +51,7 @@ Full methodology: [END_PEER_GAP.md](END_PEER_GAP.md). Positioning: [COMPARE.md](
 | HTTP | Thin string helpers on TCP | One-shot + **bounded loop** + JSON | **Rynix** |
 | WebSocket | — / incomplete | RFC 6455 + wire smokes | **Rynix** |
 | Agent CLI | ~60 names, uneven depth | graph/slice/impact/eval/patch/verify… | Tie on overlap; End broader **names** |
-| **MCP** | **Absent** | **18 tools** (`mcp-serve`) | **Rynix** |
+| **MCP** | **Absent** | **19 tools** (`mcp-serve`, includes `rynix_slice`) | **Rynix** |
 | Packages | Local path; **PubGrub theater** | Path + local index (scan + sparse) + unity/semver/lock/workspace + **local digest attest** | **Rynix** |
 | WASM | Text / toy surface | `emit-ll --target=wasm32` + **`emit-wasm`** (real `\0asm`) + Node run gate (Phase 15) — **no WASI** | **Rynix** (honest subset) |
 | Memory / escape | Real region/borrow subset | Escape + move + `#^ effect: pure` + explain-alloc | **Rynix** (transparency) |

@@ -1836,6 +1836,86 @@ console.log("emit_wasm_host_print_i64 ok");
 }
 
 #[test]
+fn emit_wasm_host_print_str() {
+    let Some(_clang) = clang_with_wasm_link() else {
+        eprintln!("skip: no clang that can link wasm32 freestanding .wasm");
+        return;
+    };
+    if Command::new("node").arg("--version").output().is_err() {
+        eprintln!("skip: node not on PATH");
+        return;
+    }
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+    std::fs::create_dir_all(root.join("target")).ok();
+
+    let wasm = root.join("target/wasm_host_print_str.wasm");
+    let _ = std::fs::remove_file(&wasm);
+    let status = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .current_dir(&root)
+        .args([
+            "emit-wasm",
+            "testdata/wasm_host_print_str.ryx",
+            "-o",
+            wasm.to_str().unwrap(),
+        ])
+        .status()
+        .expect("emit-wasm");
+    assert!(status.success(), "emit-wasm with print str host-import failed");
+
+    let script = root.join("target/wasm_host_print_str_check.mjs");
+    std::fs::write(
+        &script,
+        r#"import fs from "node:fs";
+const buf = fs.readFileSync("target/wasm_host_print_str.wasm");
+const seen = [];
+function readCString(memory, ptr) {
+  const u8 = new Uint8Array(memory.buffer, ptr);
+  let end = 0;
+  while (u8[end] !== 0) end++;
+  return new TextDecoder().decode(u8.subarray(0, end));
+}
+const imports = {
+  env: {
+    print(ptr) {
+      const memory = instance.exports.memory;
+      seen.push(readCString(memory, ptr));
+    },
+  },
+};
+let instance;
+({ instance } = await WebAssembly.instantiate(buf, imports));
+if (typeof instance.exports.main !== "function") {
+  console.error("missing export main");
+  process.exit(1);
+}
+const got = instance.exports.main();
+if (got !== 0) {
+  console.error("main() returned", got, "want 0");
+  process.exit(1);
+}
+if (seen.length !== 1 || seen[0] !== "hi") {
+  console.error("print host import not called with hi; seen=", seen);
+  process.exit(1);
+}
+console.log("emit_wasm_host_print_str ok");
+"#,
+    )
+    .unwrap();
+    let run = Command::new("node")
+        .current_dir(&root)
+        .arg("target/wasm_host_print_str_check.mjs")
+        .output()
+        .expect("node wasm host-import print str run");
+    assert!(
+        run.status.success(),
+        "node failed host-import print str smoke:\nstdout={}\nstderr={}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+}
+
+#[test]
 fn build_respects_manifest_optimize() {
     let Some(_clang) = clang() else {
         eprintln!("skip: no clang on PATH");

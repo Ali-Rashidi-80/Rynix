@@ -1,0 +1,17 @@
+## Phase 28-C: import facade smoke for HMAC + AES (soft remains real).
+import std::crypto
+
+def main() -> i64
+  let h = crypto.hmac_sha256_first_i64("key", "The quick brown fox")
+  let a = crypto.aes128_gcm_nist_empty_tag_first_i64()
+  if h == 0
+    print_i64(-1)
+    return 1
+  end
+  if a == 0
+    print_i64(-2)
+    return 2
+  end
+  print_i64(0)
+  return 0
+end

@@ -84,7 +84,8 @@ impl LanguageServer {
                         "renameProvider": true,
                         "referencesProvider": true,
                         "workspaceSymbolProvider": true,
-                        "documentSymbolProvider": true
+                        "documentSymbolProvider": true,
+                        "documentFormattingProvider": true
                     },
                     "serverInfo": {
                         "name": "rynixc-lsp",
@@ -110,6 +111,7 @@ impl LanguageServer {
             "textDocument/references" => Some(self.references(req)),
             "workspace/symbol" => Some(self.workspace_symbol(req)),
             "textDocument/documentSymbol" => Some(self.document_symbol(req)),
+            "textDocument/formatting" => Some(self.formatting(req)),
             "textDocument/didClose" => {
                 if let Some(params) = &req.params {
                     if let Some(uri) = params["textDocument"]["uri"].as_str() {
