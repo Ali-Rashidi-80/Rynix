@@ -17,6 +17,7 @@ mod lower;
 mod parse;
 mod pass;
 mod print;
+mod sanitize;
 mod verify;
 
 pub use bounds::eliminate_bounds_checks;
@@ -31,4 +32,5 @@ pub use lower::lower_module;
 pub use parse::{parse_module, ParseError};
 pub use pass::{const_fold, dce, run_pipeline, simplify_cfg};
 pub use print::print_module;
+pub use sanitize::{is_dangerous_ext_name, sanitize_module};
 pub use verify::verify_module;

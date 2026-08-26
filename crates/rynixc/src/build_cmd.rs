@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use crate::cli::{BuildOptions, ErrorFormat, PgoMode, RuntimeKind};
+use crate::cli::{BuildOptions, ErrorFormat, PgoMode, RuntimeKind, SandboxKind};
 use crate::codegen_pipe;
 use crate::lockfile;
 use crate::manifest::{resolve_for_source, resolve_project_sources, DepsReport, ProjectSources};
@@ -140,6 +140,9 @@ fn link_artifacts(
         if let Some(gcc) = find_msvcrt_gcc() {
             return link_bench_msvcrt_gcc(clang, &gcc, ll_path, rt_c, &include, out_bin, options);
         }
+    }
+    if options.sandbox == SandboxKind::Docker {
+        return link_clang_docker(ll_path, rt_c, &include, out_bin, options, runtime, rt_root);
     }
     link_clang(clang, ll_path, rt_c, &include, out_bin, options, runtime, rt_root)
 }
@@ -388,6 +391,161 @@ fn link_clang(
     }
 
     ExitCode::SUCCESS
+}
+
+/// ADR-0022: clang link inside Docker. Hard-errors if docker is unavailable.
+#[allow(clippy::too_many_arguments)]
+fn link_clang_docker(
+    ll_path: &Path,
+    rt_c: &Path,
+    include: &Path,
+    out_bin: &Path,
+    options: &BuildOptions,
+    runtime: RuntimeKind,
+    rt_root: &Path,
+) -> ExitCode {
+    if !docker_available() {
+        eprintln!(
+            "error: `--sandbox=docker` requires a working `docker` on PATH\n\
+             Install Docker, or use `--sandbox=none` (default) for host clang link.\n\
+             See docs/SANDBOX_SKIP_MATRIX.md and docs/adr/0022-build-sandbox.md."
+        );
+        return ExitCode::from(1);
+    }
+
+    let work = std::env::temp_dir().join(format!("rynix_sandbox_{}", std::process::id()));
+    if let Err(e) = std::fs::create_dir_all(&work) {
+        eprintln!("error: cannot create sandbox work dir {}: {e}", work.display());
+        return ExitCode::from(3);
+    }
+    let cleanup = || {
+        let _ = std::fs::remove_dir_all(&work);
+    };
+
+    let ll_name = "prog.ll";
+    let rt_name = "rt.c";
+    let out_name = if cfg!(windows) { "a.exe" } else { "a.out" };
+    let inc_dir = work.join("include");
+    if let Err(e) = std::fs::create_dir_all(&inc_dir) {
+        eprintln!("error: {e}");
+        cleanup();
+        return ExitCode::from(3);
+    }
+    if let Err(e) = std::fs::copy(ll_path, work.join(ll_name)) {
+        eprintln!("error: cannot stage {}: {e}", ll_path.display());
+        cleanup();
+        return ExitCode::from(3);
+    }
+    if let Err(e) = std::fs::copy(rt_c, work.join(rt_name)) {
+        eprintln!("error: cannot stage {}: {e}", rt_c.display());
+        cleanup();
+        return ExitCode::from(3);
+    }
+    // Copy public headers used by portable runtime.
+    if include.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(include) {
+            for ent in entries.flatten() {
+                let p = ent.path();
+                if p.extension().and_then(|e| e.to_str()) == Some("h") {
+                    let _ = std::fs::copy(&p, inc_dir.join(ent.file_name()));
+                }
+            }
+        }
+    }
+
+    let image = std::env::var("RYNIX_DOCKER_IMAGE")
+        .unwrap_or_else(|_| "silkeh/clang:latest".to_string());
+    let work_abs = match work.canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("error: canonicalize work dir: {e}");
+            cleanup();
+            return ExitCode::from(3);
+        }
+    };
+    let mount = format!("{}:/work", docker_host_path(&work_abs));
+
+    let mut clang_args: Vec<String> = vec![
+        "clang".into(),
+        "-O3".into(),
+        "-Wno-override-module".into(),
+        "-Wno-pass-failed".into(),
+        "-I/work/include".into(),
+        format!("/work/{ll_name}"),
+        format!("/work/{rt_name}"),
+        "-o".into(),
+        format!("/work/{out_name}"),
+    ];
+    if options.bench {
+        clang_args.push("-DRYNIX_BENCH".into());
+    }
+    if runtime == RuntimeKind::Uring {
+        clang_args.push("-DRYNIX_RT_URING".into());
+    }
+    if runtime == RuntimeKind::Iocp {
+        clang_args.push("-DRYNIX_RT_IOCP".into());
+    }
+    let _ = rt_root; // fiber asm not staged into minimal docker link
+
+    let mut cmd = Command::new("docker");
+    cmd.arg("run")
+        .arg("--rm")
+        .arg("--network=none")
+        .arg("-v")
+        .arg(&mount)
+        .arg("-w")
+        .arg("/work")
+        .arg(&image)
+        .args(&clang_args);
+
+    let status = match cmd.status() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: failed to invoke docker: {e}");
+            cleanup();
+            return ExitCode::from(1);
+        }
+    };
+    if !status.success() {
+        eprintln!("error: docker sandbox clang failed with {status}");
+        cleanup();
+        return ExitCode::from(1);
+    }
+
+    let staged_out = work.join(out_name);
+    if let Err(e) = std::fs::copy(&staged_out, out_bin) {
+        eprintln!(
+            "error: cannot copy sandbox output {} -> {}: {e}",
+            staged_out.display(),
+            out_bin.display()
+        );
+        cleanup();
+        return ExitCode::from(3);
+    }
+    cleanup();
+    ExitCode::SUCCESS
+}
+
+fn docker_available() -> bool {
+    match Command::new("docker").args(["info"]).output() {
+        Ok(out) => out.status.success(),
+        Err(_) => false,
+    }
+}
+
+/// Host path for `docker run -v HOST:CONTAINER` (strip Windows `\\?\` verbatim prefix).
+fn docker_host_path(path: &Path) -> String {
+    let raw = path.to_string_lossy();
+    let trimmed = raw
+        .strip_prefix(r"\\?\UNC\")
+        .map(|rest| format!(r"\\{rest}"))
+        .or_else(|| raw.strip_prefix(r"\\?\").map(str::to_string))
+        .unwrap_or_else(|| raw.into_owned());
+    if cfg!(windows) {
+        trimmed.replace('\\', "/")
+    } else {
+        trimmed
+    }
 }
 
 fn find_clang() -> Option<PathBuf> {

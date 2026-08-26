@@ -17,6 +17,8 @@ cargo install cargo-fuzz
   split a UTF-8 character, and always make progress.
 - `lex_diagnostics` — every diagnostic renders as valid `rynix.diag.v1` JSON
   and every fix is mechanically applicable to the source.
+- `parse_no_crash` — parser must not panic on arbitrary UTF-8 (Phase 27-D);
+  seed corpus under `corpus/parse_no_crash/`.
 
 ## Running
 

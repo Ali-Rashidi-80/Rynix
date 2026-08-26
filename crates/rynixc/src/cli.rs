@@ -105,6 +105,8 @@ Options for `emit-ll` / `emit-wasm` / `build` / `run`:
   --keep-ll           (build) Keep the intermediate .ll next to the binary
   --runtime=KIND      `portable`, `uring` (Linux), or `iocp` (Windows);
                       if omitted, use [build].runtime then portable
+  --sandbox=KIND      (build) `none` (default, host clang) or `docker`
+                      (link inside docker; hard-errors if docker missing)
   --bench             (build) Define RYNIX_BENCH — print_i64 becomes a sink (Suite5 timing)
   --pgo-gen           (build) Clang `-fprofile-instr-generate` (training build)
   --pgo-use=PATH      (build) Clang `-fprofile-use=PATH` (optimized build)
@@ -198,6 +200,14 @@ pub enum RuntimeKind {
     Iocp,
 }
 
+/// Clang link isolation (ADR-0022). Default `None` = host clang.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum SandboxKind {
+    #[default]
+    None,
+    Docker,
+}
+
 #[derive(Debug, Clone)]
 pub enum PgoMode {
     None,
@@ -213,6 +223,8 @@ pub struct BuildOptions {
     pub keep_ll: bool,
     /// `Some` only when `--runtime=` was present on the CLI (L4).
     pub runtime: Option<RuntimeKind>,
+    /// Link sandbox (ADR-0022); default `none`.
+    pub sandbox: SandboxKind,
     /// `Some` only when `--opt` / `--no-opt` was present (P13-L5).
     pub optimize: Option<bool>,
     pub bench: bool,
@@ -662,6 +674,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
     let mut output = None;
     let mut keep_ll = false;
     let mut runtime = None;
+    let mut sandbox = SandboxKind::None;
     let mut optimize = None;
     let mut bench = false;
     let mut pgo = PgoMode::None;
@@ -684,12 +697,19 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
             "--runtime=portable" => runtime = Some(RuntimeKind::Portable),
             "--runtime=uring" => runtime = Some(RuntimeKind::Uring),
             "--runtime=iocp" => runtime = Some(RuntimeKind::Iocp),
+            "--sandbox=none" => sandbox = SandboxKind::None,
+            "--sandbox=docker" => sandbox = SandboxKind::Docker,
             other if other.starts_with("--pgo-use=") => {
                 pgo = PgoMode::Use(PathBuf::from(&other[10..]));
             }
             other if other.starts_with("--runtime") => {
                 return Err(
                     "invalid `--runtime`: expected --runtime=portable, --runtime=uring, or --runtime=iocp".into(),
+                );
+            }
+            other if other.starts_with("--sandbox") => {
+                return Err(
+                    "invalid `--sandbox`: expected --sandbox=none or --sandbox=docker".into(),
                 );
             }
             "-o" => expect_o = true,
@@ -717,6 +737,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
         output,
         keep_ll,
         runtime,
+        sandbox,
         optimize,
         bench,
         pgo,
@@ -1374,6 +1395,7 @@ mod tests {
         };
         assert!(options.path.is_none());
         assert!(options.runtime.is_none());
+        assert_eq!(options.sandbox, SandboxKind::None);
 
         let Command::Build(options) =
             parse(&args(&["build", "pkg/", "--runtime=iocp"])).unwrap()
@@ -1382,6 +1404,13 @@ mod tests {
         };
         assert_eq!(options.path.as_deref().and_then(|p| p.to_str()), Some("pkg/"));
         assert_eq!(options.runtime, Some(RuntimeKind::Iocp));
+
+        let Command::Build(options) =
+            parse(&args(&["build", "a.ryx", "--sandbox=docker"])).unwrap()
+        else {
+            panic!("expected build");
+        };
+        assert_eq!(options.sandbox, SandboxKind::Docker);
     }
 
     #[test]

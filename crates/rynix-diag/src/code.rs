@@ -84,6 +84,7 @@ pub mod codes {
         USE_AFTER_MOVE      = ("RYX2011", "use of moved value");
         PURITY_VIOLATION    = ("RYX2012", "pure function has impure effects");
         STUB_RESERVED       = ("RYX2013", "reserved stub is not callable");
+        DANGEROUS_CALL      = ("RYX2014", "dangerous external call");
         FIELD_ASSIGN_UNSUPPORTED = ("RYX2020", "index assign unsupported");
     }
 }

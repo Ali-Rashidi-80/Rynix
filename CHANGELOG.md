@@ -8,6 +8,9 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ### Added
 
+- Phase 27: `--sandbox=docker|none` (ADR-0022), RIR/sema sanitize of `system`/`exec*`
+  (ADR-0023), STRIDE threat model, CWE matrix, sandbox skip/Windows deferral docs,
+  `parse_no_crash` fuzz target + seed, `phase27_security` contract.
 - Phase 26: `lower/` + `lsp/` decomp (ADR-0019/0020), unwrap budget gate, contract schema.
 - Phase 25: `Map[str, str]` mono ([ADR-0018](docs/adr/0018-map-str-str-mono.md)).
 - Phase 25: LSP `textDocument/documentSymbol`.

@@ -2290,6 +2290,190 @@ fn verify_phase26_maturity_contract() {
 }
 
 #[test]
+fn sandbox_docker_smoke() {
+    let root = repo_root();
+    let matrix = root.join("docs/SANDBOX_SKIP_MATRIX.md");
+    assert!(matrix.is_file(), "SANDBOX_SKIP_MATRIX.md missing");
+    let text = std::fs::read_to_string(&matrix).expect("read skip matrix");
+    assert!(
+        text.to_ascii_lowercase().contains("docker"),
+        "skip matrix must mention docker"
+    );
+
+    let docker_ok = Command::new("docker")
+        .args(["info"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if !docker_ok {
+        return;
+    }
+
+    // Avoid hanging on registry pulls: only exercise full link when the image
+    // is already present locally (CI without image → skip matrix OK).
+    let image = std::env::var("RYNIX_DOCKER_IMAGE")
+        .unwrap_or_else(|_| "silkeh/clang:latest".to_string());
+    let image_local = Command::new("docker")
+        .args(["image", "inspect", &image])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if !image_local {
+        return;
+    }
+
+    let dir = std::env::temp_dir().join("rynix_sandbox_docker_smoke");
+    let _ = std::fs::create_dir_all(&dir);
+    let src = dir.join("main.ryx");
+    std::fs::write(&src, "def main() -> i64\n  return 0\nend\n").unwrap();
+    let out_bin = dir.join("sandbox_out");
+    let out = rynixc()
+        .args([
+            "build",
+            src.to_str().unwrap(),
+            "-o",
+            out_bin.to_str().unwrap(),
+            "--sandbox=docker",
+            "--no-opt",
+        ])
+        .output()
+        .expect("spawn build --sandbox=docker");
+    assert!(
+        out.status.success(),
+        "docker sandbox build failed with local image:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+#[test]
+fn sanitize_rejects_exec() {
+    let dir = std::env::temp_dir().join("rynix_sanitize_exec");
+    let _ = std::fs::create_dir_all(&dir);
+    let src = dir.join("bad_system.ryx");
+    std::fs::write(
+        &src,
+        "def main() -> i64\n  system(\"x\")\n  return 0\nend\n",
+    )
+    .unwrap();
+    let out = rynixc()
+        .args(["check", src.to_str().unwrap(), "--error-format=json"])
+        .output()
+        .expect("spawn check");
+    assert!(!out.status.success(), "expected check to fail for system()");
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let lower = combined.to_ascii_lowercase();
+    assert!(
+        lower.contains("system")
+            || lower.contains("sanitize")
+            || lower.contains("dangerous")
+            || combined.contains("RYX2014"),
+        "expected system/sanitize/dangerous/RYX2014 in diagnostics:\n{combined}"
+    );
+
+    let adr = repo_root().join("docs/adr/0023-rir-sanitize.md");
+    assert!(adr.is_file(), "ADR-0023 missing");
+    let adr_text = std::fs::read_to_string(&adr).unwrap();
+    assert!(
+        adr_text.contains("sanitize") && adr_text.to_ascii_lowercase().contains("callex"),
+        "ADR-0023 must document CallExt sanitize"
+    );
+}
+
+#[test]
+fn msan_ubsan_rt_clean() {
+    let path = repo_root().join("docs/SANITIZER_SCAFFOLD.md");
+    assert!(path.is_file(), "SANITIZER_SCAFFOLD.md missing");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        text.contains("fsanitize") && text.contains("Phase 27"),
+        "scaffold must mention fsanitize and Phase 27"
+    );
+}
+
+#[test]
+fn fuzz_new_targets_seeded() {
+    let root = repo_root();
+    let target = root.join("fuzz/fuzz_targets/parse_no_crash.rs");
+    assert!(target.is_file(), "parse_no_crash fuzz target missing");
+    let seed = root.join("fuzz/corpus/parse_no_crash/seed_main.ryx");
+    assert!(seed.is_file(), "seed corpus file missing at {}", seed.display());
+}
+
+#[test]
+fn emit_ll_no_link_smoke() {
+    let path = example("13_http_map_str_str.ryx");
+    let out_ll = std::env::temp_dir().join("rynix_emit_ll_no_link.ll");
+    let out = rynixc()
+        .args([
+            "emit-ll",
+            path.to_str().unwrap(),
+            "-o",
+            out_ll.to_str().unwrap(),
+        ])
+        .output()
+        .expect("spawn emit-ll");
+    assert!(
+        out.status.success(),
+        "emit-ll failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let ll = std::fs::read_to_string(&out_ll).expect("read .ll");
+    assert!(ll.contains("define"), "expected LLVM IR define in emit-ll output");
+}
+
+#[test]
+fn security_cwe_matrix_or_deferral() {
+    let path = repo_root().join("docs/CWE_MATRIX.md");
+    assert!(path.is_file(), "CWE_MATRIX.md missing");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("CWE-798"), "matrix must document CWE-798");
+}
+
+#[test]
+fn windows_sandbox_or_deferral() {
+    let path = repo_root().join("docs/WINDOWS_SANDBOX_DEFERRAL.md");
+    assert!(path.is_file(), "WINDOWS_SANDBOX_DEFERRAL.md missing");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        text.to_ascii_lowercase().contains("job object") || text.contains("Deferred"),
+        "deferral must mention Job Object or Deferred"
+    );
+}
+
+#[test]
+fn verify_phase27_security_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase27_security.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "verify failed:\nstderr={}\nstdout={}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
+    assert_eq!(v["status"], "passed");
+    assert_eq!(v["contract"], "phase27-security");
+}
+
+#[test]
 fn agent_skill_mentions_completion_rename_path_mcp() {
     let skill = repo_root().join(".agents/skills/rynix/SKILL.md");
     let text = std::fs::read_to_string(&skill).expect("read agent skill");

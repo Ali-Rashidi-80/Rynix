@@ -260,3 +260,19 @@ end
 ");
     assert!(codes(&sink).contains(&"RYX2013"), "{:?}", sink.diags);
 }
+
+#[test]
+fn dangerous_system_call_rejected() {
+    let (_, sink) = run("\
+def main() -> i64
+  system(\"x\")
+  return 0
+end
+");
+    assert!(codes(&sink).contains(&"RYX2014"), "{:?}", sink.diags);
+    let msg = sink.diags.iter().map(|d| d.message.clone()).collect::<Vec<_>>().join(" ");
+    assert!(
+        msg.contains("dangerous") || msg.contains("system"),
+        "{msg}"
+    );
+}

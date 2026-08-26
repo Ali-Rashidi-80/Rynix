@@ -135,6 +135,18 @@ pub(crate) fn stub_reserved(span: Span, name: &str) -> Diagnostic {
     )
 }
 
+pub(crate) fn dangerous_call(span: Span, name: &str) -> Diagnostic {
+    Diagnostic::error(
+        codes::DANGEROUS_CALL,
+        Stage::Sema,
+        format!(
+            "`{name}` is a dangerous/reserved external call \
+             (system/exec*/popen/dlopen escapes are not allowed)"
+        ),
+        span,
+    )
+}
+
 #[allow(dead_code)] // retained for future unsupported place forms
 pub(crate) fn field_assign_unsupported(span: Span) -> Diagnostic {
     Diagnostic::error(

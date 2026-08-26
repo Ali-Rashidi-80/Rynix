@@ -8,8 +8,8 @@ use rynix_ast::AstArena;
 use rynix_codegen::{emit_llvm_with_target, prune_unreachable};
 use rynix_diag::VecSink;
 use rynix_rir::{
-    analyze_escape, inject_regions, interpret_module_print, lower_module, run_pipeline, Inst,
-    Module,
+    analyze_escape, inject_regions, interpret_module_print, lower_module, run_pipeline,
+    sanitize_module, Inst, Module,
 };
 use rynix_sema::analyze;
 use rynix_span::{Interner, SourceMap};
@@ -124,6 +124,14 @@ pub fn compile_to_llvm_with_units(
             }
             return Err(ExitCode::from(1));
         }
+    }
+
+    let sanitize_errs = sanitize_module(&rir, &interner);
+    if !sanitize_errs.is_empty() {
+        for e in &sanitize_errs {
+            eprintln!("error: {e}");
+        }
+        return Err(ExitCode::from(1));
     }
 
     let report = analyze_escape(&rir, &interner);

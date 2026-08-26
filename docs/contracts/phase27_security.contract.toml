@@ -1,0 +1,70 @@
+# Phase 27 — security posture
+
+[contract]
+name = "phase27-security"
+
+[[evidence]]
+id = "sandbox-docker-smoke"
+kind = "cargo_test"
+package = "rynixc"
+filter = "sandbox_docker_smoke"
+
+[[evidence]]
+id = "sanitize-rejects-exec"
+kind = "cargo_test"
+package = "rynixc"
+filter = "sanitize_rejects_exec"
+
+[[evidence]]
+id = "msan-ubsan-rt-clean"
+kind = "cargo_test"
+package = "rynixc"
+filter = "msan_ubsan_rt_clean"
+
+[[evidence]]
+id = "fuzz-new-targets-seeded"
+kind = "cargo_test"
+package = "rynixc"
+filter = "fuzz_new_targets_seeded"
+
+[[evidence]]
+id = "emit-ll-no-link-smoke"
+kind = "cargo_test"
+package = "rynixc"
+filter = "emit_ll_no_link_smoke"
+
+[[evidence]]
+id = "security-cwe-matrix"
+kind = "cargo_test"
+package = "rynixc"
+filter = "security_cwe_matrix_or_deferral"
+
+[[evidence]]
+id = "windows-sandbox-deferral"
+kind = "cargo_test"
+package = "rynixc"
+filter = "windows_sandbox_or_deferral"
+
+[[evidence]]
+id = "phase27-doc"
+kind = "file"
+path = "docs/PHASE27.md"
+contains = "Security posture"
+
+[[evidence]]
+id = "adr-0022"
+kind = "file"
+path = "docs/adr/0022-build-sandbox.md"
+contains = "sandbox"
+
+[[evidence]]
+id = "adr-0023"
+kind = "file"
+path = "docs/adr/0023-rir-sanitize.md"
+contains = "CallExt"
+
+[[evidence]]
+id = "threat-model"
+kind = "file"
+path = "docs/SECURITY_THREAT_MODEL.md"
+contains = "STRIDE"

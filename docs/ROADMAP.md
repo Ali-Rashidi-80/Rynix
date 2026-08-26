@@ -278,7 +278,7 @@ Plan: **[PHASE24.md](PHASE24.md)**.
 
 Canonical next plan: **[GOLDEN_PATH.md](GOLDEN_PATH.md)** — **Quality-10**
 (8.7→≥9.0 axes; Security ≥9.0), Phases **25–30**, Tracks **G/C/R**, refuse set,
-DoD. Default execute after Phase 25: Phase 26 mature decompose.
+DoD. Default execute after Phase 26: Phase 27 security posture.
 
 ## Phase 25 — Map[str,str] + documentSymbol
 
@@ -301,6 +301,21 @@ Plan: **[PHASE26.md](PHASE26.md)**.
 | B | `lsp/` decomp ([ADR-0020](adr/0020-lsp-decomp.md)) | ✅ `lsp_decomp_parity` |
 | C | unwrap budget ≤60 | ✅ `unwrap_budget_gate` |
 | E–G | contract schema / deny deferral / sanitizer scaffold | ✅ named gates |
+
+## Phase 27 — Security posture
+
+Plan: **[PHASE27.md](PHASE27.md)**.
+
+| Wave | Theme | Status |
+|------|--------|--------|
+| A | `--sandbox=docker\|none` ([ADR-0022](adr/0022-build-sandbox.md)) | ✅ `sandbox_docker_smoke` |
+| B | RIR sanitize CallExt denylist ([ADR-0023](adr/0023-rir-sanitize.md)) | ✅ `sanitize_rejects_exec` |
+| C | MSan/UBSan scaffold soft gate | ✅ `msan_ubsan_rt_clean` |
+| D | New fuzz target + seed | ✅ `fuzz_new_targets_seeded` |
+| E | STRIDE threat model | ✅ `docs/SECURITY_THREAT_MODEL.md` |
+| F ∥ | Windows Job Object deferral | ✅ `windows_sandbox_or_deferral` |
+| G ∥ | `emit-ll` no-link smoke | ✅ `emit_ll_no_link_smoke` |
+| H ∥ | CWE matrix honesty | ✅ `security_cwe_matrix_or_deferral` |
 
 ## Follow-on (post-13 / parallel)
 

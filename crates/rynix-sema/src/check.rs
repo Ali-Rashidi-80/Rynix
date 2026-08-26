@@ -951,6 +951,14 @@ impl<'a> Checker<'a> {
                         self.node_types.insert(c.id, self.types.ty_error);
                         return self.types.ty_error;
                     }
+                    if is_dangerous_call_name(name) {
+                        self.sink.emit(errors::dangerous_call(c.span, name));
+                        for arg in c.args {
+                            let _ = self.check_expr(arg, scope, None);
+                        }
+                        self.node_types.insert(c.id, self.types.ty_error);
+                        return self.types.ty_error;
+                    }
                 }
                 let callee = self.check_expr(c.callee, scope, None);
                 let ty = self.check_call(callee, c.args, c.span, scope);
@@ -1563,6 +1571,24 @@ impl<'a> Checker<'a> {
         let to_sym = self.interner.intern(to);
         self.ownership.insert(def, MovedInfo { to: to_sym, at });
     }
+}
+
+/// Free-function names rejected as process / dynamic-load escapes (ADR-0023 / RYX2014).
+fn is_dangerous_call_name(name: &str) -> bool {
+    matches!(
+        name,
+        "system"
+            | "exec"
+            | "execl"
+            | "execle"
+            | "execlp"
+            | "execv"
+            | "execve"
+            | "execvp"
+            | "execvpe"
+            | "popen"
+            | "dlopen"
+    )
 }
 
 // literal helpers removed with reserved `tensor` shape check (RYX2013).

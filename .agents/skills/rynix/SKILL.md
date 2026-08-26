@@ -37,7 +37,8 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
 
 - Spec: `docs/SPEC.md`
 - Roadmap / phases: `docs/ROADMAP.md`, `docs/LEAD_AHEAD.md`, `docs/PHASE14.md`, `docs/PHASE15.md`,
-  `docs/PHASE16.md`, **`docs/GOLDEN_PATH.md`** (Quality-10; Phases 25–30 + Tracks G/C/R)
+  `docs/PHASE16.md`, **`docs/GOLDEN_PATH.md`** (Quality-10; Phases 25–30 + Tracks G/C/R);
+  Phase 27 security: [PHASE27.md](../../docs/PHASE27.md), ADR-0022/0023
 - Contracts: `docs/contracts/wave1.contract.toml`, `wave12_manifest.contract.toml`,
   `phase19_path_mcp.contract.toml` (path-first MCP + LSP completion/rename),
   `phase21_roi.contract.toml` (MCP path-first remainder + match variants),

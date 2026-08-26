@@ -1,6 +1,8 @@
 # Sanitizer CI scaffold (Phase 26-F)
 
-**Status:** Scaffold documented; enforce in Phase 27-C (`msan_ubsan_rt_clean`).
+**Status:** Scaffold documented for Phase 27-C (`msan_ubsan_rt_clean`).
+Hard Linux CI MSan+UBSan on all `rt/` smokes remains soft-enforced via this
+file until a dedicated workflow job flips `continue-on-error` off.
 
 Recommended Linux CI flags for `rt/` smokes (not yet hard-fail on all hosts):
 

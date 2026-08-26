@@ -171,6 +171,13 @@ marker or isolate the side effect.
 product soft builtins and have no runtime. Calls are rejected until a future
 ADR ships a real implementation.
 
+### RYX2014 — dangerous external call
+
+Free-function calls named `system`, `exec` / `exec*`, `popen`, or `dlopen`
+(and close aliases) are rejected as process/dynamic-load escapes. See
+[ADR-0023](adr/0023-rir-sanitize.md). RIR `CallExt` with the same names is also
+rejected by sanitize before emit.
+
 ### RYX2020 — index assign unsupported
 
 Assignment to an index place (`a[i] = …`) is rejected. Field stores

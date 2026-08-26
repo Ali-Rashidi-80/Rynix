@@ -17,6 +17,8 @@ serde_json = "1"
 rynix-span = { path = "../crates/rynix-span" }
 rynix-diag = { path = "../crates/rynix-diag" }
 rynix-lexer = { path = "../crates/rynix-lexer" }
+rynix-ast = { path = "../crates/rynix-ast" }
+rynix-parser = { path = "../crates/rynix-parser" }
 
 [profile.release]
 debug = true
@@ -33,6 +35,13 @@ bench = false
 [[bin]]
 name = "lex_diagnostics"
 path = "fuzz_targets/lex_diagnostics.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_no_crash"
+path = "fuzz_targets/parse_no_crash.rs"
 test = false
 doc = false
 bench = false
