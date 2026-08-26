@@ -1,30 +1,69 @@
-# Golden Path — post Niche-10 / Phases 21–24
+# Golden Path — Quality 10 (post Niche-10 / Phases 21–24)
 
 **Status:** **Plan locked (docs)** — execute only with named gates + ADRs.  
-**Baseline:** `master` through Phase **24** (`Map[str,i64]` + `examples/12_…`); local tag **`v0.1.0`** (no push unless explicitly asked).  
-**Honesty parents:** [AGENTS.md](../AGENTS.md), [NICHE10.md](NICHE10.md), [VERDICT.md](VERDICT.md),
-[LEAD_AHEAD.md](LEAD_AHEAD.md), ADRs [0007](adr/0007-deferred-ui-frameworks.md)–[0017](adr/0017-map-str-i64-mono.md).
+**Sources absorbed (2026-08-26):** Desktop
+`Rynix_Analysis_Report.html` (score **8.7/10**) +
+`Rynix_Golden_Quality_Plan.html` (90-day A–E / 56 tasks) — **filtered through
+honesty**, not copied wholesale.  
+**Baseline:** `master` through Phase **24** (`Map[str,i64]` + `examples/12_…`);
+local tag **`v0.1.0`** (no push unless explicitly asked).  
+**Honesty parents:** [AGENTS.md](../AGENTS.md), [NICHE10.md](NICHE10.md),
+[VERDICT.md](VERDICT.md), [LEAD_AHEAD.md](LEAD_AHEAD.md),
+ADRs [0007](adr/0007-deferred-ui-frameworks.md)–[0017](adr/0017-map-str-i64-mono.md).
 
-**Rule (non-negotiable):** a wave is ✅ only when its **named in-tree gate** is green
-and SPEC/docs match behavior. Prefer fixing the compiler over loosening tests.
-Never mark ROADMAP ✅ without evidence. Never invent End-style domain theater.
+**Rule (non-negotiable):** a wave is ✅ only when its **named in-tree gate** is
+green and SPEC/docs match behavior. Prefer fixing the compiler over loosening
+tests. Never mark ROADMAP ✅ without evidence. Never invent End-style domain
+theater.
 
 ---
 
-## 0. North star (what “done enough” means)
+## 0. North star — what “10/10 quality & maturity” means
 
-1. **Niche-10 stays certified** — no Absolute-10 vs Go/nginx without a *new* ADR.
-2. **Agent-first surface stays honest** — MCP path-first + LSP depth; no in-lang
-   `feature`/`skill` keywords ([ADR-0009](adr/0009-agent-contracts-toolchain.md)).
-3. **Collections grow by mono, not theater** — additive `Vec`/`Map` monomorphs;
-   refuse parametric `Vec[T]` until an Absolute/parametric ADR.
-4. **Product demos are callable `.ryx` + RT gates** — not brochure stubs.
-5. **Release is explicit** — local tag ≠ remote push ≠ GitHub Release.
+**Quality-10** here is **engineering maturity**, not Absolute-10 vs Go/nginx
+and not “parametric generics shipped or fail.”
 
-### Done-enough for a “v0.1 public” (optional track R)
+| Must hold | Meaning |
+|-----------|---------|
+| Niche-10 stays certified | No Absolute-10 marketing without a *new* ADR |
+| Agent surface stays honest | MCP path-first + LSP depth; no in-lang `feature`/`skill` |
+| Collections grow by mono **until** a parametric ADR is **Accepted** | `Map[str,str]` etc. additive; refuse `Vec[T]` theater |
+| Product demos are callable `.ryx` + RT gates | Not brochure stubs |
+| Release is explicit | Local tag ≠ remote push ≠ GitHub Release |
+| Max maintainability | Hot files split (target ≤ ~900 LOC/file after decompose) |
+| Security posture | Build subprocess risk documented + optional sandbox + IR sanitize gates |
+| Zero TODO/FIXME | Preserve; deferred work → ADR only |
 
-Only after user says push: remote tag + Release binaries + CHANGELOG section cut
-from Unreleased. Not required to keep shipping Phases 25+.
+### Scoreboard (analysis report → Quality-10 targets)
+
+| Axis | Report | Target ≥ | Primary waves |
+|------|--------|----------|---------------|
+| Architecture | 9.4 | 9.5 | keep + ADR discipline |
+| Rust code quality | 8.6 | **9.5** | **26** lower/lsp split, unwrap budget |
+| C runtime quality | 8.2 | **9.0** | **27** MSan/UBSan + fuzz |
+| Test strategy | 9.2 | 9.5 | **27** fuzz expand |
+| Error handling | 8.8 | 9.2 | **26** unwrap audit |
+| **Security** | **7.6** | **≥9.0** | **27** sandbox + sanitize + threat model |
+| Performance | 9.0 | 9.2 | **29** optional; not a Quality-10 blocker |
+| Deployment / CI | 8.6 | 9.5 | **26** sanitize scaffold; **30** release |
+| AI tooling | 9.4 | 9.6 | **25** documentSymbol; **28** format/MCP |
+| Documentation | 9.4 | 9.6 | **28–29** user-facing Book skeleton |
+| Niche-10 axe | 9.0 | stay certified | no Niche-11 theater without gates |
+
+**Weighted Quality-10:** every axis ≥ **9.0**, Security ≥ **9.0**, unwrap
+budget gate green, decompose gates green, Niche-10 still certified.
+**Does not require:** 1 GiB/s lexer, GitHub stars, Coq fiber proof, or
+parametric `Vec[T]`.
+
+### Capacity honesty (from Quality Plan appendix)
+
+The HTML 90-day plan estimates **~744h**; ~20h/week × 13 ≈ **227h**. Gap is real.
+
+| Path | Hours/wk | Outcome | Default? |
+|------|----------|---------|----------|
+| **Q-Core (recommended)** | ~20 | Axes ≥9.0; Phases 25–29; Phase 30 user-triggered; parametric/generics **ADR track only** | **Yes** |
+| Q-Full | ~30 | Q-Core + perf bakeoffs (old Phase D) + optional formal-verify research | Opt-in |
+| Absolute track | after ADR | Parametric generics / traits / Niche-11 — **never default waves** | No |
 
 ---
 
@@ -34,7 +73,7 @@ from Unreleased. Not required to keep shipping Phases 25+.
 |------|---------|----------|
 | 0–15 | Core language → WASM Node path | ROADMAP |
 | 16–20 | Niche-10 path | [NICHE10.md](NICHE10.md) |
-| 21 | MCP path-first remainder, match variants, example 11, CHANGELOG | [PHASE21.md](PHASE21.md) |
+| 21 | MCP path-first remainder, match variants, example 11 | [PHASE21.md](PHASE21.md) |
 | 22 | Inline match+return CFG fix; MCP format/compile path-first | [PHASE22.md](PHASE22.md) |
 | 23 | LSP refs/symbols; `Enum::Variant`; `Vec[str]`; local `v0.1.0` | [PHASE23.md](PHASE23.md) |
 | 24 | `Map[str,i64]`; example 12 | [PHASE24.md](PHASE24.md) |
@@ -57,168 +96,332 @@ from Unreleased. Not required to keep shipping Phases 25+.
 | R10 | ROADMAP ✅ / SPEC widen without gates | AGENTS honesty |
 | R11 | Suite12 #1/#5/#6 without C oracle checksum | [0011](adr/0011-suite12-divergent-benches.md) |
 | R12 | Claim identical asm after Suite5 strength reduction | AGENTS / Suite5 Notes |
+| R13 | Parametric `Vec[T]` / `Map[K,V]` / traits as **default** waves | Needs **new Accepted ADR**; not ADR-0018 |
+| R14 | Niche-11 / “stars ≥1K” / playground CDN as Quality-10 gates | Marketing ≠ maturity |
+| R15 | Coq/Isabelle fiber proof as **required** Quality-10 | Optional research; B-5 HTML → Track R |
+| R16 | Steal ADR-0018 for “Generics design” | **0018 = `Map[str,str]` mono only** |
 
-Revisit of R1–R8 requires a **new ADR** + acceptance gates before any wave starts.
+Revisit of R1–R8 / R13 requires a **new ADR** + acceptance gates before any wave starts.
 
 ---
 
-## 3. Golden sequence (Phases 25 → 30)
+## 3. Analysis → Golden map (10 weaknesses)
 
-Execute **in order** unless a wave is marked ∥ (parallel). Skip only with an ADR
-amendment recorded in this file’s changelog section at bottom.
+From `Rynix_Analysis_Report.html` §29–30:
 
-### Phase 25 — Str-map complete + editor outline *(default next)*
+| # | Weakness | Golden disposition |
+|---|----------|--------------------|
+| 1 | Monomorphic collections | **25-A** `Map[str,str]`; more monos on demand; parametric → **Track G** (ADR) |
+| 2 | Textual LLVM only (ADR-0005) | Keep; mitigate with **27** sandbox + sanitize — do **not** replace with in-process LLVM |
+| 3 | No build subprocess sandbox | **27-A/B** `--sandbox=docker\|none` + IR sanitize |
+| 4 | `lower.rs` ~5k LOC | **26-A** split `lower/` (behavior-identical) |
+| 5 | `lsp_cmd.rs` ~1.6k LOC | **26-B** split `lsp/`; lsp-types migrate = **Track R** (dep ADR) |
+| 6 | unwrap/expect in src | **26-C** audit + budget gate |
+| 7 | Minimal std `.ryx` | Soft stays; real defs after generics ADR or thin facades in **28-C** |
+| 8 | C runtime / asm | **27-C** MSan/UBSan + fuzz; formal proof → Track R |
+| 9 | `repository = example.invalid` | **Done** — `Cargo.toml` → `github.com/Ali-Rashidi-80/Rynix` |
+| 10 | Single-dev cadence | **26-E** one-phase contract discipline; no 24-phases-in-4-days |
+
+HTML Quality Plan tasks **A-1…E-15** map into Phases **25–30** + Tracks below — **not** a second competing roadmap.
+
+---
+
+## 4. Golden sequence (Phases 25 → 30)
+
+Execute **in order** unless marked ∥. Skip only with an ADR amendment in §10.
+
+### Phase 25 — Str-map + editor outline + Quality lock *(default next)*
+
+Closes analysis weakness #1 (next mono) and AI-tooling depth; locks this plan.
 
 | Wave | Theme | Gate (named) | ADR |
 |------|--------|--------------|-----|
-| 0 | Lock this GOLDEN_PATH + ROADMAP pointer | file contains “Phase 25” | — |
-| A | `Map[str, str]` mono (`map_str_str_*`) | `map_str_str_roundtrip` | **0018** (new) |
+| 0 | Lock this GOLDEN_PATH + ROADMAP pointer | file contains “Quality-10” | — |
+| A | `Map[str, str]` mono (`map_str_str_*`) | `map_str_str_roundtrip` | **0018** |
 | B | `documentSymbol` LSP | `document_symbol_lists_fn` | — |
 | C | Example: HTTP + `Map[str,str]` headers-shaped demo | `example_map_str_str_product_checks` | — |
 | D | Contract `phase25_golden.contract.toml` + skill/AGENTS touch | `verify_phase25_golden_contract` | — |
 
-**Out:** payload enums, parametric maps, push/release.
+**Out:** payload enums, parametric maps, push/release, ADR-0018-as-generics.
 
 Plan doc when started: `docs/PHASE25.md`.
 
 ---
 
-### Phase 26 — Agent polish + honesty refresh *(∥-friendly after 25-A)*
+### Phase 26 — Maturity decompose *(HTML A-3…A-8; weakness 4–6, 9–10)*
+
+**No language surface widen** except docs/process.
 
 | Wave | Theme | Gate | ADR |
 |------|--------|------|-----|
-| A | `textDocument/formatting` → fmt; prepareRename/highlight thin | `lsp_formatting_applies_fmt` | — |
+| A | Split `rynix-rir` `lower.rs` → `lower/` (≤~900 LOC/file) | `lower_decomp_invariants` (existing rir tests + snapshots identical) | **0019** (decomp) |
+| B | Split `lsp_cmd.rs` → `lsp/` | `lsp_decomp_parity` (JSON-RPC corpus identical) | **0020** |
+| C | unwrap/expect budget in `crates/*/src` (non-test) ≤ agreed N | `unwrap_budget_gate` | — |
+| D | Repository URL (**done**) + CODEOWNERS/issue templates | `repo_metadata_gate` (URL real; templates Track C) | — |
+| E | Phase-contract schema + CI template (one phase / PR discipline) | `contract_schema_gate` | **0021** |
+| F | Sanitizer CI scaffold (continue-on-error ok) + clippy discipline | `sanitizer_scaffold_documented` | — |
+
+**Out:** behavior changes, lsp-types dep (→ Track R), remote push.
+
+---
+
+### Phase 27 — Security posture *(HTML A-2, B-1…B-4, B-7; weakness 2–3, 8)*
+
+Raises Security axis from **7.6 → ≥9.0**.
+
+| Wave | Theme | Gate | ADR |
+|------|--------|------|-----|
+| A | `--sandbox=docker\|none` for clang link (opt-in; default `none` until docs) | `sandbox_docker_smoke` *or* documented skip matrix | **0022** |
+| B | RIR/LLVM sanitize: reject `system`/`exec*`/`popen`/`dlopen` escapes | `sanitize_rejects_exec` | **0023** |
+| C | MSan+UBSan enforce on `rt/` smokes (Linux CI) | `msan_ubsan_rt_clean` | — |
+| D | Fuzz targets: parse + sema + rir-interp (seed corpus) | `fuzz_new_targets_seeded` | — |
+| E | Threat model doc (STRIDE) under `docs/SECURITY_THREAT_MODEL.md` | file + link from SECURITY.md | — |
+| F ∥ | Windows Job Object sandbox *or* documented deferral | `windows_sandbox_or_deferral` | 0022 amend |
+| G ∥ | `emit-ll` / no-clang-link fast path smoke (analysis #2 DX) | `emit_ll_no_link_smoke` | — |
+
+**Out:** seccomp as hard Quality-10 requirement (nice-to-have after A); Coq fiber proof; claim “untrusted .ryx is safe.”
+
+---
+
+### Phase 28 — Agent polish + language depth (ADR-gated) *(HTML E-8/E-9 + old 26/27)*
+
+| Wave | Theme | Gate | ADR |
+|------|--------|------|-----|
+| A | `textDocument/formatting` → fmt; thin highlight/prepareRename | `lsp_formatting_applies_fmt` | — |
 | B | MCP parity audit (`slice` tool if missing) + path-first docs | `mcp_slice_or_documented_absence` | — |
-| C | `std::crypto` facade for HMAC/AES (soft remains real) | `std_crypto_hmac_aes_import_ok` | SPEC touch |
-| D | Suite5 multi-lang refresh artifact post-P24 | `suite5_post_p24_artifact_links` | — |
-| E | VERDICT / END_PEER_GAP peer date refresh (ff-only End) | `verdict_peer_date_current` | — |
+| C | `std::crypto` facade HMAC/AES (soft remains real) | `std_crypto_hmac_aes_import_ok` | SPEC |
+| D | ADR for payload enums **or** written deferral | ADR-0024 status | **0024** |
+| E | If Accepted: nullary-payload `Some(T)` + match bind | `enum_payload_match_roundtrip` | 0024 |
+| F | Struct `bool` field (and/or nested i64/str only) | `struct_bool_field_roundtrip` | SPEC |
+| G | VERDICT / END_PEER_GAP peer date refresh (ff-only End) | `verdict_peer_date_current` | — |
+| H ∥ | Optional: multiline strings (one syntax) | `multiline_str_roundtrip` | SPEC |
 
-**Out:** MCP HTTP/SSE (→ 28), Absolute-10.
+**Hard stop:** if 0024 stays Deferred, skip E; do not stub `Some`.
 
+**Out:** MCP HTTP/SSE, Absolute-10, parametric collections; codeAction/inlayHints (post-28); MCP≥20 theater without real tools.
 ---
 
-### Phase 27 — Language depth (ADR-gated)
-
-| Wave | Theme | Gate | ADR |
-|------|--------|------|-----|
-| 0 | ADR for payload enums **or** reject with written deferral update | ADR-0019 status | **0019** |
-| A | If Accepted: nullary-payload `Some(T)` construct + match bind | `enum_payload_match_roundtrip` | 0019 |
-| B | Struct fields: `bool` (and/or nested struct i64/str only) | `struct_bool_field_roundtrip` | SPEC |
-| C | Optional: multiline strings (one syntax) | `multiline_str_roundtrip` | SPEC + maybe ADR-0001 note |
-
-**Hard stop:** if 0019 stays Deferred, skip A; do not stub `Some`.
-
----
-
-### Phase 28 — Runtime / product depth *(no framework claim)*
+### Phase 29 — Runtime / WASM / docs ceiling *(HTML D-lite + E-1 skeleton + old 28/29)*
 
 | Wave | Theme | Gate | ADR |
 |------|--------|------|-----|
 | A | uring recv/send: reduce poll fallback (Linux CI) | `uring_recv_send_completion_smoke` | — |
-| B | OpenSSL-on CI path for TLS product (or documented stub matrix) | `tls_ci_matrix_documented` | — |
-| C | Bounded HTTP auth-header or method extension (one feature) | `http_auth_or_method_gate` | SPEC soft table |
-| D | Escape: one measured interprocedural improvement **or** doc limit | `escape_interproc_or_limit_doc` | — |
+| B | OpenSSL-on CI path for TLS **or** stub matrix doc | `tls_ci_matrix_documented` | — |
+| C | Bounded HTTP auth-header or method (one feature) | `http_auth_or_method_gate` | SPEC soft |
+| D | Escape: one measured interprocedural win **or** limit doc | `escape_interproc_or_limit_doc` | — |
+| E | WASM host-import beyond `print_i64` (e.g. print str) | `emit_wasm_host_print_str` | — |
+| F | Package UX + attest honesty pass (not Sigstore) | `package_ux_diag_gate` + `attest_docs_match_impl` | 0010 |
+| G | Rynix Book **skeleton** (3+ chapters, links to SPEC/examples) + tutorial outline (E-6) | `book_skeleton_exists` | — |
+| H ∥ | Suite5 refresh artifact post-collections | `suite5_post_p24_artifact_links` | — |
+| I ∥ | Track C kickoff: RFC template **or** CONTRIBUTING sections (E-3/E-4) | `rfc_or_contributing_sections` | — |
 
-**Out:** nginx RPS, general TLS terminator, HTTP/2.
-
+**Out:** nginx RPS bakeoff as Quality gate, 1 GiB/s lexer requirement, full WASI, CDN.
 ---
 
-### Phase 29 — WASM / packages (honest ceiling)
+### Phase 30 — Optional public v0.1 *(user-triggered only; HTML A-1)*
 
 | Wave | Theme | Gate | ADR |
 |------|--------|------|-----|
-| A | Additional host-import(s) beyond `print_i64` (e.g. `print` str) | `emit_wasm_host_print_str` | — |
-| B | Package UX polish (`new`/`deps` docs + one failing-path diag) | `package_ux_diag_gate` | — |
-| C | Attest/local index honesty pass (still not Sigstore) | `attest_docs_match_impl` | 0010 |
-
-**Out:** full WASI, CDN registry, Rekor — unless new ADR supersedes R5/R6.
-
----
-
-### Phase 30 — Optional public v0.1 *(user-triggered only)*
-
-| Wave | Theme | Gate | ADR |
-|------|--------|------|-----|
-| A | CHANGELOG cut: Unreleased → `[0.1.0]` full notes | file review | — |
+| A | CHANGELOG cut: Unreleased → `[0.1.0]` | file review | — |
 | B | `git push` tag `v0.1.0` (explicit ask) | remote tag exists | — |
 | C | GitHub Release via `release.yml` | release assets + SHA256SUMS | — |
 | D | Optional GPG | documented | — |
-| E | PRODUCTION_READINESS “public v0.1” row | honesty table | — |
+| E | PRODUCTION_READINESS “public v0.1” + Quality-10 scoreboard row | honesty table | — |
 
 **Default:** do **not** auto-start Phase 30.
 
 ---
 
-## 4. Full backlog map (inventory → phase)
+## 5. Side tracks (not default phases)
 
-Every post-24 item from the continuation catalog, assigned.
+### Track G — Parametric generics *(HTML Phase C; R13)*
 
-### A — Ship/ops → Phase 30 (mostly)
-A1 push tag · A2 GitHub Release · A3 GPG · A4 CHANGELOG cut · A5 peer refresh → **26-E** · A6 PR hygiene → **25-0 / 26** · A7 Marketplace → **after 30**, optional side-track.
+Only after a **dedicated Accepted ADR** (number **after** 0024; **not** 0018):
 
-### B — Language → Phase 27 (+ bits in 26)
-B1 payload match → **27-A** · B2 `&T` → **post-30 / new ADR** (not default 27) · B3 struct fields → **27-B** · B4 multiline → **27-C** · B5 unicode idents → **post-30** · B6 crypto facade → **26-C** · B7 agent/signal/tensor implement → **Refuse** unless ADR · B8 eval CallExt → **post-30** (honesty-first).
+- Design: monomorphization, TypeKind, parser, RT, retire legacy monos
+- Gates: `vec_t_roundtrip`, `map_kv_roundtrip`, …  
+- Until then: keep shipping **monos** (`Vec[bool]`, owned string keys, …) under Phase 25+ additive waves.
 
-### C — Collections → Phase 25 (+ later monos)
-C1 `Map[str,str]` → **25-A** · C2 `Vec[bool]` → **post-25 additive** · C3 other monos → **on demand after 25** · C4 parametric → **Refuse** · C5 owned string keys → **after C1**, optional 25.1.
+### Track R — Research / optional hardening *(HTML B-5, B-6, D-1…D-11, E-10)*
 
-### D — LSP → Phase 25–26
-D1 documentSymbol → **25-B** · D2 highlight/prepareRename → **26-A** · D3 signature/semantic → **post-26** · D4 formatting → **26-A** · D5 CodeLens depth → **low priority** · D6 Neovim recipes → **docs-only anytime**.
+| HTML | Item | Note |
+|------|------|------|
+| B-1 | seccomp-bpf on clang | After docker sandbox; Linux-first |
+| B-5 | Formal fiber_swap proof | Optional; not Quality-10 blocker |
+| B-6 | lsp-types / tower-lsp | New dep → ADR-0004 justification |
+| D-1 | PGO pipeline | Q-Full only |
+| D-2 | Inline hints | Q-Full |
+| D-3 | Region v2 | Q-Full |
+| D-4 | SIMD 1 GiB/s lexer | Q-Full; **not** Quality-10 gate |
+| D-5 | Compile-time bench | Q-Full (analysis strategic #7) |
+| D-6 | Binary size budget | Q-Full |
+| D-7 | HTTP RPS bakeoff | Refuse Absolute marketing; research only |
+| D-8 | AST pool / bumpalo tuning | Q-Full |
+| D-9 | LLVM stream / emit daemon | Optional DX; see also **27-G** `--emit-ll` path |
+| D-10 | LSP incremental | post-28 additive |
+| D-11 | Perf regression CI | Q-Full |
+| E-2 | Playground | Marketing; not maturity gate |
+| E-10 | External security audit | After **27**; optional paid review |
+| E-7 | API docgen tool | After Track G / real std defs |
+| — | `mcp_cmd.rs` split | Mirror **26-B** pattern; additive anytime |
 
-### E — MCP → Phase 26 (+ 28 later)
-E1 path-first audit → **26-B** · E2 HTTP/SSE MCP → **post-28** · E3 verify contracts → **25-D / each phase** · E4 refuse End keywords → **standing** · E5 slice MCP → **26-B** · E6 scope UX → **26 docs**.
+### Track C — Community / process *(HTML E-3…E-6, E-14…E-15; weakness #10)*
 
-### F — HTTP/runtime → Phase 28
-F1 deeper HTTP → **28-C** · F2 TLS terminator → **Refuse / post-30 ADR** · F3 uring poll → **28-A** · F4 OpenSSL CI → **28-B** · F5 HTTP/2 → **Refuse** · F6 WS app helpers → **post-28** · F7 interprocedural escape → **28-D**.
+Not language surface. Schedule **after Phase 26-E** or ∥ with **29**; never blocks Quality-10 axes.
 
-### G — WASM/packages → Phase 29
-G1 host-imports → **29-A** · G2 WASI → **Refuse** · G3 CDN → **Refuse** · G4 Sigstore → **Refuse** · G5 sparse download → **when volume hurts** · G6 wasm UX → **29-B**.
+| HTML | Item | Disposition |
+|------|------|-------------|
+| E-3 | RFC process (`rfcs/` + template) | Track C; before Track G language widen |
+| E-4 | CONTRIBUTING expand + good-first-issue labels | Track C; ties to **26-D** templates |
+| E-5 | ADR index / backfill hygiene | Standing — each phase; ≥25 ADRs is aspirational not gate |
+| E-6 | 5-part tutorial (runnable examples) | **29-G** companion under Book skeleton |
+| E-14 | Onboard external contributors | Process only; **not** a cargo-test gate |
+| E-15 | 90-day retrospective + v0.3 notes | After Q-Core close or Phase **30-E** |
 
-### H — Benchmarks → Phase 26 + standing
-H1 matrix vs End → **26-D notes** · H2 Suite5 refresh → **26-D** · H3 lexer SIMD → **post-30 research** · H4 SoA AST → **research** · H5 Suite12 divergent → **Refuse until oracle** · H6 SR disclosure → **standing** · H7 Absolute-10 → **Refuse**.
+### Track v0.2 — only after Quality-10 scoreboard green + user ask
 
-### I — Refuse → §2 table
-All I1–I10 map to R1–R12.
+Do **not** schedule “v0.2.0 with generics” as Phase 30. v0.2 = Track G Accepted + gates + explicit release ask.
 
 ---
 
-## 5. Definition of Done (per phase)
+## 6. Full backlog map (inventory → phase)
+
+### HTML A–E complete checklist (56/56)
+
+| ID | Disposition |
+|----|-------------|
+| A-1 | **30** (explicit ask) |
+| A-2 | **27-A** |
+| A-3 | **26-A** |
+| A-4 | **26-B** |
+| A-5 | **26-C** |
+| A-6 | **26-D** |
+| A-7 | **26-E** |
+| A-8 | **26-F** → enforce **27-C** |
+| B-1 | Track R |
+| B-2 | **27-B** |
+| B-3 | **27-C** |
+| B-4 | **27-D** |
+| B-5 | Track R |
+| B-6 | Track R |
+| B-7 | **27-E** |
+| B-8 | **26-F** optional |
+| B-9 | **27-F** |
+| B-10 | post-27 additive |
+| C-1 | **Track G** ADR design (not 0018) |
+| C-2 | **Track G** TypeKind refactor |
+| C-3 | **Track G** parser generics |
+| C-4 | **Track G** monomorphization |
+| C-5 | **Track G** runtime generic |
+| C-6 | **25-A** (mono; ADR-0018) — **exception** |
+| C-7 | **Track G** HM-lite inference |
+| C-8 | **Track G** full patterns; partial payloads via **28-D/E** |
+| C-9 | **Track G** trait system v0 |
+| C-10 | **Track G** retire legacy monos |
+| C-11 | **Track G** std real `.ryx` defs (thin facades may land in **28-C**) |
+| C-12 | **Track G** diff / compatibility tests |
+| D-1…D-11 | Track R / Q-Full (table §5) |
+| E-1 | **29-G** Book skeleton |
+| E-2 | Track R |
+| E-3…E-6, E-14…E-15 | **Track C** |
+| E-7 | Track R (after std richness) |
+| E-8 MCP 20+ | **28-B** parity first; generics tools → Track G |
+| E-9 LSP 10+ | **25-B** documentSymbol; **28-A** format; codeAction/inlay → post-28 |
+| E-10 | Track R |
+| E-11 Niche-11 | **R14** refuse until ADR |
+| E-12 | End **29** + **30-E** scoreboard |
+| E-13 v0.2.0 | Track v0.2 + user ask |
+
+### Analysis report — 8 strategic suggestions
+
+| # | Suggestion | Disposition |
+|---|------------|-------------|
+| 1 | Stabilize v0.1 before v0.2 | **30** + Phase **26** cadence |
+| 2 | Sandbox build subprocess | **27-A/B** |
+| 3 | Refactor giant files | **26-A/B** (+ mcp split Track R) |
+| 4 | Generics Phase 25+ | Mono **25**; parametric **Track G** |
+| 5 | Expand fuzzing | **27-D** |
+| 6 | User-facing docs | **29-G** + Track C E-6 |
+| 7 | Perf profiling / compile bench | Track R D-5; not Quality-10 blocker |
+| 8 | Community building | **Track C** |
+
+### Analysis weakness #2 extra: `--emit-ll` / no-link fast path
+
+| Wave | Add to Phase 27 | Gate |
+|------|-----------------|------|
+| G ∥ | Document + gate existing `emit-ll` / build `--emit-only` style path (no new LLVM backend) | `emit_ll_no_link_smoke` |
+
+Do **not** invent an in-memory clang daemon as a Quality-10 requirement (D-9 stays Track R).
+
+### Prior language / runtime map (unchanged intent)
+
+- Payload match → **28-D/E** · struct fields → **28-F** · multiline strings → **28-H** (optional SPEC)  
+- `&T` / unicode idents / eval CallExt → post-30 ADR  
+- uring / TLS CI / HTTP soft → **29-A…C** · WASM host-import → **29-E** · packages/attest → **29-F**  
+- Suite5 refresh → **29-H** · peer VERDICT → **28-G** · `Vec[bool]` mono → post-25 additive
+---
+
+## 7. Definition of Done (per phase)
 
 1. `docs/PHASEnn.md` written before coding waves (except 25-0).
-2. New language/RT surface: SPEC (+ ADR if irreversible).
-3. Named `cargo test` gate(s) in `rynixc` (or crate) — green on Windows at least.
-4. `docs/contracts/phasenn_*.contract.toml` + `verify_phasenn_*` test.
+2. New language/RT/security surface: SPEC and/or ADR if irreversible.
+3. Named `cargo test` (or script) gate(s) — green on Windows at least (Linux where noted).
+4. `docs/contracts/phasenn_*.contract.toml` + `verify_phasenn_*` test when phase adds surface.
 5. AGENTS.md / skill / CHANGELOG / ROADMAP updated in the same commit band.
 6. No push/tag/release unless Phase 30 + explicit user ask.
+7. Quality-10 scoreboard updated in PHASE doc when a phase claims an axis move.
 
 ---
 
-## 6. Operating cadence
+## 8. Operating cadence
 
 | Cadence | Action |
 |---------|--------|
 | Start phase | Write `PHASE*.md` → Wave 0 docs lock → implement A… |
 | Each wave | One atomic commit preferred; gate must pass before ✅ |
 | End phase | Contract verify green; ROADMAP table ✅ |
+| Weekly | `cargo test --workspace`; unwrap budget script if present; no new TODO/FIXME |
 | Peer End | `fetch` / `pull --ff-only` only; never edit friend tree |
 | Theater check | If a demo needs a stub domain row → stop; write ADR refuse |
+| Red flags | TODO/FIXME appears; unsafe src blocks > budget; Suite5 checksum fail; milestone slip >2 weeks |
 
 ---
 
-## 7. Immediate next action (execute now)
+## 9. Immediate next action (execute now)
 
-**Start Phase 25** as written in §3:
+**Start Phase 25** as written in §4:
 
-1. Create `docs/PHASE25.md` + ADR-0018 draft for `Map[str,str]`.
+1. Create `docs/PHASE25.md` + ADR-0018 for **`Map[str,str]` mono** (not generics).
 2. Implement Wave A → B → C → D.
 3. Commit locally; **do not push**.
 
-When Phase 25 closes, open Phase 26 without re-litigating the refuse set.
+When Phase 25 closes, open **Phase 26 (maturity decompose)** before more language theater.
+Do **not** start Track G / Phase 30 without explicit user direction + ADR.
 
 ---
 
-## 8. Plan changelog
+## 10. Plan changelog
 
 | Date | Change |
 |------|--------|
-| 2026-08-25 | Initial golden path locked from post-P24 full inventory (~45 items → Phases 25–30 + refuse). |
+| 2026-08-25 | Initial golden path locked from post-P24 inventory (~45 items → Phases 25–30 + refuse). |
+| 2026-08-26 | **Quality-10 absorb:** Analysis Report (8.7, 10 weaknesses) + Golden Quality Plan (A–E) merged; Security/decompose/fuzz elevated; parametric generics → Track G; ADR-0018 reserved for `Map[str,str]`; capacity Q-Core default; refuse R13–R16. |
+| 2026-08-26 | **Final coverage audit:** all 56 HTML tasks A-1…E-15 named; Track C (RFC/CONTRIBUTING/tutorial/retro); D-1…D-11 explicit in Track R; analysis strategic 1–8; `emit_ll_no_link` **27-G**; multiline **28-H**; gaps E-3…E-7/E-14/E-15 closed. |
+
+---
+
+## 11. Final coverage audit (do-not-ship-without)
+
+**Verdict:** nothing material from the two Desktop reports is *unmapped*.
+Items intentionally **not** default Quality-10 gates remain in Track G / R / C / refuse.
+
+| Source | Count | Status |
+|--------|------:|--------|
+| Analysis 10 weaknesses | 10 | All in §3 |
+| Analysis 8 strategic | 8 | All in §6 |
+| HTML tasks A-1…E-15 | 56 | All in §6 checklist |
+| Scoreboard 11 axes | 11 | All in §0 |
+| Capacity honesty | 2 paths | §0 Q-Core default |
+| Cursor todos | Phase 25–27 + 28–30 rollup | Match §9 |
+
+**Ready to execute Phase 25** when user says start.

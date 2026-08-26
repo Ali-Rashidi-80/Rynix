@@ -42,7 +42,7 @@ ad-hoc scraping.
 - Phase 22: inline match+return CFG fix + MCP format/compile path-first ([docs/PHASE22.md](docs/PHASE22.md))
 - Phase 23: LSP refs/symbols + `Enum::Variant` + `Vec[str]` ([docs/PHASE23.md](docs/PHASE23.md))
 - Phase 24: `Map[str, i64]` + product example ([docs/PHASE24.md](docs/PHASE24.md))
-- **Golden path (25–30):** [docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md)
+- **Golden path (Quality-10, Phases 25–30):** [docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md)
 - Install: one-path clang Win/Linux — [INSTALL.md](INSTALL.md)
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 

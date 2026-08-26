@@ -48,3 +48,7 @@ benchmarks/suite5/_patch_*.py
 !.env.example
 *.pem
 credentials.json
+
+# Local scratch / agent plans (tracked Skills under .agents/ stay committed)
+.tmp/
+.cursor/plans/

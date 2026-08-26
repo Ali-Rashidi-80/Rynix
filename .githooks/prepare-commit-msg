@@ -1,0 +1,24 @@
+#!/bin/sh
+# Strip Cursor Agent co-author trailers so commits stay single-author.
+# Enable once per clone: git config core.hooksPath .githooks
+MSG_FILE="$1"
+[ -n "$MSG_FILE" ] || exit 0
+[ -f "$MSG_FILE" ] || exit 0
+
+# Portable: python is available on Rynix contributor machines (Suite5).
+python - "$MSG_FILE" <<'PY'
+import re, sys
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    text = f.read()
+cleaned = re.sub(
+    r"(?:\r?\n)*Co-authored-by:\s*Cursor\s*<cursoragent@cursor\.com>\s*",
+    "",
+    text,
+    flags=re.IGNORECASE,
+)
+cleaned = cleaned.rstrip() + ("\n" if cleaned.strip() else "")
+if cleaned != text:
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(cleaned)
+PY

@@ -276,9 +276,10 @@ Plan: **[PHASE24.md](PHASE24.md)**.
 
 ## Golden path (post-24)
 
-Canonical next plan: **[GOLDEN_PATH.md](GOLDEN_PATH.md)** — Phases **25–30**,
-full backlog map, refuse set, DoD. Default execute: Phase 25 (`Map[str,str]` +
-`documentSymbol`).
+Canonical next plan: **[GOLDEN_PATH.md](GOLDEN_PATH.md)** — **Quality-10**
+(8.7→≥9.0 axes; Security ≥9.0), Phases **25–30**, Tracks G/R, refuse set,
+DoD. Default execute: Phase 25 (`Map[str,str]` + `documentSymbol`); then
+Phase 26 mature decompose (lower/lsp/unwrap) before generics theater.
 
 ## Follow-on (post-13 / parallel)
 

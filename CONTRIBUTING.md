@@ -12,6 +12,8 @@
    for honest peer positioning.
 6. Dual license: MIT OR Apache-2.0 ([LICENSE.md](LICENSE.md)). Contributions are dual-licensed
    the same way unless stated otherwise.
+7. Do **not** add `Co-authored-by: Cursor <cursoragent@cursor.com>` trailers. Optional
+   local hook: `git config core.hooksPath .githooks` (strips that trailer on commit).
 
 ## Useful commands
 

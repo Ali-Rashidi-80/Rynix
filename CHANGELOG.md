@@ -36,6 +36,9 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ### Changed
 
+- `docs/GOLDEN_PATH.md`: Quality-10 absorb from analysis (8.7) + 90-day quality
+  plan — Security/decompose/fuzz elevated; parametric generics → Track G;
+  ADR-0018 reserved for `Map[str,str]` mono.
 - README / README.fa.md: Pics2PPT-style centered header (logo, language switcher,
   badges, TOC details).
 - `PRODUCTION_READINESS.md`: phases 0–22+ honesty; MCP path-first list; CodeLens;

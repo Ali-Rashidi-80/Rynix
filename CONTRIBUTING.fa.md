@@ -10,6 +10,7 @@
 4. تغییر رانتایم: `rt/tests` / `size_echo_gates` را اجرا کنید.
 5. راهنمای عامل: [AGENTS.md](AGENTS.md) · [AGENTS.fa.md](AGENTS.fa.md).
 6. لایسنس دوگانه MIT OR Apache-2.0.
+7. trailerهای `Co-authored-by: Cursor <…>` اضافه نکنید؛ اختیاری: `git config core.hooksPath .githooks`.
 
 ## مستندات دوزبانه
 

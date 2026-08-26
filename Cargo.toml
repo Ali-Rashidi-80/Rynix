@@ -20,8 +20,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT OR Apache-2.0"
-# Replace with the real GitHub URL after `git remote add origin …`.
-repository = "https://example.invalid/rynix"
+repository = "https://github.com/Ali-Rashidi-80/Rynix"
 
 [workspace.dependencies]
 # Internal crates
