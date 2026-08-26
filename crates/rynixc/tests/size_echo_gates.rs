@@ -1653,6 +1653,15 @@ fn gpg_detach_sign_smoke() {
         eprintln!("skip: gpg_sign_smoke returned 77");
         return;
     }
+    // Windows/MinGW gpg path quirks that the PS smoke could not recover from.
+    if cfg!(windows)
+        && (combined.contains("keyblock resource")
+            || combined.contains("no such file or directory")
+            || combined.contains("skip: gpg"))
+    {
+        eprintln!("skip: gpg smoke unusable on this Windows gpg toolchain");
+        return;
+    }
     assert!(
         output.status.success(),
         "gpg_sign_smoke failed: stdout={stdout} stderr={stderr}"
