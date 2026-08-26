@@ -1,0 +1,4 @@
+def f(a: i64) -> i64
+  return a + 1
+end
+

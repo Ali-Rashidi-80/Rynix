@@ -323,13 +323,15 @@ fn link_clang(
         .arg("-finline-functions")
         .arg("-ffunction-sections")
         .arg("-fdata-sections")
-        .arg("-fuse-ld=lld")
-        .arg("-Wl,--gc-sections")
-        .arg("-s")
         // Textual .ll often lacks a matching module triple; rem-heavy loops may
         // decline forced vectorize — don't fail the build on those notes.
         .arg("-Wno-override-module")
         .arg("-Wno-pass-failed");
+    // GNU ld / MinGW lld accept `--gc-sections`. MSVC `lld-link` only warns and
+    // may mishandle `-fuse-ld=lld` + GNU-style `-Wl` — keep those for MinGW/Unix.
+    if clang_is_mingw_like(clang) || !cfg!(windows) {
+        cmd.arg("-fuse-ld=lld").arg("-Wl,--gc-sections").arg("-s");
+    }
     if std::env::var("CI").is_err() && std::env::var("GITHUB_ACTIONS").is_err() {
         cmd.arg("-march=native");
     }
@@ -574,6 +576,20 @@ fn find_clang() -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// True when `clang` is MinGW/UCRT-style (GNU ld / lld), not MSVC `lld-link`.
+fn clang_is_mingw_like(clang: &Path) -> bool {
+    let s = clang.to_string_lossy().to_ascii_lowercase();
+    if s.contains("mingw") || s.contains("ucrt") {
+        return true;
+    }
+    // Probe `--version` for a target triple hint when the path is just `clang`.
+    if let Ok(output) = Command::new(clang).arg("--version").output() {
+        let text = String::from_utf8_lossy(&output.stdout).to_ascii_lowercase();
+        return text.contains("mingw") || text.contains("w64") || text.contains("ucrt");
+    }
+    false
 }
 
 /// Prefer WinLibs / MSVCRT `gcc` over UCRT mingw (fewer DLL deps → faster spawn).

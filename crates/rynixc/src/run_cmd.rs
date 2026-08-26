@@ -6,10 +6,17 @@ use crate::build_cmd;
 use crate::cli::{BuildOptions, RunOptions};
 
 pub fn run(options: &RunOptions) -> ExitCode {
-    let out = options
-        .output
-        .clone()
-        .unwrap_or_else(|| std::env::temp_dir().join("rynix_run_bin"));
+    // Unique default path so parallel `rynixc run` tests do not clobber each other.
+    let out = options.output.clone().unwrap_or_else(|| {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let mut p = std::env::temp_dir().join(format!("rynix_run_bin_{}_{n}", std::process::id()));
+        if cfg!(windows) {
+            p.set_extension("exe");
+        }
+        p
+    });
 
     let build = BuildOptions {
         path: options.path.clone(),

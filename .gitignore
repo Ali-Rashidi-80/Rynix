@@ -15,11 +15,15 @@ venv/
 # insta pending snapshots (accepted snapshots ARE committed)
 *.pending-snap
 
-# Fuzzing artifacts (the fuzz crate itself is committed)
+# Fuzzing artifacts (the fuzz crate itself + seed_*.ryx corpora are committed)
 /fuzz/target
-/fuzz/corpus
 /fuzz/artifacts
 /fuzz/coverage
+/fuzz/corpus/**
+!/fuzz/corpus/**/
+!/fuzz/corpus/**/seed_*.ryx
+!/fuzz/corpus/**/seed_*.rs
+!/fuzz/corpus/**/seed_*.txt
 
 # OS / editor junk
 .DS_Store

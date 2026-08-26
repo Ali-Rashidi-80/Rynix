@@ -1223,7 +1223,13 @@ fn new_scaffolds_package() {
 
 #[test]
 fn package_ux_new_deps_attest() {
-    let parent = std::env::temp_dir().join("rynix_pkg_ux_parent");
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    let parent = std::env::temp_dir().join(format!(
+        "rynix_pkg_ux_{}_{n}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&parent);
     std::fs::create_dir_all(&parent).unwrap();
     let name = "ux_attest_app";
@@ -1278,6 +1284,7 @@ fn package_ux_new_deps_attest() {
         serde_json::from_str(&std::fs::read_to_string(&attest_path).unwrap())
             .expect("attest json");
     assert_eq!(body["schema"], "rynix.attest.v1");
+    let _ = std::fs::remove_dir_all(&parent);
 }
 
 /// Phase 12 Wave 1b: negative memory corpus asserts diagnostic *codes* only.
