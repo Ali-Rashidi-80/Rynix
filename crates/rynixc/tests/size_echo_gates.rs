@@ -1195,7 +1195,8 @@ fn tls_echo_smoke_c() {
         cmd.arg("-fuse-ld=lld")
             .arg("-lws2_32")
             .arg("-lsecur32")
-            .arg("-lcrypt32");
+            .arg("-lcrypt32")
+            .arg("-lbcrypt");
     } else {
         // Opt-in OpenSSL backend: `clang -DRYNIX_RT_OPENSSL … -lssl -lcrypto`
         // Default Linux builds use the stub (-2) so CI needs no libssl.
@@ -1576,7 +1577,17 @@ fn gpg_detach_sign_smoke() {
     let has_gpg = Command::new("gpg")
         .arg("--version")
         .output()
-        .map(|o| o.status.success())
+        .map(|o| {
+            let text = format!(
+                "{}{}",
+                String::from_utf8_lossy(&o.stdout),
+                String::from_utf8_lossy(&o.stderr)
+            )
+            .to_ascii_lowercase();
+            o.status.success()
+                && !text.contains("windows subsystem for linux")
+                && !text.contains("no installed distributions")
+        })
         .unwrap_or(false);
     if !has_gpg {
         eprintln!("skip: gpg not on PATH");
@@ -1589,14 +1600,22 @@ fn gpg_detach_sign_smoke() {
     let bash_script = root.join("scripts/gpg_sign_smoke.sh");
     let ps_script = root.join("scripts/gpg_sign_smoke.ps1");
 
-    let output = if Command::new("bash").arg("--version").output().is_ok() && bash_script.is_file()
-    {
-        Command::new("bash")
-            .arg(&bash_script)
-            .current_dir(&root)
-            .output()
-            .expect("bash gpg smoke")
-    } else if cfg!(windows) && ps_script.is_file() {
+    // On Windows CI, `bash` is often the WSL stub (no distro) — prefer PowerShell.
+    let bash_ok = Command::new("bash")
+        .arg("--version")
+        .output()
+        .map(|o| {
+            o.status.success()
+                && !String::from_utf8_lossy(&o.stdout)
+                    .to_ascii_lowercase()
+                    .contains("windows subsystem for linux")
+                && !String::from_utf8_lossy(&o.stderr)
+                    .to_ascii_lowercase()
+                    .contains("windows subsystem for linux")
+        })
+        .unwrap_or(false);
+
+    let output = if cfg!(windows) && ps_script.is_file() {
         Command::new("powershell")
             .args([
                 "-NoProfile",
@@ -1608,10 +1627,26 @@ fn gpg_detach_sign_smoke() {
             .current_dir(&root)
             .output()
             .expect("powershell gpg smoke")
+    } else if bash_ok && bash_script.is_file() {
+        Command::new("bash")
+            .arg(&bash_script)
+            .current_dir(&root)
+            .output()
+            .expect("bash gpg smoke")
     } else {
         eprintln!("skip: no bash/powershell runner for gpg smoke");
         return;
     };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{stdout}{stderr}").to_ascii_lowercase();
+    if combined.contains("windows subsystem for linux")
+        || combined.contains("no installed distributions")
+    {
+        eprintln!("skip: WSL bash stub has no distro (gpg smoke)");
+        return;
+    }
 
     let code = output.status.code().unwrap_or(1);
     if code == 77 {
@@ -1620,9 +1655,7 @@ fn gpg_detach_sign_smoke() {
     }
     assert!(
         output.status.success(),
-        "gpg_sign_smoke failed: stdout={} stderr={}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
+        "gpg_sign_smoke failed: stdout={stdout} stderr={stderr}"
     );
 }
 
