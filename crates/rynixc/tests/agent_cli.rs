@@ -2695,6 +2695,7 @@ fn phase30_not_auto() {
     let p28 = std::fs::read_to_string(root.join("docs/PHASE28.md")).unwrap();
     let p29 = std::fs::read_to_string(root.join("docs/PHASE29.md")).unwrap();
     let golden = std::fs::read_to_string(root.join("docs/GOLDEN_PATH.md")).unwrap();
+    let remaining = std::fs::read_to_string(root.join("docs/GOLDEN_REMAINING.md")).unwrap();
     assert!(
         p28.contains("user-triggered only") && p29.contains("user-triggered only"),
         "PHASE28/29 must state Phase 30 is user-triggered only"
@@ -2703,9 +2704,95 @@ fn phase30_not_auto() {
         golden.contains("user-triggered only") || golden.contains("do **not** auto-start Phase 30"),
         "GOLDEN_PATH must keep Phase 30 user-triggered"
     );
+    // Phase 30 doc exists only after explicit user ask (this release band).
     assert!(
-        !root.join("docs/PHASE30.md").is_file(),
-        "PHASE30.md must not exist until user-triggered"
+        root.join("docs/PHASE30.md").is_file(),
+        "PHASE30.md required after Phase 30 start"
+    );
+    assert!(
+        remaining.contains("explicit ask") || remaining.contains("user-triggered"),
+        "GOLDEN_REMAINING must keep Phase 37 / release policy explicit"
+    );
+}
+
+#[test]
+fn changelog_v011_cut() {
+    let text = std::fs::read_to_string(repo_root().join("CHANGELOG.md")).unwrap();
+    assert!(
+        text.contains("## [0.1.1]") && text.contains("Quality-10"),
+        "CHANGELOG must cut [0.1.1] Quality-10 section"
+    );
+    assert!(
+        text.contains("Ali-Rashidi-80/Rynix"),
+        "CHANGELOG compare URLs must use Ali-Rashidi-80/Rynix"
+    );
+    assert!(
+        !text.contains("rynix-lang/rynix"),
+        "stale rynix-lang/rynix compare URLs must be gone"
+    );
+}
+
+#[test]
+fn production_readiness_scoreboard() {
+    let text = std::fs::read_to_string(repo_root().join("PRODUCTION_READINESS.md")).unwrap();
+    assert!(
+        text.contains("Quality-10 scoreboard"),
+        "PRODUCTION_READINESS must include Quality-10 scoreboard"
+    );
+    for axis in [
+        "Architecture",
+        "Rust code quality",
+        "C runtime quality",
+        "Test strategy",
+        "Error handling",
+        "Security",
+        "Performance",
+        "Deployment / CI",
+        "AI tooling",
+        "Documentation",
+        "Niche-10",
+    ] {
+        assert!(text.contains(axis), "scoreboard missing axis {axis}");
+    }
+    assert!(
+        text.contains("0.1.1") || text.contains("`0.1.1`"),
+        "PRODUCTION_READINESS must reference 0.1.1"
+    );
+}
+
+#[test]
+fn golden_remaining_sot() {
+    let root = repo_root();
+    let p = root.join("docs/GOLDEN_REMAINING.md");
+    assert!(p.is_file(), "GOLDEN_REMAINING.md missing");
+    let text = std::fs::read_to_string(&p).unwrap();
+    assert!(text.contains("Phase") && text.contains("30"), "must list Phase 30");
+    let golden = std::fs::read_to_string(root.join("docs/GOLDEN_PATH.md")).unwrap();
+    assert!(
+        golden.contains("GOLDEN_REMAINING"),
+        "GOLDEN_PATH must point at GOLDEN_REMAINING"
+    );
+}
+
+#[test]
+fn verify_phase30_release_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase30_release.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "phase30 verify failed: {}",
+        String::from_utf8_lossy(&out.stderr)
     );
 }
 

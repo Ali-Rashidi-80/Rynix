@@ -8,6 +8,16 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ### Added
 
+- Golden Remaining Path ([docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)):
+  Phases 30–37 post Q-Core sequence.
+
+## [0.1.1] — Quality-10 public cut (Phases 21–29)
+
+Public Quality-10 band on top of Niche-10 `v0.1.0`. See
+[docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md) and [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
+
+### Added
+
 - Phase 29: uring/TLS/HTTP honesty docs, WASM host-import `env.print` (str), Book
   skeleton (`docs/book/`), Suite5 artifact links, RFC template + CONTRIBUTING RFCs
   section, `phase29_ceiling` contract. Phase 30 remains user-triggered only.
@@ -23,21 +33,9 @@ tracks versions informally until a tagged release is explicitly requested.
 - Example `examples/13_http_map_str_str.ryx`.
 - Phase 24: `Map[str, i64]` mono ([ADR-0017](docs/adr/0017-map-str-i64-mono.md)).
 - Example `examples/12_http_vec_map_str.ryx`.
-
-### Added (Phase 23)
-
 - Phase 23: LSP `textDocument/references` + `workspace/symbol`.
 - Phase 23: `Enum::Variant` nullary paths in exprs and `match` arms.
 - Phase 23: `Vec[str]` mono (`vec_str_*`, [ADR-0016](docs/adr/0016-vec-str-mono.md)).
-
-### Fixed
-
-- Phase 22: inlined `match`/`if` where every arm `return`s no longer leaves an
-  empty CFG join that becomes a phantom `inline_merge` predecessor (clang
-  `phi` referencing undefined `%bN`). LLVM emit also skips unreachable phi preds.
-
-### Added (earlier unreleased)
-
 - Phase 22: MCP path-first for `rynix_format` / `rynix_explain_alloc` / `compile` /
   `ast_query`.
 - Phase 21: MCP path-first for `rynix_check` / `diagnostics`, `rynix_context`,
@@ -45,7 +43,12 @@ tracks versions informally until a tagged release is explicitly requested.
   still optional).
 - `match` on nullary enum variant idents ([ADR-0015](docs/adr/0015-match-enum-variants.md)).
 - Example `examples/11_http_path_param_tls.ryx` (path_param loop + HTTP TLS).
-- `docs/PHASE21.md` / `PHASE22.md` / `PHASE23.md` + contracts.
+
+### Fixed
+
+- Phase 22: inlined `match`/`if` where every arm `return`s no longer leaves an
+  empty CFG join that becomes a phantom `inline_merge` predecessor (clang
+  `phi` referencing undefined `%bN`). LLVM emit also skips unreachable phi preds.
 
 ### Changed
 
@@ -54,8 +57,7 @@ tracks versions informally until a tagged release is explicitly requested.
   ADR-0018 reserved for `Map[str,str]` mono.
 - README / README.fa.md: Pics2PPT-style centered header (logo, language switcher,
   badges, TOC details).
-- `PRODUCTION_READINESS.md`: phases 0–22+ honesty; MCP path-first list; CodeLens;
-  LSP references; `Vec[str]`.
+- `PRODUCTION_READINESS.md`: phases 0–29; Quality-10 scoreboard.
 - VS Code extension docs: LSP completion + rename via LanguageClient.
 
 ## [0.1.0] — Niche-10 certified (Phases 16–20)
@@ -71,5 +73,6 @@ Local tree certification — **not** Absolute-10 vs Go. See [docs/NICHE10.md](do
 - LSP completion + rename; WASM host-import `env.print_i64`
 - Package UX + INSTALL one-path clang; local `rynix.attest.v1` digest
 
-[Unreleased]: https://github.com/rynix-lang/rynix/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/rynix-lang/rynix/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Ali-Rashidi-80/Rynix/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Ali-Rashidi-80/Rynix/releases/tag/v0.1.1
+[0.1.0]: https://github.com/Ali-Rashidi-80/Rynix/releases/tag/v0.1.0

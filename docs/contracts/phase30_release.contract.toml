@@ -1,0 +1,34 @@
+# Phase 30 — public Quality-10 release
+
+[contract]
+name = "phase30-release"
+
+[[evidence]]
+id = "changelog-v011"
+kind = "cargo_test"
+package = "rynixc"
+filter = "changelog_v011_cut"
+
+[[evidence]]
+id = "production-readiness-scoreboard"
+kind = "cargo_test"
+package = "rynixc"
+filter = "production_readiness_scoreboard"
+
+[[evidence]]
+id = "phase30-doc"
+kind = "file"
+path = "docs/PHASE30.md"
+contains = "Public Quality-10"
+
+[[evidence]]
+id = "golden-remaining"
+kind = "file"
+path = "docs/GOLDEN_REMAINING.md"
+contains = "Quality-10"
+
+[[evidence]]
+id = "release-workflow"
+kind = "file"
+path = ".github/workflows/release.yml"
+contains = "SHA256SUMS"

@@ -42,12 +42,14 @@ ad-hoc scraping.
 - Phase 22: inline match+return CFG fix + MCP format/compile path-first ([docs/PHASE22.md](docs/PHASE22.md))
 - Phase 23: LSP refs/symbols + `Enum::Variant` + `Vec[str]` ([docs/PHASE23.md](docs/PHASE23.md))
 - Phase 24: `Map[str, i64]` + product example ([docs/PHASE24.md](docs/PHASE24.md))
-- Phase 25: `Map[str, str]` mono ([ADR-0018](docs/adr/0018-map-str-str-mono.md));
+-   Phase 25: `Map[str, str]` mono ([ADR-0018](docs/adr/0018-map-str-str-mono.md));
   Phase 26 maturity; Phase 27 security ([docs/PHASE27.md](docs/PHASE27.md),
   ADR-0022/0023); **Phase 28** agent polish ([docs/PHASE28.md](docs/PHASE28.md),
-  ADR-0024 Deferred); **Phase 29** docs/WASM ceiling ([docs/PHASE29.md](docs/PHASE29.md)).
-  Phase 30 remains user-triggered only.
-- **Golden path (Quality-10, Phases 25–30):** [docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md)
+  ADR-0024); **Phase 29** docs/WASM ceiling ([docs/PHASE29.md](docs/PHASE29.md)).
+  Phases 25–29 closed. Phase 30+ : [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)
+  (Phase 30 user-triggered only).
+- **Golden path (Quality-10, Phases 25–29):** [docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md);
+  **Remaining (30–37):** [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)
 - Install: one-path clang Win/Linux — [INSTALL.md](INSTALL.md)
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 

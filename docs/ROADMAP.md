@@ -276,10 +276,10 @@ Plan: **[PHASE24.md](PHASE24.md)**.
 
 ## Golden path (post-24)
 
-Canonical next plan: **[GOLDEN_PATH.md](GOLDEN_PATH.md)** — **Quality-10**
-(8.7→≥9.0 axes; Security ≥9.0), Phases **25–30**, Tracks **G/C/R**, refuse set,
-DoD. Default execute after Phase 27: Phase 28–29 (agent polish + docs ceiling).
-**Phase 30** remains user-triggered only (no auto push/tag/release).
+Canonical Q-Core plan: **[GOLDEN_PATH.md](GOLDEN_PATH.md)** — **Quality-10**
+Phases **25–29 closed**. Remaining: **[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)**
+(Phases **30–37** + Track R). **Phase 30** remains user-triggered only
+(no auto push/tag/release).
 
 ## Phase 25 — Map[str,str] + documentSymbol
 
@@ -348,6 +348,22 @@ Plan: **[PHASE29.md](PHASE29.md)**.
 | G | Book skeleton | ✅ `book_skeleton_exists` |
 | H | Suite5 artifact links | ✅ `suite5_post_p24_artifact_links` |
 | I | RFC / CONTRIBUTING Track C | ✅ `rfc_or_contributing_sections` |
+
+## Golden Remaining (post Q-Core)
+
+Plan: **[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)**. Honesty gates in Phases 27/29
+are **superseded** by behavioral gates in Phases 31–32 (not a reopen of Q-Core ✅).
+
+| Phase | Theme | Status |
+|------:|-------|--------|
+| 30 | Public `v0.1.1` Quality-10 release | ✅ [PHASE30.md](PHASE30.md) |
+| 31 | Security harden (UBSan, cargo-deny, Job Object) | pending |
+| 32 | Runtime / HTTP (uring TCP, Bearer, escape) | pending |
+| 33 | Language (payloads, struct bool, multiline, Vec[bool]) | pending |
+| 34 | Track C depth | pending |
+| 35 | Track G ADR-0025 + spike | pending |
+| 36 | Track G ship | pending |
+| 37 | Public `v0.2.0` | hold (explicit ask) |
 
 ## Follow-on (post-13 / parallel)
 

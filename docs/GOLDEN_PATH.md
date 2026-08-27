@@ -408,10 +408,11 @@ Do **not** invent an in-memory clang daemon as a Quality-10 requirement (D-9 sta
 
 ## 9. Immediate next action (execute now)
 
-**Phases 25–29 closed** (Q-Core waves). **Phase 30** remains **user-triggered
-only** — do not auto push/tag/release.
+**Phases 25–29 closed** (Q-Core waves). Remaining work lives in
+**[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)** (Phases 30–37 + Track R/Refuse).
 
-Do **not** start Track G / Phase 30 without explicit user direction + ADR.
+**Phase 30** remains **user-triggered only** — do not auto push/tag/release.
+Do **not** start Track G without ADR-0025 Accepted ([GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)).
 
 ---
 
@@ -427,17 +428,16 @@ Do **not** start Track G / Phase 30 without explicit user direction + ADR.
 
 ## 11. Final coverage audit (do-not-ship-without)
 
-**Verdict (post subagent round):** inventory **PASS** (56/56 + 10 weaknesses + 8 strategic).
-Gate specificity gaps from audit are **closed** in §0 / §2 / §4 / §6.
-Q-Core plan is **complete enough to execute Phase 25**.
+**Verdict:** Q-Core inventory **PASS** (56/56 + 10 weaknesses + 8 strategic).
+Phases **25–29 closed**. Post-Q-Core sequence: **[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)**.
 
 | Source | Count | Status |
 |--------|------:|--------|
 | Analysis 10 weaknesses | 10 | All in §3 |
 | Analysis 8 strategic | 8 | All in §6 |
-| HTML tasks A-1…E-15 | 56 | All in §6 checklist |
+| HTML tasks A-1…E-15 | 56 | §6 + GOLDEN_REMAINING map |
 | Scoreboard 11 axes | 11 | All in §0 + re-score method |
 | Capacity honesty | 2 paths | §0 Q-Core default |
-| Subagent todos | plan-hygiene + Phase 25–30 | See Cursor plan |
+| Remaining path | Phases 30–37 | [GOLDEN_REMAINING.md](GOLDEN_REMAINING.md) |
 
-**Ready to execute Phase 25** when user says start.
+**Q-Core closed.** Next: Phase 30 on explicit user ask (see GOLDEN_REMAINING).
