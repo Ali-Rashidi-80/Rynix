@@ -114,7 +114,7 @@ escape = "\n" | "\t" | "\r" | "\0" | "\\" | "\""
   above `0x10FFFF`) — `RYX0005` otherwise.
 - Unknown escapes produce `RYX0005`; lexing continues.
 - There is exactly one string form in the shipping grammar: single-line
-  `"..."` with the escapes above. (No multiline/raw string literal form.)
+  `"..."` with escapes above, or multiline `"""..."""` (Phase 33).
 
 ### 2.6 Punctuation and operators (30)
 
@@ -195,7 +195,9 @@ path        = Ident { "::" Ident }
 **Struct literals (v1):** named fields only — `Point { x: 1, y: 2 }`.
 Field types in a literal are **`i64` or `str`** (Phase 17-A); other field types
 are rejected. Enum *nullary* values are supported as discriminant `i64`s
-(Phase 17-C); payload constructors remain deferred.
+(Phase 17-C); payload constructors `Some(i64)` / `Some(str)` with match bind
+([ADR-0024](adr/0024-payload-enums.md), Phase 33). Struct fields may be `i64`,
+`str`, or `bool`. Collections mono include `Vec[bool]`.
 
 Field assignment `p.x = …` is allowed when `p` is a `mut` binding.
 Index assignment (`a[i] = …`) is allowed when `a` is a `mut` array/slice

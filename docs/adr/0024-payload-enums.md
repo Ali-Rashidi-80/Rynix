@@ -1,24 +1,27 @@
-# ADR-0024: Payload enums (`Some(T)` / match bind)
+# ADR-0024: Payload enums (`Some(i64)` / `Some(str)` / match bind)
 
 ## Status
 
-**Deferred** (Phase 28-D)
+**Accepted** (amended Phase 33) — narrow payloads **without** parametric `Option[T]`.
 
 ## Context
 
-GOLDEN_PATH Phase 28-E would add nullary-payload enums such as `Some(T)` with
-match binding once this ADR is **Accepted**. Nullary enum variants and
-`Enum::Variant` paths already ship ([ADR-0015](0015-match-enum-variants.md)).
-Parametric / payload-carrying enums interact with Track G (generics) design.
+GOLDEN_PATH Phase 28 deferred payload enums pending Track G. Quality-10 Remaining
+Path Phase 33 ships a **narrow** surface: i64 and str payloads only, decoupled
+from parametric generics (Track G / ADR-0025).
 
 ## Decision
 
-Defer payload enums and match binds. Do **not** stub `Some` / `None` as theater
-without a roundtrip gate. Revisit after Track G ADR acceptance or an explicit
-narrow Accepted amendment with gate `enum_payload_match_roundtrip`.
+1. Enum variants may carry a single payload of type `i64` or `str`.
+2. Match arms may bind `Variant(name)` for payload variants; nullary arms unchanged.
+3. Representation: payload-carrying enums lower as a **pointer** to `{disc: i64, payload}`
+   (i64 payload inline; str as pointer). Nullary-only enums remain `i64` discriminants
+   ([ADR-0015](0015-match-enum-variants.md)).
+4. Do **not** add parametric `Option[T]` or traits in this ADR.
+5. Gates: `enum_payload_i64_match_roundtrip`, `enum_payload_str_match_roundtrip`.
 
 ## Consequences
 
-- Phase 28-E is skipped while Status remains Deferred.
-- Language surface stays at nullary variants only.
-- Gate for this ADR in Phase 28: file exists with Status (this document).
+- Phase 33 implements narrow payloads before Track G.
+- SPEC + skill updated in the same band.
+- Revisit parametric enums only after ADR-0025.

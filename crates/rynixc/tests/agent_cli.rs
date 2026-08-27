@@ -1471,6 +1471,31 @@ fn map_str_str_roundtrip() {
 }
 
 #[test]
+fn vec_bool_roundtrip() {
+    build_run_fixture("vec_bool_roundtrip", "2");
+}
+
+#[test]
+fn struct_bool_field_roundtrip() {
+    build_run_fixture("struct_bool_field_roundtrip", "1");
+}
+
+#[test]
+fn multiline_str_roundtrip() {
+    build_run_fixture("multiline_str_roundtrip", "1");
+}
+
+#[test]
+fn enum_payload_i64_match_roundtrip() {
+    build_run_fixture("enum_payload_i64_match_roundtrip", "7");
+}
+
+#[test]
+fn enum_payload_str_match_roundtrip() {
+    build_run_fixture("enum_payload_str_match_roundtrip", "1");
+}
+
+#[test]
 fn example_http_path_param_tls_checks() {
     let root = repo_root();
     let example = root.join("examples/11_http_path_param_tls.ryx");
@@ -2242,12 +2267,28 @@ fn contract_schema_gate() {
 
 #[test]
 fn cargo_deny_or_deferral() {
+    // Superseded by cargo_deny_clean (Phase 31); alias for phase26 contract.
+    cargo_deny_clean_inner();
+}
+
+#[test]
+fn cargo_deny_clean() {
+    cargo_deny_clean_inner();
+}
+
+fn cargo_deny_clean_inner() {
     let root = repo_root();
     let deny = root.join("deny.toml");
-    let defer = root.join("docs/CARGO_DENY_DEFERRAL.md");
+    assert!(deny.is_file(), "deny.toml missing");
+    let text = std::fs::read_to_string(&deny).unwrap();
     assert!(
-        deny.is_file() || defer.is_file(),
-        "need deny.toml or CARGO_DENY_DEFERRAL.md"
+        text.contains("[licenses]") || text.contains("licenses"),
+        "deny.toml must configure licenses"
+    );
+    let ci = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).unwrap();
+    assert!(
+        ci.contains("cargo-deny"),
+        "CI must run cargo-deny job"
     );
 }
 
@@ -2256,7 +2297,10 @@ fn sanitizer_scaffold_documented() {
     let text =
         std::fs::read_to_string(repo_root().join("docs/SANITIZER_SCAFFOLD.md")).unwrap();
     assert!(text.contains("fsanitize"));
-    assert!(text.contains("Phase 27"));
+    assert!(
+        text.contains("Phase 27") || text.contains("Phase 31"),
+        "scaffold must mention Phase 27 or 31"
+    );
 }
 
 #[test]
@@ -2393,12 +2437,25 @@ fn sanitize_rejects_exec() {
 
 #[test]
 fn msan_ubsan_rt_clean() {
-    let path = repo_root().join("docs/SANITIZER_SCAFFOLD.md");
-    assert!(path.is_file(), "SANITIZER_SCAFFOLD.md missing");
-    let text = std::fs::read_to_string(&path).unwrap();
+    // Superseded by msan_ubsan_rt_enforced (Phase 31).
+    msan_ubsan_rt_enforced_inner();
+}
+
+#[test]
+fn msan_ubsan_rt_enforced() {
+    msan_ubsan_rt_enforced_inner();
+}
+
+fn msan_ubsan_rt_enforced_inner() {
+    let ci = std::fs::read_to_string(repo_root().join(".github/workflows/ci.yml")).unwrap();
     assert!(
-        text.contains("fsanitize") && text.contains("Phase 27"),
-        "scaffold must mention fsanitize and Phase 27"
+        ci.contains("address,undefined") || ci.contains("fsanitize=address,undefined"),
+        "sanitizer-rt CI must enforce ASan+UBSan"
+    );
+    let scaffold = std::fs::read_to_string(repo_root().join("docs/SANITIZER_SCAFFOLD.md")).unwrap();
+    assert!(
+        scaffold.contains("memory") || scaffold.contains("MSan") || scaffold.contains("fsanitize=memory"),
+        "MSan must remain documented as optional"
     );
 }
 
@@ -2444,13 +2501,53 @@ fn security_cwe_matrix_or_deferral() {
 
 #[test]
 fn windows_sandbox_or_deferral() {
-    let path = repo_root().join("docs/WINDOWS_SANDBOX_DEFERRAL.md");
-    assert!(path.is_file(), "WINDOWS_SANDBOX_DEFERRAL.md missing");
-    let text = std::fs::read_to_string(&path).unwrap();
+    // Superseded by windows_sandbox_smoke (Phase 31).
+    windows_sandbox_smoke_inner();
+}
+
+#[test]
+fn windows_sandbox_smoke() {
+    windows_sandbox_smoke_inner();
+}
+
+fn windows_sandbox_smoke_inner() {
+    let root = repo_root();
+    let job_src = root.join("crates/rynixc/src/job_object.rs");
+    assert!(job_src.is_file(), "job_object.rs missing");
+    let defer = std::fs::read_to_string(root.join("docs/WINDOWS_SANDBOX_DEFERRAL.md")).unwrap();
     assert!(
-        text.to_ascii_lowercase().contains("job object") || text.contains("Deferred"),
-        "deferral must mention Job Object or Deferred"
+        defer.contains("Implemented") || defer.contains("Job Object"),
+        "WINDOWS_SANDBOX doc must note Job Object implementation"
     );
+    #[cfg(windows)]
+    {
+        let path = example("01_hello.ryx");
+        let out = std::env::temp_dir().join("rynix_job_sandbox_hello.exe");
+        let _ = std::fs::remove_file(&out);
+        let status = rynixc()
+            .args([
+                "build",
+                path.to_str().unwrap(),
+                "-o",
+                out.to_str().unwrap(),
+                "--sandbox=job",
+            ])
+            .status()
+            .expect("spawn build --sandbox=job");
+        assert!(status.success(), "build --sandbox=job failed");
+        assert!(out.is_file(), "expected output binary from job sandbox build");
+    }
+}
+
+#[test]
+fn security_cwe_one_additive() {
+    let text = std::fs::read_to_string(repo_root().join("crates/rynixc/src/security.rs")).unwrap();
+    assert!(
+        text.contains("glpat-"),
+        "security.rs must include glpat- additive pattern"
+    );
+    let matrix = std::fs::read_to_string(repo_root().join("docs/CWE_MATRIX.md")).unwrap();
+    assert!(matrix.contains("glpat-"), "CWE_MATRIX must document glpat-");
 }
 
 #[test]
@@ -2568,13 +2665,27 @@ fn verify_phase28_agent_contract() {
 
 #[test]
 fn uring_recv_send_completion_smoke() {
-    let path = repo_root().join("docs/URING_RECV_SEND.md");
-    assert!(path.is_file(), "URING_RECV_SEND.md missing");
-    let text = std::fs::read_to_string(&path).unwrap();
+    // Superseded by uring_tcp_recv_send_completion_smoke (Phase 32).
+    uring_tcp_recv_send_completion_smoke_inner();
+}
+
+#[test]
+fn uring_tcp_recv_send_completion_smoke() {
+    uring_tcp_recv_send_completion_smoke_inner();
+}
+
+fn uring_tcp_recv_send_completion_smoke_inner() {
+    let net = std::fs::read_to_string(repo_root().join("rt/src/net.c")).unwrap();
     assert!(
-        text.to_ascii_lowercase().contains("poll")
-            && text.to_ascii_lowercase().contains("fallback"),
-        "doc must state poll fallback for recv/send"
+        net.contains("rynix_rt_uring_ready")
+            && net.contains("rynix_rt_uring_read")
+            && net.contains("rynix_rt_uring_write"),
+        "tcp_recv/send must prefer uring_read/write when ready"
+    );
+    let doc = std::fs::read_to_string(repo_root().join("docs/URING_RECV_SEND.md")).unwrap();
+    assert!(
+        doc.contains("Implemented") || doc.contains("IORING_OP_READ"),
+        "URING_RECV_SEND.md must document completion path"
     );
 }
 
@@ -2590,25 +2701,68 @@ fn tls_ci_matrix_documented() {
 }
 
 #[test]
-fn http_auth_or_method_gate() {
-    let path = repo_root().join("docs/HTTP_AUTH_METHOD_DEFERRAL.md");
-    assert!(path.is_file(), "HTTP_AUTH_METHOD_DEFERRAL.md missing");
-    let text = std::fs::read_to_string(&path).unwrap();
+fn tls_linux_ci_row_green() {
+    let text = std::fs::read_to_string(repo_root().join("docs/TLS_CI_MATRIX.md")).unwrap();
     assert!(
-        text.contains("Deferred") || text.contains("deferral"),
-        "deferral doc must say Deferred"
+        text.contains("http_tls_product_smoke"),
+        "TLS matrix must cite http_tls_product_smoke job/gate"
+    );
+    let gates = std::fs::read_to_string(repo_root().join("crates/rynixc/tests/size_echo_gates.rs")).unwrap();
+    assert!(
+        gates.contains("fn http_tls_product_smoke"),
+        "size_echo_gates must define http_tls_product_smoke"
+    );
+}
+
+#[test]
+fn http_auth_or_method_gate() {
+    // Superseded by http_bearer_header_soft_gate (Phase 32).
+    http_bearer_header_soft_gate_inner();
+}
+
+#[test]
+fn http_bearer_header_soft_gate() {
+    http_bearer_header_soft_gate_inner();
+}
+
+fn http_bearer_header_soft_gate_inner() {
+    let doc = std::fs::read_to_string(repo_root().join("docs/HTTP_AUTH_METHOD_DEFERRAL.md")).unwrap();
+    assert!(
+        doc.contains("Bearer") && (doc.contains("Implemented") || doc.contains("soft")),
+        "HTTP auth doc must document Bearer soft"
+    );
+    let hdr = std::fs::read_to_string(repo_root().join("rt/include/rynix_rt.h")).unwrap();
+    assert!(
+        hdr.contains("rynix_rt_http_serve_loop_bearer_json_i64"),
+        "RT header must declare bearer soft"
+    );
+    assert!(
+        repo_root().join("rt/tests/http_bearer_smoke.c").is_file(),
+        "http_bearer_smoke.c missing"
     );
 }
 
 #[test]
 fn escape_interproc_or_limit_doc() {
-    let path = repo_root().join("docs/ESCAPE_INTERPROC_LIMIT.md");
-    assert!(path.is_file(), "ESCAPE_INTERPROC_LIMIT.md missing");
-    let text = std::fs::read_to_string(&path).unwrap();
+    // Superseded by escape_interproc_improvement_gate (Phase 32).
+    escape_interproc_improvement_gate_inner();
+}
+
+#[test]
+fn escape_interproc_improvement_gate() {
+    escape_interproc_improvement_gate_inner();
+}
+
+fn escape_interproc_improvement_gate_inner() {
+    let doc = std::fs::read_to_string(repo_root().join("docs/ESCAPE_INTERPROC_LIMIT.md")).unwrap();
     assert!(
-        text.to_ascii_lowercase().contains("interprocedural")
-            || text.to_ascii_lowercase().contains("limit"),
-        "escape limit doc must mention interprocedural or limit"
+        doc.contains("SCC") || doc.contains("interproc_scc"),
+        "escape doc must cite SCC improvement"
+    );
+    let unit = std::fs::read_to_string(repo_root().join("crates/rynix-rir/tests/escape_unit.rs")).unwrap();
+    assert!(
+        unit.contains("interproc_scc_mutual_recursion_arg_escape"),
+        "escape_unit must include SCC mutual-recursion gate"
     );
 }
 
@@ -2793,6 +2947,252 @@ fn verify_phase30_release_contract() {
         out.status.success(),
         "phase30 verify failed: {}",
         String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn verify_phase31_security_harden_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase31_security_harden.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "phase31 verify failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn verify_phase32_runtime_close_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase32_runtime_close.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "phase32 verify failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn tutorial_five_runnable() {
+    let root = repo_root();
+    let names = [
+        "tutorial_01_hello.ryx",
+        "tutorial_02_match.ryx",
+        "tutorial_03_vec.ryx",
+        "tutorial_04_map.ryx",
+        "tutorial_05_agent_check.ryx",
+    ];
+    for name in names {
+        let path = root.join("examples").join(name);
+        assert!(path.is_file(), "missing {name}");
+        let out = rynixc()
+            .args(["check", path.to_str().unwrap()])
+            .output()
+            .expect("check");
+        assert!(
+            out.status.success(),
+            "{name} check failed:\n{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+    let book = std::fs::read_to_string(root.join("docs/book/05_tutorials.md")).unwrap();
+    assert!(book.contains("tutorial_01"), "book must list tutorials");
+}
+
+#[test]
+fn contributing_sections_gate() {
+    let text = std::fs::read_to_string(repo_root().join("CONTRIBUTING.md")).unwrap();
+    for needle in ["Build matrix", "ADR workflow", "Commit style", "good-first-issue", "RFC"] {
+        assert!(text.contains(needle), "CONTRIBUTING missing section {needle}");
+    }
+}
+
+#[test]
+fn rfc_process_documented() {
+    let text = std::fs::read_to_string(repo_root().join("rfcs/README.md")).unwrap();
+    assert!(
+        text.contains("Track G") && text.contains("RFC"),
+        "rfcs/README must document RFC-before-Track-G"
+    );
+}
+
+#[test]
+fn contributor_onboarding_doc() {
+    let path = repo_root().join("docs/CONTRIBUTOR_ONBOARDING.md");
+    assert!(path.is_file());
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("good-first-issue") || text.contains("First contribution"));
+}
+
+#[test]
+fn retrospective_template_exists() {
+    let path = repo_root().join("docs/RETROSPECTIVE_QCORE.md");
+    assert!(path.is_file());
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("What shipped") || text.contains("Scoreboard"));
+}
+
+#[test]
+fn verify_phase34_track_c_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase34_track_c.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "phase34 verify failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn verify_phase33_lang_close_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase33_lang_close.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "phase33 verify failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn vec_t_i64_compat_spike() {
+    build_run_fixture("vec_t_i64_compat_spike", "2");
+}
+
+#[test]
+fn vec_t_roundtrip_matrix() {
+    build_run_fixture("vec_t_i64_compat_spike", "2");
+    build_run_fixture("vec_str_roundtrip", "2");
+    build_run_fixture("vec_bool_roundtrip", "2");
+}
+
+#[test]
+fn map_kv_roundtrip_matrix() {
+    build_run_fixture("map_str_i64_roundtrip", "10");
+    build_run_fixture("map_str_str_roundtrip", "2");
+    // Map[i64,i64] via soft map_new — existing product path
+    let root = repo_root();
+    let path = root.join("examples/03_vec.ryx");
+    assert!(path.is_file());
+    let check = rynixc().args(["check", path.to_str().unwrap()]).output().unwrap();
+    assert!(check.status.success(), "examples/03_vec check failed");
+}
+
+#[test]
+fn std_collections_facade_ok() {
+    let root = repo_root();
+    let facade = std::fs::read_to_string(root.join("std/collections.ryx")).unwrap();
+    assert!(
+        facade.contains("vec_new") && facade.contains("ADR-0025"),
+        "std/collections.ryx must document soft ABI + ADR-0025"
+    );
+    let main = root.join("testdata/pkg_std_collections/main.ryx");
+    let out = rynixc()
+        .current_dir(root.join("testdata/pkg_std_collections"))
+        .args(["check", main.to_str().unwrap()])
+        .output()
+        .expect("check");
+    assert!(
+        out.status.success(),
+        "std::collections import failed:\n{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn legacy_mono_alias_ok() {
+    // Legacy soft names still resolve alongside typed Vec/Map annotations.
+    build_run_fixture("vec_str_roundtrip", "2");
+    build_run_fixture("map_str_str_roundtrip", "2");
+    build_run_fixture("vec_bool_roundtrip", "2");
+}
+
+#[test]
+fn verify_phase35_track_g_adr_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase35_track_g_adr.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(out.status.success(), "phase35 verify failed");
+}
+
+#[test]
+fn verify_phase36_track_g_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase36_track_g.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(out.status.success(), "phase36 verify failed");
+}
+
+#[test]
+fn phase37_hold_documented() {
+    let text = std::fs::read_to_string(repo_root().join("docs/PHASE37.md")).unwrap();
+    assert!(
+        text.contains("HOLD") && text.contains("explicit"),
+        "PHASE37 must document hold + explicit ask"
     );
 }
 

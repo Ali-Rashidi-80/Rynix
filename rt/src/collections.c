@@ -108,6 +108,87 @@ int64_t rynix_rt_vec_str_len(void *vec) {
   return v ? v->len : 0;
 }
 
+typedef struct {
+  int32_t region;
+  int8_t *data;
+  int64_t len;
+  int64_t cap;
+} rynix_vec_bool;
+
+void *rynix_rt_vec_bool_new(int32_t region) {
+  rynix_vec_bool *v = (rynix_vec_bool *)reg_alloc(region, sizeof(rynix_vec_bool));
+  if (!v) return NULL;
+  v->region = region;
+  v->data = NULL;
+  v->len = 0;
+  v->cap = 0;
+  return v;
+}
+
+void rynix_rt_vec_bool_push(void *vec, int64_t x) {
+  rynix_vec_bool *v = (rynix_vec_bool *)vec;
+  if (!v) return;
+  if (v->len >= v->cap) {
+    int64_t ncap = v->cap == 0 ? 8 : v->cap * 2;
+    int8_t *nd = (int8_t *)reg_alloc(v->region, (size_t)ncap * sizeof(int8_t));
+    if (!nd) rynix_rt_panic("vec_bool grow failed");
+    if (v->data && v->len > 0) memcpy(nd, v->data, (size_t)v->len * sizeof(int8_t));
+    v->data = nd;
+    v->cap = ncap;
+  }
+  v->data[v->len++] = x ? 1 : 0;
+}
+
+int64_t rynix_rt_vec_bool_get(void *vec, int64_t i) {
+  rynix_vec_bool *v = (rynix_vec_bool *)vec;
+  if (!v || i < 0 || i >= v->len) rynix_rt_panic("vec_bool index");
+  return v->data[i] ? 1 : 0;
+}
+
+int64_t rynix_rt_vec_bool_len(void *vec) {
+  rynix_vec_bool *v = (rynix_vec_bool *)vec;
+  return v ? v->len : 0;
+}
+
+typedef struct {
+  int64_t disc;
+  int64_t payload_i64;
+  const char *payload_str;
+} rynix_enum_box;
+
+void *rynix_rt_enum_box_i64(int64_t disc, int64_t payload) {
+  rynix_enum_box *b = (rynix_enum_box *)rynix_rt_heap_alloc((int64_t)sizeof(rynix_enum_box));
+  if (!b) return NULL;
+  b->disc = disc;
+  b->payload_i64 = payload;
+  b->payload_str = NULL;
+  return b;
+}
+
+void *rynix_rt_enum_box_str(int64_t disc, const char *payload) {
+  rynix_enum_box *b = (rynix_enum_box *)rynix_rt_heap_alloc((int64_t)sizeof(rynix_enum_box));
+  if (!b) return NULL;
+  b->disc = disc;
+  b->payload_i64 = 0;
+  b->payload_str = payload;
+  return b;
+}
+
+int64_t rynix_rt_enum_disc(void *box) {
+  rynix_enum_box *b = (rynix_enum_box *)box;
+  return b ? b->disc : -1;
+}
+
+int64_t rynix_rt_enum_payload_i64(void *box) {
+  rynix_enum_box *b = (rynix_enum_box *)box;
+  return b ? b->payload_i64 : 0;
+}
+
+const char *rynix_rt_enum_payload_str(void *box) {
+  rynix_enum_box *b = (rynix_enum_box *)box;
+  return b ? b->payload_str : "";
+}
+
 void *rynix_rt_map_i64_new(int32_t region) {
   rynix_map_i64 *m = (rynix_map_i64 *)reg_alloc(region, sizeof(rynix_map_i64));
   if (!m) return NULL;

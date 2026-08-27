@@ -357,13 +357,13 @@ are **superseded** by behavioral gates in Phases 31–32 (not a reopen of Q-Core
 | Phase | Theme | Status |
 |------:|-------|--------|
 | 30 | Public `v0.1.1` Quality-10 release | ✅ [PHASE30.md](PHASE30.md) |
-| 31 | Security harden (UBSan, cargo-deny, Job Object) | pending |
-| 32 | Runtime / HTTP (uring TCP, Bearer, escape) | pending |
-| 33 | Language (payloads, struct bool, multiline, Vec[bool]) | pending |
-| 34 | Track C depth | pending |
-| 35 | Track G ADR-0025 + spike | pending |
-| 36 | Track G ship | pending |
-| 37 | Public `v0.2.0` | hold (explicit ask) |
+| 31 | Security harden (UBSan, cargo-deny, Job Object) | ✅ [PHASE31.md](PHASE31.md) |
+| 32 | Runtime / HTTP (uring TCP, Bearer, escape) | ✅ [PHASE32.md](PHASE32.md) |
+| 33 | Language (payloads, struct bool, multiline, Vec[bool]) | ✅ [PHASE33.md](PHASE33.md) |
+| 34 | Track C depth | ✅ [PHASE34.md](PHASE34.md) |
+| 35 | Track G ADR-0025 + spike | ✅ [PHASE35.md](PHASE35.md) |
+| 36 | Track G ship | ✅ [PHASE36.md](PHASE36.md) |
+| 37 | Public `v0.2.0` | HOLD [PHASE37.md](PHASE37.md) (explicit ask) |
 
 ## Follow-on (post-13 / parallel)
 

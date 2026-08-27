@@ -1,20 +1,17 @@
-# Escape analysis — interprocedural limit (Phase 29-D)
+# Escape analysis — interprocedural SCC (Phase 32)
 
-**Gate:** `escape_interproc_or_limit_doc`.
+**Gate:** `escape_interproc_improvement_gate`.
 
 ## What ships
 
-`rynix_rir` escape analysis is **intraprocedural points-to + interprocedural SCC**
-placement (`crates/rynix-rir/src/escape/analyze.rs`). Agents see results via
-`rynixc check --explain-alloc` / MCP `rynix_explain_alloc`.
+`rynix_rir` escape analysis: intraprocedural points-to + **interprocedural SCC
+fixpoint** (`crates/rynix-rir/src/escape/analyze.rs`).
 
-## Limit
+Phase 32 adds named regression `interproc_scc_mutual_recursion_arg_escape` proving
+mutual-recursion modules propagate `ArgEscape` across the SCC (not stuck at
+`NoEscape`).
 
-No new measured interprocedural win is claimed in Phase 29. Cross-function
-precision beyond the current SCC merge remains a Track R / future wave item.
-This document is the honesty gate for 29-D.
+## Remaining limit
 
-## Pointers
-
-- SPEC memory model (escape / region)
-- ADR history under `docs/adr/` for memory decisions
+Full context-sensitive / heap-shape analysis remains Track R. Agents see results
+via `rynixc check --explain-alloc` / MCP `rynix_explain_alloc`.

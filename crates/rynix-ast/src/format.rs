@@ -248,6 +248,13 @@ impl Formatter<'_> {
                     let pat = match &arm.pattern {
                         MatchPat::Wildcard(_) => "_".into(),
                         MatchPat::Literal(e) => self.expr_str(e),
+                        MatchPat::Ctor { path, binder } => {
+                            format!(
+                                "{}({})",
+                                self.path_str(path),
+                                self.interner.resolve(binder.name)
+                            )
+                        }
                     };
                     self.line(&pat);
                     self.indent += 1;

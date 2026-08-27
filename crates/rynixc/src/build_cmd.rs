@@ -150,6 +150,9 @@ fn link_artifacts(
     if options.sandbox == SandboxKind::Docker {
         return link_clang_docker(ll_path, rt_c, &include, out_bin, options, runtime, rt_root);
     }
+    if options.sandbox == SandboxKind::Job {
+        return link_clang_job(clang, ll_path, rt_c, &include, out_bin, options, runtime, rt_root);
+    }
     link_clang(clang, ll_path, rt_c, &include, out_bin, options, runtime, rt_root)
 }
 
@@ -308,6 +311,32 @@ fn link_bench_msvcrt_gcc(
     ExitCode::SUCCESS
 }
 
+fn link_clang_job(
+    clang: &Path,
+    ll_path: &Path,
+    rt_c: &Path,
+    include: &Path,
+    out_bin: &Path,
+    options: &BuildOptions,
+    runtime: RuntimeKind,
+    rt_root: &Path,
+) -> ExitCode {
+    #[cfg(not(windows))]
+    {
+        let _ = (clang, ll_path, rt_c, include, out_bin, options, runtime, rt_root);
+        eprintln!(
+            "error: --sandbox=job is Windows-only (Job Object); use --sandbox=docker on Linux"
+        );
+        return ExitCode::from(1);
+    }
+    #[cfg(windows)]
+    {
+        link_clang_inner(
+            clang, ll_path, rt_c, include, out_bin, options, runtime, rt_root, true,
+        )
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn link_clang(
     clang: &Path,
@@ -318,6 +347,23 @@ fn link_clang(
     options: &BuildOptions,
     runtime: RuntimeKind,
     rt_root: &Path,
+) -> ExitCode {
+    link_clang_inner(
+        clang, ll_path, rt_c, include, out_bin, options, runtime, rt_root, false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn link_clang_inner(
+    clang: &Path,
+    ll_path: &Path,
+    rt_c: &Path,
+    include: &Path,
+    out_bin: &Path,
+    options: &BuildOptions,
+    runtime: RuntimeKind,
+    rt_root: &Path,
+    use_job: bool,
 ) -> ExitCode {
     let mut cmd = Command::new(clang);
     // Competitive flags aligned with peer C11 toolchains (End/GCC-style).
@@ -387,11 +433,29 @@ fn link_clang(
         cmd.arg(&asm);
     }
 
-    let status = match cmd.status() {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("error: failed to invoke {}: {e}", clang.display());
-            return ExitCode::from(1);
+    let status = if use_job {
+        #[cfg(windows)]
+        {
+            match crate::job_object::run_in_job(cmd) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("error: Job Object link failed: {e}");
+                    return ExitCode::from(1);
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = cmd;
+            unreachable!("use_job only on Windows");
+        }
+    } else {
+        match cmd.status() {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("error: failed to invoke {}: {e}", clang.display());
+                return ExitCode::from(1);
+            }
         }
     };
 

@@ -14,6 +14,8 @@ mod attest;
 mod build_cmd;
 mod check_cmd;
 mod cli;
+#[cfg(windows)]
+mod job_object;
 mod codegen_pipe;
 mod contract;
 mod deps_cmd;

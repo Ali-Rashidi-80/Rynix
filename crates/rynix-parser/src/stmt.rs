@@ -228,7 +228,7 @@ impl<'arena> Parser<'arena, '_, '_> {
         match self.peek().kind {
             TokenKind::IntLit | TokenKind::True | TokenKind::False => true,
             TokenKind::Ident => {
-                // `_` wildcard, bare variant, or `Enum::Variant` path ending the arm header.
+                // `_` wildcard, bare variant, `Enum::Variant`, or `Variant(binder)`.
                 if self.text(self.peek().span) == "_" {
                     return true;
                 }
@@ -239,14 +239,22 @@ impl<'arena> Parser<'arena, '_, '_> {
                 ) {
                     return true;
                 }
-                // `Color::Green` then newline/end.
+                // `Some(x)` payload bind.
+                if n0.kind == TokenKind::LParen {
+                    return true;
+                }
+                // `Color::Green` then newline/end or `Color::Some(x)`.
                 if n0.kind == TokenKind::ColonColon {
                     let n1 = self.peek_ahead(1);
                     if n1.kind != TokenKind::Ident {
                         return false;
                     }
+                    let n2 = self.peek_ahead(2);
+                    if n2.kind == TokenKind::LParen {
+                        return true;
+                    }
                     return matches!(
-                        self.peek_ahead(2).kind,
+                        n2.kind,
                         TokenKind::Newline | TokenKind::End | TokenKind::Else | TokenKind::Eof
                     );
                 }
@@ -261,7 +269,21 @@ impl<'arena> Parser<'arena, '_, '_> {
             let tok = self.bump();
             return MatchPat::Wildcard(tok.span);
         }
-        // Literals only (primary) — not full expressions.
+        // Payload ctor: Ident ( Ident ) or Ident :: Ident ( Ident )
+        if self.at(TokenKind::Ident) {
+            let n0 = self.peek_next();
+            if n0.kind == TokenKind::LParen
+                || (n0.kind == TokenKind::ColonColon
+                    && self.peek_ahead(1).kind == TokenKind::Ident
+                    && self.peek_ahead(2).kind == TokenKind::LParen)
+            {
+                let path = self.parse_path();
+                self.expect(TokenKind::LParen, "(");
+                let binder = self.expect_ident("binder");
+                self.expect(TokenKind::RParen, ")");
+                return MatchPat::Ctor { path, binder };
+            }
+        }
         let expr = self.parse_primary();
         MatchPat::Literal(expr)
     }

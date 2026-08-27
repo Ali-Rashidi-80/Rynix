@@ -8,8 +8,21 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ### Added
 
+- Phase 37: HOLD doc for `v0.2.0` (explicit ask only).
+- Phase 36: Track G ship — Vec/Map matrices, `std/collections.ryx`, legacy aliases,
+  `phase36_track_g` contract.
+- Phase 35: ADR-0025 + RFC 0001 parametric monomorphization + `vec_t_i64_compat_spike`.
+- Phase 34: 5 tutorials, CONTRIBUTING depth, RFC process, E-14/E-15 docs,
+  `phase34_track_c` contract.
+- Phase 33: ADR-0024 Accepted — payload enums i64/str, struct bool, multiline `"""`,
+  `Vec[bool]`, `phase33_lang_close` contract.
+- Phase 32: uring TCP recv/send, Bearer soft, escape SCC gate, TLS CI assert,
+  `phase32_runtime_close`.
+- Phase 31: ASan+UBSan CI hard, `deny.toml` + cargo-deny CI, `--sandbox=job`
+  (Windows Job Object), CWE-798 additive `glpat-`, `phase31_security_harden`.
 - Golden Remaining Path ([docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)):
   Phases 30–37 post Q-Core sequence.
+- Phase 30: public Quality-10 cut docs (`PHASE30.md`, scoreboard).
 
 ## [0.1.1] — Quality-10 public cut (Phases 21–29)
 

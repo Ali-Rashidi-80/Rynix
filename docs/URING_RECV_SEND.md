@@ -1,25 +1,19 @@
-# io_uring recv/send — honesty limit (Phase 29-A)
+# io_uring TCP recv/send — Implemented (Phase 32)
 
-**Gate:** `uring_recv_send_completion_smoke` (this file + named cargo test).
+**Gate:** `uring_tcp_recv_send_completion_smoke` (behavioral + this file).
 
 ## What ships
 
-Under `--runtime=uring` on Linux:
+Under `--runtime=uring` on Linux (`RYNIX_RT_URING`):
 
 | Op | Path |
 |----|------|
-| `accept` / `connect` | Prefer `io_uring` SQE when `rynix_rt_uring_ready()` |
-| File `read` / `write` | Prefer uring via `rynix_rt_uring_read` / `_write`, else portable |
-| TCP `recv` / `send` | **Poll / yield fallback** — nonblocking `recv`/`send` in a yield loop (`rt/src/net.c`) |
-
-## Limit (honest)
-
-TCP **recv/send do not submit uring SQEs** today. Reducing that poll fallback to
-true completion-path recv/send remains future work (Linux CI). This phase
-documents the limit rather than claiming completion-path TCP I/O.
+| `accept` / `connect` | `io_uring` SQE when ready |
+| File `read` / `write` | `rynix_rt_uring_read` / `_write` |
+| TCP `recv` / `send` | Prefer `rynix_rt_uring_read` / `_write` (IORING_OP_READ/WRITE on sockets) when `rynix_rt_uring_ready()`; else poll/yield fallback |
 
 ## Evidence
 
-- `rt/src/uring.c` — accept/connect/read/write SQEs
-- `rt/src/net.c` — `rynix_rt_tcp_recv` / `_send` yield+recv/send loop
-- Existing smoke: `uring_sqe_smoke_c` (not a full recv/send completion gate)
+- `rt/src/net.c` — uring branch before poll loop
+- CI: uring TCP echo / load smokes under `sanitizer-rt` / uring steps
+- Soft gate in agent_cli asserts net.c contains uring_ready + uring_read/write

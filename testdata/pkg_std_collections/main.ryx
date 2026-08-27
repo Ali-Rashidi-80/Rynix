@@ -1,0 +1,8 @@
+## Phase 36-C: std::collections facade import
+import std::collections
+
+def main() -> i64
+  let n = collections.collections_facade_ok()
+  print_i64(n)
+  return 0
+end

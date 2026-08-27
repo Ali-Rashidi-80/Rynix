@@ -155,8 +155,12 @@ fn parse_int_lit(text: &str) -> Option<i64> {
 }
 
 fn strip_string_lit(text: &str) -> String {
-    let t = text.strip_prefix('"').unwrap_or(text);
-    let t = t.strip_suffix('"').unwrap_or(t);
+    let t = if let Some(rest) = text.strip_prefix("\"\"\"") {
+        rest.strip_suffix("\"\"\"").unwrap_or(rest)
+    } else {
+        let t = text.strip_prefix('"').unwrap_or(text);
+        t.strip_suffix('"').unwrap_or(t)
+    };
     // Minimal unescape for common sequences.
     t.replace("\\n", "\n")
         .replace("\\t", "\t")

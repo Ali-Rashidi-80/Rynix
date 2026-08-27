@@ -1,0 +1,10 @@
+## Tutorial 03 — Vec[i64] mono
+
+def main() -> i64
+  let v: Vec[i64] = vec_new(0)
+  v.push(10)
+  v.push(20)
+  print_i64(v.len())
+  print_i64(v.get(1))
+  return 0
+end

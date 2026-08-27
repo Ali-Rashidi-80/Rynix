@@ -6,7 +6,7 @@ Companion for Phase 27-H (`security_cwe_matrix_or_deferral`).
 
 | CWE | Class | Status | Notes |
 |-----|-------|--------|-------|
-| **CWE-798** | Use of Hard-coded Credentials | **Implemented** (pattern) | Prefix / assignment heuristics (`sk_live_`, `AKIA`, `password = "`, …). Advisory; not taint. |
+| **CWE-798** | Use of Hard-coded Credentials | **Implemented** (pattern) | Prefix / assignment heuristics (`sk_live_`, `AKIA`, `ghp_`, `glpat-`, `password = "`, …). Advisory; not taint. Phase 31 additive: GitLab `glpat-`. |
 
 This is intentionally a **CWE-798-class** line scanner — not a full audit.
 
@@ -22,6 +22,7 @@ This is intentionally a **CWE-798-class** line scanner — not a full audit.
 
 ## Deferred expansion
 
-Expanding `rynix_security` beyond CWE-798 (e.g. regex XSS, SQLi string
-patterns) is **deferred** until there is a SPEC + false-positive budget.
-Documented here so Quality-10 does not claim broader CWE theater.
+Further CWEs beyond CWE-798-class secrets (e.g. regex XSS, SQLi) remain deferred
+until SPEC + false-positive budget. Phase 31 added one additive secret prefix
+(`glpat-`) under the existing CWE-798 class (`security_cwe_one_additive`).
+

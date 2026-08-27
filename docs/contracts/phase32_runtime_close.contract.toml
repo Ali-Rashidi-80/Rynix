@@ -1,0 +1,34 @@
+# Phase 32 — runtime / HTTP close
+
+[contract]
+name = "phase32-runtime-close"
+
+[[evidence]]
+id = "uring-tcp"
+kind = "cargo_test"
+package = "rynixc"
+filter = "uring_tcp_recv_send_completion_smoke"
+
+[[evidence]]
+id = "http-bearer"
+kind = "cargo_test"
+package = "rynixc"
+filter = "http_bearer_header_soft_gate"
+
+[[evidence]]
+id = "tls-linux-ci"
+kind = "cargo_test"
+package = "rynixc"
+filter = "tls_linux_ci_row_green"
+
+[[evidence]]
+id = "escape-scc"
+kind = "cargo_test"
+package = "rynixc"
+filter = "escape_interproc_improvement_gate"
+
+[[evidence]]
+id = "phase32-doc"
+kind = "file"
+path = "docs/PHASE32.md"
+contains = "Runtime / HTTP"

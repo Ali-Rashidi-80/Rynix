@@ -1,0 +1,34 @@
+# Phase 36 — Track G ship
+
+[contract]
+name = "phase36-track-g"
+
+[[evidence]]
+id = "vec-matrix"
+kind = "cargo_test"
+package = "rynixc"
+filter = "vec_t_roundtrip_matrix"
+
+[[evidence]]
+id = "map-matrix"
+kind = "cargo_test"
+package = "rynixc"
+filter = "map_kv_roundtrip_matrix"
+
+[[evidence]]
+id = "std-facade"
+kind = "cargo_test"
+package = "rynixc"
+filter = "std_collections_facade_ok"
+
+[[evidence]]
+id = "legacy-alias"
+kind = "cargo_test"
+package = "rynixc"
+filter = "legacy_mono_alias_ok"
+
+[[evidence]]
+id = "phase36-doc"
+kind = "file"
+path = "docs/PHASE36.md"
+contains = "Track G ship"

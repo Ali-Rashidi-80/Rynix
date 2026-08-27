@@ -1,0 +1,9 @@
+## Vec[bool] mono roundtrip (Phase 33)
+
+def main() -> i64
+  let v: Vec[bool] = vec_bool_new(0)
+  v.push(true)
+  v.push(false)
+  print_i64(v.len())
+  return 0
+end

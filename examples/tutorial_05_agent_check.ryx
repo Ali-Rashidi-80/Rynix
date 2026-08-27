@@ -1,0 +1,7 @@
+## Tutorial 05 — check + explain-alloc (agent path)
+
+def main() -> i64
+  let x = 1 + 2
+  print_i64(x)
+  return 0
+end

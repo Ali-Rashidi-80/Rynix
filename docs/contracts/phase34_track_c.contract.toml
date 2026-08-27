@@ -1,0 +1,40 @@
+# Phase 34 — Track C depth
+
+[contract]
+name = "phase34-track-c"
+
+[[evidence]]
+id = "tutorials"
+kind = "cargo_test"
+package = "rynixc"
+filter = "tutorial_five_runnable"
+
+[[evidence]]
+id = "contributing"
+kind = "cargo_test"
+package = "rynixc"
+filter = "contributing_sections_gate"
+
+[[evidence]]
+id = "rfc-process"
+kind = "cargo_test"
+package = "rynixc"
+filter = "rfc_process_documented"
+
+[[evidence]]
+id = "onboarding"
+kind = "cargo_test"
+package = "rynixc"
+filter = "contributor_onboarding_doc"
+
+[[evidence]]
+id = "retrospective"
+kind = "cargo_test"
+package = "rynixc"
+filter = "retrospective_template_exists"
+
+[[evidence]]
+id = "phase34-doc"
+kind = "file"
+path = "docs/PHASE34.md"
+contains = "Track C"

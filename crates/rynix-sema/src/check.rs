@@ -29,8 +29,12 @@ pub struct Analysis {
     pub path_resolution: FxHashMap<rynix_ast::NodeId, DefId>,
     /// Struct field byte/slot index (i64 slots) for lowering.
     pub field_offsets: FxHashMap<(DefId, Symbol), u32>,
-    /// Nullary enum variant `DefId` → discriminant (Phase 17-C).
+    /// Enum variant `DefId` → discriminant (nullary and payload; Phase 17-C / 33).
     pub variant_disc: FxHashMap<DefId, i64>,
+    /// Payload type for variants that carry `i64` / `str` (ADR-0024).
+    pub variant_payload: FxHashMap<DefId, TypeId>,
+    /// Enum defs that have at least one payload variant (boxed representation).
+    pub enum_has_payload: FxHashSet<DefId>,
     /// Inferred effect sets per function (`DefId`), when source was provided.
     pub fn_effects: FxHashMap<DefId, crate::effects::EffectSet>,
 }
@@ -87,8 +91,12 @@ struct Checker<'a> {
     field_offsets: FxHashMap<(DefId, Symbol), u32>,
     /// Enum `DefId` → variant name → (Variant `DefId`, optional payload type).
     enum_variants: FxHashMap<DefId, FxHashMap<Symbol, (DefId, Option<TypeId>)>>,
-    /// Nullary variant `DefId` → discriminant i64.
+    /// Variant `DefId` → discriminant i64 (all variants).
     variant_disc: FxHashMap<DefId, i64>,
+    /// Payload type for payload-carrying variants.
+    variant_payload: FxHashMap<DefId, TypeId>,
+    /// Enum defs with any payload variant.
+    enum_has_payload: FxHashSet<DefId>,
     /// Fn `DefId` → function type.
     fn_sigs: FxHashMap<DefId, TypeId>,
     /// Type alias `DefId` → aliased type.
@@ -117,6 +125,8 @@ impl<'a> Checker<'a> {
             field_offsets: FxHashMap::default(),
             enum_variants: FxHashMap::default(),
             variant_disc: FxHashMap::default(),
+            variant_payload: FxHashMap::default(),
+            enum_has_payload: FxHashSet::default(),
             fn_sigs: FxHashMap::default(),
             aliases: FxHashMap::default(),
             ownership: FxHashMap::default(),
@@ -135,6 +145,8 @@ impl<'a> Checker<'a> {
             path_resolution: self.path_resolution,
             field_offsets: self.field_offsets,
             variant_disc: self.variant_disc,
+            variant_payload: self.variant_payload,
+            enum_has_payload: self.enum_has_payload,
             fn_effects: self.fn_effects,
         }
     }
@@ -202,6 +214,12 @@ impl<'a> Checker<'a> {
         self.soft_fn("vec_str_push", vec![vs, ty_s], unit);
         self.soft_fn("vec_str_get", vec![vs, ty_i], ty_s);
         self.soft_fn("vec_str_len", vec![vs], ty_i);
+        let vb = self.types.ty_vec_bool;
+        let ty_b = self.types.ty_bool;
+        self.soft_fn("vec_bool_new", vec![ty_i], vb);
+        self.soft_fn("vec_bool_push", vec![vb, ty_b], unit);
+        self.soft_fn("vec_bool_get", vec![vb, ty_i], ty_b);
+        self.soft_fn("vec_bool_len", vec![vb], ty_i);
         self.soft_fn("map_new", vec![ty_i], ty_m);
         self.soft_fn("map_insert", vec![ty_m, ty_i, ty_i], unit);
         self.soft_fn("map_get", vec![ty_m, ty_i], ty_i);
@@ -254,6 +272,7 @@ impl<'a> Checker<'a> {
         );
         self.soft_fn("http_serve_loop_path_param_json_i64", vec![ty_i, ty_s, ty_i], ty_i);
         self.soft_fn("http_serve_loop_header_json_i64", vec![ty_i, ty_s, ty_s, ty_i], ty_i);
+        self.soft_fn("http_serve_loop_bearer_json_i64", vec![ty_i, ty_s, ty_s, ty_i], ty_i);
         self.soft_fn(
             "http_serve_loop_post_echo_json_i64",
             vec![ty_i, ty_s, ty_s, ty_i, ty_i],
@@ -407,6 +426,7 @@ impl<'a> Checker<'a> {
         for (def, e) in pending_enums {
             let mut variants = FxHashMap::default();
             let mut disc: i64 = 0;
+            let mut has_payload = false;
             for v in e.variants {
                 let vdef = self.alloc_def(DefKind::Variant {
                     parent: def,
@@ -419,16 +439,31 @@ impl<'a> Checker<'a> {
                 }
                 let payload = v.payload.map(|p| self.lower_type(p, self.module_scope));
                 let enum_ty = self.types.enum_type(def);
+                self.variant_disc.insert(vdef, disc);
+                disc += 1;
                 // Nullary variant: value of enum type; payload variant: fn(payload) -> enum
                 let vty = if let Some(p) = payload {
+                    let ok = self.types.compatible(p, self.types.ty_int)
+                        || self.types.compatible(p, self.types.ty_str)
+                        || matches!(self.types.kind(p), TypeKind::Error);
+                    if !ok {
+                        self.sink.emit(errors::type_mismatch(
+                            v.span,
+                            "i64 or str payload",
+                            &self.display_ty(p),
+                        ));
+                    }
+                    has_payload = true;
+                    self.variant_payload.insert(vdef, p);
                     self.types.fn_type(vec![p], enum_ty)
                 } else {
-                    self.variant_disc.insert(vdef, disc);
-                    disc += 1;
                     enum_ty
                 };
                 self.def_types.insert(vdef, vty);
                 variants.insert(v.name.name, (vdef, payload));
+            }
+            if has_payload {
+                self.enum_has_payload.insert(def);
             }
             self.enum_variants.insert(def, variants);
         }
@@ -489,10 +524,12 @@ impl<'a> Checker<'a> {
                             self.types.ty_vec
                         } else if self.types.compatible(elem, self.types.ty_str) {
                             self.types.ty_vec_str
+                        } else if self.types.compatible(elem, self.types.ty_bool) {
+                            self.types.ty_vec_bool
                         } else {
                             self.sink.emit(errors::type_mismatch(
                                 *span,
-                                "Vec[i64] or Vec[str]",
+                                "Vec[i64], Vec[str], or Vec[bool]",
                                 &format!("Vec[{}]", self.display_ty(elem)),
                             ));
                             self.types.ty_error
@@ -772,6 +809,7 @@ impl<'a> Checker<'a> {
             Stmt::Match(m) => {
                 let scrut = self.check_expr(m.scrutinee, scope, None);
                 for arm in m.arms {
+                    let body_scope = self.scopes.alloc(Some(scope), ScopeKind::Block);
                     match &arm.pattern {
                         rynix_ast::MatchPat::Wildcard(_) => {}
                         rynix_ast::MatchPat::Literal(e) => {
@@ -787,8 +825,43 @@ impl<'a> Checker<'a> {
                                 ));
                             }
                         }
+                        rynix_ast::MatchPat::Ctor { path, binder } => {
+                            let pty = self.check_path(path, scope);
+                            // Payload ctor as value is fn(payload)->enum; pattern binds payload.
+                            let payload_ty = match self.types.kind(pty).clone() {
+                                TypeKind::Fn { params, ret } if params.len() == 1 => {
+                                    if !self.types.compatible(scrut, ret)
+                                        && !matches!(self.types.kind(scrut), TypeKind::Error)
+                                        && !matches!(self.types.kind(ret), TypeKind::Error)
+                                    {
+                                        self.sink.emit(errors::type_mismatch(
+                                            path.span,
+                                            &self.display_ty(scrut),
+                                            &self.display_ty(ret),
+                                        ));
+                                    }
+                                    params[0]
+                                }
+                                _ => {
+                                    self.sink.emit(errors::type_mismatch(
+                                        path.span,
+                                        "payload enum variant",
+                                        &self.display_ty(pty),
+                                    ));
+                                    self.types.ty_error
+                                }
+                            };
+                            let def = self.alloc_def(DefKind::Local {
+                                name: binder.name,
+                                span: binder.span,
+                                mutable: false,
+                            });
+                            if let Some(prev) = self.scopes.define(body_scope, binder.name, def) {
+                                self.dup_error(binder.name, binder.span, prev);
+                            }
+                            self.def_types.insert(def, payload_ty);
+                        }
                     }
-                    let body_scope = self.scopes.alloc(Some(scope), ScopeKind::Block);
                     for s in arm.body {
                         self.check_stmt(s, body_scope, expected_ret, saw_return);
                     }
@@ -1002,6 +1075,9 @@ impl<'a> Checker<'a> {
                     (TypeKind::VecStr, "len") => self.types.ty_int,
                     (TypeKind::VecStr, "get") => self.types.ty_str,
                     (TypeKind::VecStr, "push") => self.types.ty_unit,
+                    (TypeKind::VecBool, "len") => self.types.ty_int,
+                    (TypeKind::VecBool, "get") => self.types.ty_bool,
+                    (TypeKind::VecBool, "push") => self.types.ty_unit,
                     (TypeKind::Map, "len" | "get") => self.types.ty_int,
                     (TypeKind::Map, "insert") => self.types.ty_unit,
                     (TypeKind::MapStrI64, "len" | "get") => self.types.ty_int,
@@ -1013,6 +1089,7 @@ impl<'a> Checker<'a> {
                     (
                         TypeKind::Vec
                         | TypeKind::VecStr
+                        | TypeKind::VecBool
                         | TypeKind::Map
                         | TypeKind::MapStrI64
                         | TypeKind::MapStrStr
@@ -1182,16 +1259,17 @@ impl<'a> Checker<'a> {
             return self.types.ty_error;
         };
 
-        // Niche-10 / Phase 17: struct literal fields may be `i64` or `str`.
+        // Niche-10 / Phase 17 / Phase 33: struct literal fields may be `i64`, `str`, or `bool`.
         for (name, &fty) in &fields {
             let ok = self.types.compatible(fty, self.types.ty_int)
-                || self.types.compatible(fty, self.types.ty_str);
+                || self.types.compatible(fty, self.types.ty_str)
+                || self.types.compatible(fty, self.types.ty_bool);
             if !ok {
                 self.sink.emit(errors::type_mismatch(
                     lit.span,
-                    "i64 or str",
+                    "i64, str, or bool",
                     &format!(
-                        "field `{}` has type `{}` (struct literals allow i64|str)",
+                        "field `{}` has type `{}` (struct literals allow i64|str|bool)",
                         self.interner.resolve(*name),
                         self.display_ty(fty)
                     ),
@@ -1487,18 +1565,20 @@ impl<'a> Checker<'a> {
     }
 
     fn is_linear(&self, ty: TypeId) -> bool {
-        matches!(
-            self.types.kind(ty),
+        match self.types.kind(ty) {
             TypeKind::Vec
-                | TypeKind::VecStr
-                | TypeKind::Map
-                | TypeKind::MapStrI64
-                | TypeKind::MapStrStr
-                | TypeKind::Ptr
-                | TypeKind::Slice(_)
-                | TypeKind::Struct(_)
+            | TypeKind::VecStr
+            | TypeKind::VecBool
+            | TypeKind::Map
+            | TypeKind::MapStrI64
+            | TypeKind::MapStrStr
+            | TypeKind::Ptr
+            | TypeKind::Slice(_)
+            | TypeKind::Struct(_) => true,
+            TypeKind::Enum(d) => self.enum_has_payload.contains(d),
             // Nullary enums are i64 discriminants (Phase 17-C) — Copy, not linear.
-        )
+            _ => false,
+        }
     }
 
     /// Assignment place: resolve type and clear prior move (reinitialize).

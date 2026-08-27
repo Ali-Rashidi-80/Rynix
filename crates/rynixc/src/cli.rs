@@ -105,7 +105,7 @@ Options for `emit-ll` / `emit-wasm` / `build` / `run`:
   --keep-ll           (build) Keep the intermediate .ll next to the binary
   --runtime=KIND      `portable`, `uring` (Linux), or `iocp` (Windows);
                       if omitted, use [build].runtime then portable
-  --sandbox=KIND      (build) `none` (default, host clang) or `docker`
+  --sandbox=KIND      (build) `none` (default), `docker`, or `job` (Windows Job Object)
                       (link inside docker; hard-errors if docker missing)
   --bench             (build) Define RYNIX_BENCH — print_i64 becomes a sink (Suite5 timing)
   --pgo-gen           (build) Clang `-fprofile-instr-generate` (training build)
@@ -206,6 +206,8 @@ pub enum SandboxKind {
     #[default]
     None,
     Docker,
+    /// Windows Job Object around clang link (Phase 31). Hard-errors on non-Windows.
+    Job,
 }
 
 #[derive(Debug, Clone)]
@@ -699,6 +701,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
             "--runtime=iocp" => runtime = Some(RuntimeKind::Iocp),
             "--sandbox=none" => sandbox = SandboxKind::None,
             "--sandbox=docker" => sandbox = SandboxKind::Docker,
+            "--sandbox=job" => sandbox = SandboxKind::Job,
             other if other.starts_with("--pgo-use=") => {
                 pgo = PgoMode::Use(PathBuf::from(&other[10..]));
             }
@@ -709,7 +712,7 @@ fn parse_build(args: &[String]) -> Result<Command, String> {
             }
             other if other.starts_with("--sandbox") => {
                 return Err(
-                    "invalid `--sandbox`: expected --sandbox=none or --sandbox=docker".into(),
+                    "invalid `--sandbox`: expected --sandbox=none|docker|job".into(),
                 );
             }
             "-o" => expect_o = true,

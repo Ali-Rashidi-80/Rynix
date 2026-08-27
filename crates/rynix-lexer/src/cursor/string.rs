@@ -15,6 +15,14 @@ impl Lexer<'_> {
     pub(super) fn string(&mut self, sink: &mut dyn DiagSink) -> Token {
         let start = self.pos;
         self.pos += 1;
+        // Triple-quoted multiline: """ ... """
+        if self.pos + 1 < self.src.len() as u32
+            && self.src[self.pos as usize] == b'"'
+            && self.src[(self.pos + 1) as usize] == b'"'
+        {
+            self.pos += 2;
+            return self.triple_string(start, sink);
+        }
         loop {
             let Some(hit) = self.find_string_stop() else {
                 self.pos = self.src.len() as u32;
@@ -36,6 +44,30 @@ impl Lexer<'_> {
                 // A backslash: `escape` always consumes at least the
                 // backslash, so the loop always makes progress.
                 _ => self.escape(sink),
+            }
+        }
+    }
+
+    fn triple_string(&mut self, start: u32, sink: &mut dyn DiagSink) -> Token {
+        loop {
+            if self.pos as usize >= self.src.len() {
+                let span = self.span_from(start);
+                sink.emit(errors::eof_in_string(span));
+                return Token::new(TokenKind::StrLit, span);
+            }
+            let b = self.src[self.pos as usize];
+            if b == b'"'
+                && self.pos + 2 < self.src.len() as u32
+                && self.src[(self.pos + 1) as usize] == b'"'
+                && self.src[(self.pos + 2) as usize] == b'"'
+            {
+                self.pos += 3;
+                return Token::new(TokenKind::StrLit, self.span_from(start));
+            }
+            if b == b'\\' {
+                self.escape(sink);
+            } else {
+                self.pos += utf8_len(b);
             }
         }
     }

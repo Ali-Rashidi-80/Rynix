@@ -1,0 +1,6 @@
+## Tutorial 01 — hello + print_i64
+
+def main() -> i64
+  print_i64(42)
+  return 0
+end

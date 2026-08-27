@@ -1,0 +1,21 @@
+## Payload enum str match roundtrip (Phase 33 / ADR-0024)
+
+enum Msg
+  Empty
+  Text(str)
+end
+
+def main() -> i64
+  let a = Text("hi")
+  let mut n = 0
+  match a
+    Empty
+      n = 0
+    Text(s)
+      n = 1
+    _
+      n = -1
+  end
+  print_i64(n)
+  return 0
+end

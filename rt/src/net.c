@@ -201,6 +201,12 @@ int64_t rynix_rt_tcp_recv(int64_t fd, void *buf, int64_t n) {
     return rynix_rt_iocp_recv(fd, buf, n);
   }
 #endif
+#if defined(RYNIX_RT_URING)
+  if (rynix_rt_uring_ready()) {
+    /* IORING_OP_READ on connected sockets — completion path (Phase 32). */
+    return rynix_rt_uring_read(fd, buf, n);
+  }
+#endif
   rynix_sock_t s = (rynix_sock_t)(intptr_t)fd;
   for (;;) {
     rynix_rt_yield();
@@ -221,6 +227,11 @@ int64_t rynix_rt_tcp_send(int64_t fd, const void *buf, int64_t n) {
 #if defined(RYNIX_RT_IOCP) && defined(_WIN32)
   if (rynix_rt_iocp_ready()) {
     return rynix_rt_iocp_send(fd, buf, n);
+  }
+#endif
+#if defined(RYNIX_RT_URING)
+  if (rynix_rt_uring_ready()) {
+    return rynix_rt_uring_write(fd, buf, n);
   }
 #endif
   rynix_sock_t s = (rynix_sock_t)(intptr_t)fd;

@@ -1,0 +1,40 @@
+# Phase 31 — security harden
+
+[contract]
+name = "phase31-security-harden"
+
+[[evidence]]
+id = "msan-ubsan-enforced"
+kind = "cargo_test"
+package = "rynixc"
+filter = "msan_ubsan_rt_enforced"
+
+[[evidence]]
+id = "cargo-deny-clean"
+kind = "cargo_test"
+package = "rynixc"
+filter = "cargo_deny_clean"
+
+[[evidence]]
+id = "windows-sandbox-smoke"
+kind = "cargo_test"
+package = "rynixc"
+filter = "windows_sandbox_smoke"
+
+[[evidence]]
+id = "security-cwe-additive"
+kind = "cargo_test"
+package = "rynixc"
+filter = "security_cwe_one_additive"
+
+[[evidence]]
+id = "phase31-doc"
+kind = "file"
+path = "docs/PHASE31.md"
+contains = "Security harden"
+
+[[evidence]]
+id = "deny-toml"
+kind = "file"
+path = "deny.toml"
+contains = "licenses"

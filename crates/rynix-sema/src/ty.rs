@@ -34,6 +34,8 @@ pub enum TypeKind {
     Vec,
     /// Region Vec[str] handle (ADR-0016).
     VecStr,
+    /// Region Vec[bool] handle (Phase 33).
+    VecBool,
     /// Region Map[i64, i64] handle (ADR-0006).
     Map,
     /// Region Map[str, i64] handle (ADR-0017).
@@ -68,6 +70,7 @@ pub struct TypeCtx {
     pub ty_ptr: TypeId,
     pub ty_vec: TypeId,
     pub ty_vec_str: TypeId,
+    pub ty_vec_bool: TypeId,
     pub ty_map: TypeId,
     pub ty_map_str_i64: TypeId,
     pub ty_map_str_str: TypeId,
@@ -96,6 +99,7 @@ impl TypeCtx {
             ty_ptr: TypeId(0),
             ty_vec: TypeId(0),
             ty_vec_str: TypeId(0),
+            ty_vec_bool: TypeId(0),
             ty_map: TypeId(0),
             ty_map_str_i64: TypeId(0),
             ty_map_str_str: TypeId(0),
@@ -112,6 +116,7 @@ impl TypeCtx {
         ctx.ty_ptr = ctx.intern(TypeKind::Ptr);
         ctx.ty_vec = ctx.intern(TypeKind::Vec);
         ctx.ty_vec_str = ctx.intern(TypeKind::VecStr);
+        ctx.ty_vec_bool = ctx.intern(TypeKind::VecBool);
         ctx.ty_map = ctx.intern(TypeKind::Map);
         ctx.ty_map_str_i64 = ctx.intern(TypeKind::MapStrI64);
         ctx.ty_map_str_str = ctx.intern(TypeKind::MapStrStr);
@@ -195,6 +200,7 @@ impl TypeCtx {
             TypeKind::Ptr => "ptr".into(),
             TypeKind::Vec => "Vec[i64]".into(),
             TypeKind::VecStr => "Vec[str]".into(),
+            TypeKind::VecBool => "Vec[bool]".into(),
             TypeKind::Map => "Map[i64, i64]".into(),
             TypeKind::MapStrI64 => "Map[str, i64]".into(),
             TypeKind::MapStrStr => "Map[str, str]".into(),

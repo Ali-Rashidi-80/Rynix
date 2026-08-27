@@ -57,10 +57,16 @@ impl LowerCtx<'_, '_> {
                         Local::Ssa(v) => v,
                     };
                 }
-                // Nullary enum variant → discriminant i64 (Phase 17-C).
+                // Nullary enum variant → discriminant i64, or boxed disc for payload enums.
                 if let Some(&def) = self.analysis.path_resolution.get(&p.id)
                     && let Some(&disc) = self.analysis.variant_disc.get(&def)
                 {
+                    if self.variant_parent_has_payload(def) {
+                        let d = self.b.iconst(disc);
+                        let z = self.b.iconst(0);
+                        let ext = self.interner.intern("rynix_rt_enum_box_i64");
+                        return self.b.call_ext(ext, vec![d, z], IrTy::Ptr);
+                    }
                     return self.b.iconst(disc);
                 }
                 // Function ref as value not supported — zero.
@@ -478,6 +484,21 @@ impl LowerCtx<'_, '_> {
             args.push(self.expr(a));
         }
         if let Expr::Path(p) = c.callee {
+            // Payload enum ctor: Some(x) → box(disc, x)
+            if let Some(&def) = self.analysis.path_resolution.get(&p.id)
+                && let Some(&disc) = self.analysis.variant_disc.get(&def)
+                && self.analysis.variant_payload.contains_key(&def)
+                && args.len() == 1
+            {
+                let d = self.b.iconst(disc);
+                let pty = self.analysis.variant_payload[&def];
+                let ext = if matches!(self.analysis.types.kind(pty), TypeKind::Str) {
+                    self.interner.intern("rynix_rt_enum_box_str")
+                } else {
+                    self.interner.intern("rynix_rt_enum_box_i64")
+                };
+                return self.b.call_ext(ext, vec![d, args[0]], IrTy::Ptr);
+            }
             // `fn(...)` or `pkg.fn(...)` after `import pkg` (flat unity symbols).
             let name = if p.segments.len() == 1 {
                 Some(p.segments[0].name)
@@ -574,16 +595,19 @@ impl LowerCtx<'_, '_> {
             ("insert", Some(TypeKind::MapStrStr)) => "map_str_str_insert",
             ("push", Some(TypeKind::Vec)) => "vec_push",
             ("push", Some(TypeKind::VecStr)) => "vec_str_push",
+            ("push", Some(TypeKind::VecBool)) => "vec_bool_push",
             ("get", Some(TypeKind::Map)) => "map_get",
             ("get", Some(TypeKind::MapStrI64)) => "map_str_i64_get",
             ("get", Some(TypeKind::MapStrStr)) => "map_str_str_get",
             ("get", Some(TypeKind::Vec)) => "vec_get",
             ("get", Some(TypeKind::VecStr)) => "vec_str_get",
+            ("get", Some(TypeKind::VecBool)) => "vec_bool_get",
             ("len", Some(TypeKind::Map)) => "map_len",
             ("len", Some(TypeKind::MapStrI64)) => "map_str_i64_len",
             ("len", Some(TypeKind::MapStrStr)) => "map_str_str_len",
             ("len", Some(TypeKind::Vec)) => "vec_len",
             ("len", Some(TypeKind::VecStr)) => "vec_str_len",
+            ("len", Some(TypeKind::VecBool)) => "vec_bool_len",
             (other, _) => other,
         };
         let soft = soft.to_string();
@@ -612,6 +636,10 @@ impl LowerCtx<'_, '_> {
             "vec_str_push" => (self.interner.intern("rynix_rt_vec_str_push"), IrTy::Unit),
             "vec_str_get" => (self.interner.intern("rynix_rt_vec_str_get"), IrTy::Str),
             "vec_str_len" => (self.interner.intern("rynix_rt_vec_str_len"), IrTy::I64),
+            "vec_bool_new" => (self.interner.intern("rynix_rt_vec_bool_new"), IrTy::Ptr),
+            "vec_bool_push" => (self.interner.intern("rynix_rt_vec_bool_push"), IrTy::Unit),
+            "vec_bool_get" => (self.interner.intern("rynix_rt_vec_bool_get"), IrTy::Bool),
+            "vec_bool_len" => (self.interner.intern("rynix_rt_vec_bool_len"), IrTy::I64),
             "map_new" => (self.interner.intern("rynix_rt_map_i64_new"), IrTy::Ptr),
             "map_insert" => (self.interner.intern("rynix_rt_map_i64_insert"), IrTy::Unit),
             "map_get" => (self.interner.intern("rynix_rt_map_i64_get"), IrTy::I64),
@@ -668,6 +696,12 @@ impl LowerCtx<'_, '_> {
             "http_serve_loop_header_json_i64" => {
                 (
                     self.interner.intern("rynix_rt_http_serve_loop_header_json_i64"),
+                    IrTy::I64,
+                )
+            }
+            "http_serve_loop_bearer_json_i64" => {
+                (
+                    self.interner.intern("rynix_rt_http_serve_loop_bearer_json_i64"),
                     IrTy::I64,
                 )
             }
@@ -738,6 +772,15 @@ impl LowerCtx<'_, '_> {
             }
         };
         self.b.call_ext(ext_name, args, ret)
+    }
+
+    fn variant_parent_has_payload(&self, def: rynix_sema::DefId) -> bool {
+        match self.analysis.defs.get(def.index() as usize) {
+            Some(rynix_sema::DefKind::Variant { parent, .. }) => {
+                self.analysis.enum_has_payload.contains(parent)
+            }
+            _ => false,
+        }
     }
 
     fn span_text(&self, span: rynix_span::Span) -> &str {

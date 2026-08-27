@@ -695,6 +695,101 @@ int64_t rynix_rt_http_serve_loop_header_json_i64(int64_t port, const char *path,
   return 0;
 }
 
+/* Returns 1 auth ok, 0 miss/reject (still responded), -1 I/O. */
+static int64_t http_serve_one_bearer(int64_t client, const char *path,
+                                     const char *expected_token) {
+  char req[2048];
+  if (http_recv_message(client, req, (int64_t)sizeof(req)) <= 0) {
+    return -1;
+  }
+
+  const char *auth = http_header_value(req, "Authorization");
+
+  char *line_end = strstr(req, "\r\n");
+  if (!line_end) {
+    return -1;
+  }
+  *line_end = '\0';
+  char *method = req;
+  char *sp1 = strchr(req, ' ');
+  char *req_path = sp1 ? sp1 + 1 : NULL;
+  if (sp1) {
+    *sp1 = '\0';
+  }
+  char *sp2 = req_path ? strchr(req_path, ' ') : NULL;
+  if (sp2) {
+    *sp2 = '\0';
+  }
+
+  int path_ok = req_path && path && strcmp(method, "GET") == 0 && strcmp(req_path, path) == 0;
+  if (!path_ok) {
+    if (http_send_json_resp(client, 404, "Not Found", "{\"error\":\"not_found\"}", 0) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+
+  int ok = 0;
+  if (auth && expected_token && expected_token[0] != '\0') {
+    const char *prefix = "Bearer ";
+    size_t plen = 7;
+    if (strncmp(auth, prefix, plen) == 0) {
+      const char *tok = auth + plen;
+      size_t elen = strlen(expected_token);
+      size_t i = 0;
+      while (i < elen && tok[i] != '\0' && tok[i] != '\r' && tok[i] != '\n' && tok[i] != ' ') {
+        if (tok[i] != expected_token[i]) {
+          break;
+        }
+        i++;
+      }
+      if (i == elen && (tok[i] == '\0' || tok[i] == '\r' || tok[i] == '\n' || tok[i] == ' ')) {
+        ok = 1;
+      }
+    }
+  }
+  if (ok) {
+    if (http_send_json_resp(client, 200, "OK", "{\"value\": 1}", 0) != 0) {
+      return -1;
+    }
+    return 1;
+  }
+  if (http_send_json_resp(client, 401, "Unauthorized", "{\"error\":\"unauthorized\"}", 0) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+int64_t rynix_rt_http_serve_loop_bearer_json_i64(int64_t port, const char *path,
+                                                 const char *expected_token, int64_t max_reqs) {
+  if (!path || !expected_token || expected_token[0] == '\0' || port <= 0 || max_reqs <= 0) {
+    return -1;
+  }
+  int64_t listen_fd = rynix_rt_tcp_listen(port);
+  if (listen_fd < 0) {
+    return -1;
+  }
+  int64_t served = 0;
+  while (served < max_reqs) {
+    int64_t client = rynix_rt_tcp_accept(listen_fd);
+    if (client < 0) {
+      rynix_rt_tcp_close(listen_fd);
+      return -1;
+    }
+    int64_t rc = http_serve_one_bearer(client, path, expected_token);
+    rynix_rt_tcp_close(client);
+    if (rc < 0) {
+      rynix_rt_tcp_close(listen_fd);
+      return -1;
+    }
+    if (rc == 1) {
+      served++;
+    }
+  }
+  rynix_rt_tcp_close(listen_fd);
+  return 0;
+}
+
 /* Returns 1 echo ok, 0 miss/reject (still responded), -1 I/O. */
 static int64_t http_serve_one_post_echo_bounded(int64_t client, const char *path,
                                                 const char *field, int64_t max_body) {

@@ -347,10 +347,15 @@ pub struct MatchArm<'a> {
 
 #[derive(Debug)]
 pub enum MatchPat<'a> {
-    /// Integer / bool / nil literal.
+    /// Integer / bool / nil literal, or nullary enum variant path.
     Literal(&'a Expr<'a>),
     /// `_` wildcard.
     Wildcard(Span),
+    /// Payload enum bind: `Some(x)` / `Opt::Some(x)` (ADR-0024 / Phase 33).
+    Ctor {
+        path: &'a Path<'a>,
+        binder: Ident,
+    },
 }
 
 #[derive(Debug)]

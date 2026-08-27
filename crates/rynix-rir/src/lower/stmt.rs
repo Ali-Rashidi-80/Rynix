@@ -791,13 +791,70 @@ impl LowerCtx<'_, '_> {
             rynix_ast::MatchPat::Literal(pat) => {
                 let then_b = self.b.create_block();
                 let else_b = self.b.create_block();
-                let pval = self.expr(pat);
-                let floaty = self.b.func.value_ty(scrut) == IrTy::F64
-                    || self.b.func.value_ty(pval) == IrTy::F64;
-                let cond = self.cmp(CmpOp::Eq, scrut, pval, floaty);
+                let cond = if self.b.func.value_ty(scrut) == IrTy::Ptr {
+                    // Payload enum: compare discriminants, not pointer identity.
+                    if let Expr::Path(p) = pat
+                        && let Some(&def) = self.analysis.path_resolution.get(&p.id)
+                        && let Some(&disc) = self.analysis.variant_disc.get(&def)
+                    {
+                        let ext = self.interner.intern("rynix_rt_enum_disc");
+                        let got = self.b.call_ext(ext, vec![scrut], IrTy::I64);
+                        let want = self.b.iconst(disc);
+                        self.cmp(CmpOp::Eq, got, want, false)
+                    } else {
+                        let pval = self.expr(pat);
+                        self.cmp(CmpOp::Eq, scrut, pval, false)
+                    }
+                } else {
+                    let pval = self.expr(pat);
+                    let floaty = self.b.func.value_ty(scrut) == IrTy::F64
+                        || self.b.func.value_ty(pval) == IrTy::F64;
+                    self.cmp(CmpOp::Eq, scrut, pval, floaty)
+                };
                 self.b.br(cond, then_b, vec![], else_b, vec![]);
                 self.b.switch_to(then_b);
                 self.b.seal_block(then_b);
+                for s in arm.body {
+                    self.stmt(s);
+                }
+                if !self.is_terminated() {
+                    self.b.jump(join, vec![]);
+                }
+                self.b.switch_to(else_b);
+                self.b.seal_block(else_b);
+                self.lower_match_arms(scrut, &arms[1..], else_body, join);
+            }
+            rynix_ast::MatchPat::Ctor { path, binder } => {
+                let then_b = self.b.create_block();
+                let else_b = self.b.create_block();
+                let disc = self
+                    .analysis
+                    .path_resolution
+                    .get(&path.id)
+                    .and_then(|d| self.analysis.variant_disc.get(d).copied())
+                    .unwrap_or(0);
+                let ext_disc = self.interner.intern("rynix_rt_enum_disc");
+                let got = self.b.call_ext(ext_disc, vec![scrut], IrTy::I64);
+                let want = self.b.iconst(disc);
+                let cond = self.cmp(CmpOp::Eq, got, want, false);
+                self.b.br(cond, then_b, vec![], else_b, vec![]);
+                self.b.switch_to(then_b);
+                self.b.seal_block(then_b);
+                let payload_ty = self
+                    .analysis
+                    .path_resolution
+                    .get(&path.id)
+                    .and_then(|d| self.analysis.variant_payload.get(d).copied());
+                let payload = if payload_ty
+                    .is_some_and(|t| matches!(self.analysis.types.kind(t), TypeKind::Str))
+                {
+                    let ext = self.interner.intern("rynix_rt_enum_payload_str");
+                    self.b.call_ext(ext, vec![scrut], IrTy::Str)
+                } else {
+                    let ext = self.interner.intern("rynix_rt_enum_payload_i64");
+                    self.b.call_ext(ext, vec![scrut], IrTy::I64)
+                };
+                self.locals.insert(binder.name, Local::Ssa(payload));
                 for s in arm.body {
                     self.stmt(s);
                 }

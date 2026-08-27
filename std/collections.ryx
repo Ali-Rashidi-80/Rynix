@@ -1,0 +1,7 @@
+## std.collections — Track G documentation facade (Phase 36 / ADR-0025).
+## Soft builtins remain the real ABI (`vec_new`, `vec_str_*`, `vec_bool_*`, `map_*`).
+## Parametric `Vec[T]` / `Map[K,V]` monomorphize onto those softs.
+
+def collections_facade_ok() -> i64
+  return 1
+end

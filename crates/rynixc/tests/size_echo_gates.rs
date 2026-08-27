@@ -801,6 +801,79 @@ end
 }
 
 #[test]
+fn http_bearer_smoke() {
+    let Some(clang) = clang() else {
+        eprintln!("skip: no clang on PATH");
+        return;
+    };
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.join("../..").canonicalize().unwrap();
+
+    let ryx = root.join("target/http_bearer_check.ryx");
+    std::fs::write(
+        &ryx,
+        r#"def main() -> i64
+  let rc = http_serve_loop_bearer_json_i64(0, "/b", "secret", 1)
+  return rc
+end
+"#,
+    )
+    .unwrap();
+    let check = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["check", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "http_serve_loop_bearer_json_i64 check failed:\n{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let ll = Command::new(env!("CARGO_BIN_EXE_rynixc"))
+        .args(["emit-ll", ryx.to_str().unwrap()])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(ll.status.success(), "emit-ll failed");
+    let text = String::from_utf8_lossy(&ll.stdout);
+    assert!(
+        text.contains("rynix_rt_http_serve_loop_bearer_json_i64"),
+        "missing bearer serve_loop runtime call in IR"
+    );
+
+    let out = std::env::temp_dir().join("rynix_http_bearer_rt");
+    let mut cmd = Command::new(&clang);
+    cmd.current_dir(&root)
+        .arg("-O1")
+        .arg("-I")
+        .arg("rt/include")
+        .arg("rt/portable.c")
+        .arg("rt/tests/http_bearer_smoke.c")
+        .arg("-o")
+        .arg(&out);
+    if cfg!(windows) {
+        cmd.arg("-fuse-ld=lld")
+            .arg("-lws2_32")
+            .arg("-lsecur32")
+            .arg("-lcrypt32")
+            .arg("-lbcrypt");
+    }
+    assert!(
+        cmd.status().unwrap().success(),
+        "http_bearer smoke compile failed"
+    );
+    let exe = if out.with_extension("exe").is_file() {
+        out.with_extension("exe")
+    } else {
+        out
+    };
+    assert!(
+        Command::new(exe).status().unwrap().success(),
+        "http_bearer smoke failed"
+    );
+}
+
+#[test]
 fn http_body_bounded_smoke() {
     let Some(clang) = clang() else {
         eprintln!("skip: no clang on PATH");

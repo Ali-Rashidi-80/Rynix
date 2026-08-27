@@ -46,10 +46,17 @@ fn map_ty(analysis: &Analysis, ty: TypeId) -> IrTy {
         TypeKind::Int => IrTy::I64,
         TypeKind::Float => IrTy::F64,
         TypeKind::Str => IrTy::Str,
-        TypeKind::Enum(_) => IrTy::I64,
+        TypeKind::Enum(d) => {
+            if analysis.enum_has_payload.contains(d) {
+                IrTy::Ptr
+            } else {
+                IrTy::I64
+            }
+        }
         TypeKind::Ptr
         | TypeKind::Vec
         | TypeKind::VecStr
+        | TypeKind::VecBool
         | TypeKind::Map
         | TypeKind::MapStrI64
         | TypeKind::MapStrStr

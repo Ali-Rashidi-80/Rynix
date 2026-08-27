@@ -1,8 +1,8 @@
-# ADR-0022: Build link sandbox (`--sandbox=docker|none`)
+# ADR-0022: Build link sandbox (`--sandbox=docker|none|job`)
 
 ## Status
 
-Accepted (Phase 27-A)
+Accepted (Phase 27-A); **amended Phase 31** — Windows Job Object Implemented.
 
 ## Context
 
@@ -13,22 +13,17 @@ a hard dependency for everyday builds.
 
 ## Decision
 
-- Add CLI flag `--sandbox=docker|none` on `rynixc build` (and documented for
-  link-capable commands that share the same link path).
+- CLI flag `--sandbox=none|docker|job` on `rynixc build`.
 - **Default: `none`** — unchanged host clang link behavior.
 - **`docker`**: run the clang link step inside `docker run` (network disabled
-  when practical). Inputs are staged into a work directory bind-mounted into
-  the container. Image defaults to `silkeh/clang:latest`, overridable via
-  `RYNIX_DOCKER_IMAGE`.
-- If `--sandbox=docker` is set and `docker` is missing or unusable: **hard
-  error** with a clear message (no silent fallback to host link).
-- CI hosts without Docker: skip the docker smoke and rely on
-  [SANDBOX_SKIP_MATRIX.md](../SANDBOX_SKIP_MATRIX.md) (documented OK).
-- Windows Job Object sandbox is **deferred** —
-  [WINDOWS_SANDBOX_DEFERRAL.md](../WINDOWS_SANDBOX_DEFERRAL.md) (amend note).
+  when practical). Hard-error if docker missing.
+- **`job` (Windows):** assign clang child to a Job Object with kill-on-close,
+  process memory cap (1 GiB), active process limit (32). Hard-error on
+  non-Windows.
+- CI hosts without Docker: skip docker smoke via
+  [SANDBOX_SKIP_MATRIX.md](../SANDBOX_SKIP_MATRIX.md).
 
 ## Consequences
 
-- Gate: `sandbox_docker_smoke` (docker path *or* skip-matrix file).
-- Does not sandbox the Rust frontend itself; only the clang link subprocess.
-- Does not replace OS-level policy for untrusted source ingestion.
+- Gates: `sandbox_docker_smoke`, `windows_sandbox_smoke`.
+- Does not sandbox the Rust frontend; does not claim untrusted `.ryx` is safe.

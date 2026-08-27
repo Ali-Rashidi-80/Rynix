@@ -1,0 +1,10 @@
+## Tutorial 04 — Map[str, i64] mono
+
+def main() -> i64
+  let m = map_str_i64_new(0)
+  m.insert("a", 7)
+  m.insert("b", 9)
+  print_i64(m.len())
+  print_i64(m.get("a"))
+  return 0
+end

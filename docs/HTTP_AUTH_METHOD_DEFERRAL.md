@@ -1,21 +1,16 @@
-# HTTP auth / method — deferral (Phase 29-C)
+# HTTP auth / method — Bearer soft Implemented (Phase 32)
 
-**Gate:** `http_auth_or_method_gate` (accepts this deferral file).
+**Former status:** Deferred (Phase 29). **Now:** soft Bearer header equality.
 
-## Status
+## Soft surface
 
-**Deferred** as a dedicated soft surface.
+`http_serve_loop_bearer_json_i64(port, path, expected_token, max_reqs)`
 
-## What already works
+- Requires `Authorization: Bearer <token>` with exact opaque token match
+- On success: `200 {"value": 1}`
+- Path match + bad auth: `401`
+- Else: `404`
 
-- Bounded header loop soft: `http_serve_loop_header_json_i64(port, path, header_name, max_reqs)`
-  accepts any header name (including `Authorization`) whose value is a **decimal i64**.
-- One-shot GET/POST JSON softs; path_param / keepalive / body-bounded loops.
+Gate: `http_bearer_header_soft_gate` / `http_bearer_smoke`.
 
-## What is deferred
-
-- Bearer / opaque token auth (non-decimal header values)
-- Arbitrary HTTP methods beyond the existing GET/POST softs
-- Middleware-style auth as language surface
-
-Revisit with a named soft + RT smoke before marking this wave Implemented.
+Still out: full auth middleware, HTTP/2, method matrix beyond soft GET/POST product path.

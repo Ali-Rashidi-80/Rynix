@@ -228,6 +228,13 @@ impl Dumper<'_> {
             match &arm.pattern {
                 crate::MatchPat::Wildcard(_) => self.atom("_"),
                 crate::MatchPat::Literal(e) => self.expr(e),
+                crate::MatchPat::Ctor { path, binder } => {
+                    self.atom(&format!(
+                        "(ctor {} {})",
+                        self.path_str(path),
+                        self.interner.resolve(binder.name)
+                    ));
+                }
             }
             self.open("body");
             self.stmts(arm.body);

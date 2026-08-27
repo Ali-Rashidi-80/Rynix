@@ -80,6 +80,15 @@ pub fn emit_llvm_with_target(
     out.push_str("declare void @rynix_rt_vec_str_push(ptr, ptr)\n");
     out.push_str("declare ptr @rynix_rt_vec_str_get(ptr, i64)\n");
     out.push_str("declare i64 @rynix_rt_vec_str_len(ptr)\n");
+    out.push_str("declare ptr @rynix_rt_vec_bool_new(i32)\n");
+    out.push_str("declare void @rynix_rt_vec_bool_push(ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_vec_bool_get(ptr, i64)\n");
+    out.push_str("declare i64 @rynix_rt_vec_bool_len(ptr)\n");
+    out.push_str("declare ptr @rynix_rt_enum_box_i64(i64, i64)\n");
+    out.push_str("declare ptr @rynix_rt_enum_box_str(i64, ptr)\n");
+    out.push_str("declare i64 @rynix_rt_enum_disc(ptr)\n");
+    out.push_str("declare i64 @rynix_rt_enum_payload_i64(ptr)\n");
+    out.push_str("declare ptr @rynix_rt_enum_payload_str(ptr)\n");
     out.push_str("declare ptr @rynix_rt_map_i64_new(i32)\n");
     out.push_str("declare void @rynix_rt_map_i64_insert(ptr, i64, i64)\n");
     out.push_str("declare i64 @rynix_rt_map_i64_get(ptr, i64)\n");
@@ -118,6 +127,9 @@ pub fn emit_llvm_with_target(
     );
     out.push_str(
         "declare i64 @rynix_rt_http_serve_loop_header_json_i64(i64, ptr, ptr, i64)\n",
+    );
+    out.push_str(
+        "declare i64 @rynix_rt_http_serve_loop_bearer_json_i64(i64, ptr, ptr, i64)\n",
     );
     out.push_str(
         "declare i64 @rynix_rt_http_serve_loop_post_echo_json_i64(i64, ptr, ptr, i64, i64)\n",
@@ -856,6 +868,10 @@ fn emit_inst(
                 let name2 = ctx.tmp();
                 let _ = writeln!(out, "  {name2} = inttoptr i64 {name} to ptr");
                 ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name2);
+            } else if matches!(result_ty, Some(IrTy::Bool)) && lty == "i64" {
+                let name2 = ctx.tmp();
+                let _ = writeln!(out, "  {name2} = trunc i64 {name} to i1");
+                ctx.bind(result.unwrap_or_else(|| unreachable!("invariant")), name2);
             } else if lty == "i8" {
                 let name2 = ctx.tmp();
                 let _ = writeln!(out, "  {name2} = trunc i8 {name} to i1");
@@ -871,6 +887,10 @@ fn emit_inst(
             if lty == "i8" {
                 let name = ctx.tmp();
                 let _ = writeln!(out, "  {name} = zext i1 {v} to i8");
+                v = name;
+            } else if lty == "i64" && vty == IrTy::Bool {
+                let name = ctx.tmp();
+                let _ = writeln!(out, "  {name} = zext i1 {v} to i64");
                 v = name;
             } else if lty == "i64" && matches!(vty, IrTy::Str | IrTy::Ptr) {
                 let name = ctx.tmp();

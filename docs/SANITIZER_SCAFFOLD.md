@@ -1,17 +1,13 @@
-# Sanitizer CI scaffold (Phase 26-F)
+# Sanitizer CI scaffold (Phase 26-F → Phase 31 hard)
 
-**Status:** Scaffold documented for Phase 27-C (`msan_ubsan_rt_clean`).
-Hard Linux CI MSan+UBSan on all `rt/` smokes remains soft-enforced via this
-file until a dedicated workflow job flips `continue-on-error` off.
-
-Recommended Linux CI flags for `rt/` smokes (not yet hard-fail on all hosts):
+**Status:** Phase 31 enforces **ASan+UBSan** on `sanitizer-rt` CI job
+(`-fsanitize=address,undefined`). Gate: `msan_ubsan_rt_enforced`.
 
 ```text
 clang -fsanitize=address,undefined -O1 -g
-# memory sanitizer: clang -fsanitize=memory (requires instrumented libc++)
+# memory sanitizer (optional separate job): clang -fsanitize=memory
+#   requires instrumented libc++ — not merged into sanitizer-rt
 ```
 
-Workspace clippy remains `-D warnings` on critical crates. Promote
-`clippy::pedantic` allows carefully; do not blanket-deny without fixing noise.
-
-Workflow tip: start with `continue-on-error: true`, flip to required in Phase 27.
+MSan remains **optional / documented** (instrumented libc++ host dependency).
+Workspace clippy remains `-D warnings` on critical crates.

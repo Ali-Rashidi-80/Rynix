@@ -36,6 +36,18 @@ void *rynix_rt_vec_str_new(int32_t region);
 void rynix_rt_vec_str_push(void *vec, const char *s);
 const char *rynix_rt_vec_str_get(void *vec, int64_t i);
 int64_t rynix_rt_vec_str_len(void *vec);
+
+void *rynix_rt_vec_bool_new(int32_t region);
+void rynix_rt_vec_bool_push(void *vec, int64_t x);
+int64_t rynix_rt_vec_bool_get(void *vec, int64_t i);
+int64_t rynix_rt_vec_bool_len(void *vec);
+
+/* Payload enum boxes (ADR-0024): {disc:i64, payload}. */
+void *rynix_rt_enum_box_i64(int64_t disc, int64_t payload);
+void *rynix_rt_enum_box_str(int64_t disc, const char *payload);
+int64_t rynix_rt_enum_disc(void *box);
+int64_t rynix_rt_enum_payload_i64(void *box);
+const char *rynix_rt_enum_payload_str(void *box);
 void *rynix_rt_map_i64_new(int32_t region);
 void rynix_rt_map_i64_insert(void *map, int64_t key, int64_t val);
 int64_t rynix_rt_map_i64_get(void *map, int64_t key);
@@ -116,6 +128,10 @@ int64_t rynix_rt_http_serve_loop_path_param_json_i64(int64_t port, const char *p
  * i64 → 200 `{"value": N}`. Same max_reqs contract. */
 int64_t rynix_rt_http_serve_loop_header_json_i64(int64_t port, const char *path,
                                                  const char *header_name, int64_t max_reqs);
+/* Bearer bounded loop: GET `path` with `Authorization: Bearer <token>` exact
+ * match → 200 `{"value": 1}`. Same max_reqs contract. */
+int64_t rynix_rt_http_serve_loop_bearer_json_i64(int64_t port, const char *path,
+                                                 const char *expected_token, int64_t max_reqs);
 /* POST echo bounded loop: echo JSON `field` like serve_once_echo; if
  * Content-Length (or body len) > max_body → 400. Same max_reqs contract. */
 int64_t rynix_rt_http_serve_loop_post_echo_json_i64(int64_t port, const char *path,

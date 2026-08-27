@@ -1,0 +1,15 @@
+## Struct bool field roundtrip (Phase 33)
+
+struct Flag
+  on: bool
+end
+
+def main() -> i64
+  let f = Flag { on: true }
+  if f.on
+    print_i64(1)
+  else
+    print_i64(0)
+  end
+  return 0
+end

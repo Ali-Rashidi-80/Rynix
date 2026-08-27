@@ -1,0 +1,46 @@
+# Phase 33 — language close
+
+[contract]
+name = "phase33-lang-close"
+
+[[evidence]]
+id = "payload-i64"
+kind = "cargo_test"
+package = "rynixc"
+filter = "enum_payload_i64_match_roundtrip"
+
+[[evidence]]
+id = "payload-str"
+kind = "cargo_test"
+package = "rynixc"
+filter = "enum_payload_str_match_roundtrip"
+
+[[evidence]]
+id = "struct-bool"
+kind = "cargo_test"
+package = "rynixc"
+filter = "struct_bool_field_roundtrip"
+
+[[evidence]]
+id = "multiline"
+kind = "cargo_test"
+package = "rynixc"
+filter = "multiline_str_roundtrip"
+
+[[evidence]]
+id = "vec-bool"
+kind = "cargo_test"
+package = "rynixc"
+filter = "vec_bool_roundtrip"
+
+[[evidence]]
+id = "adr-0024"
+kind = "file"
+path = "docs/adr/0024-payload-enums.md"
+contains = "Accepted"
+
+[[evidence]]
+id = "phase33-doc"
+kind = "file"
+path = "docs/PHASE33.md"
+contains = "Language close"

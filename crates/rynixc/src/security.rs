@@ -58,6 +58,7 @@ pub fn scan_source(path: &str, source: &str) -> SecurityReport {
         ("secret_key = \"", "Hardcoded secret_key assignment", "HIGH"),
         ("api_key = \"", "Hardcoded api_key assignment", "HIGH"),
         ("api_key=\"", "Hardcoded api_key assignment", "HIGH"),
+        ("glpat-", "GitLab personal access token prefix", "CRITICAL"),
     ];
 
     let mut findings = Vec::new();
@@ -115,6 +116,16 @@ mod tests {
         );
         assert!(r.blocking());
         assert_eq!(r.findings[0].cwe, "CWE-798");
+    }
+
+    #[test]
+    fn detects_glpat() {
+        let r = scan_source(
+            "t.ryx",
+            "def main() -> i64\n  let t = \"glpat-TESTTOKEN\"\n  return 0\nend\n",
+        );
+        assert!(r.blocking());
+        assert!(r.findings.iter().any(|f| f.title.contains("GitLab")));
     }
 
     #[test]

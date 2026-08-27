@@ -62,12 +62,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - name: Clippy (rynixc + pipeline)
         # Pedantic stays `warn` in Cargo.toml for local signal; CI denies default
         # groups only — pedantic flood must not block the merge gate.
         run: >
           cargo clippy -p rynixc -p rynix-rir -p rynix-codegen -p rynix-sema --
           -D warnings -A clippy::pedantic
+
+  cargo-deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+          arguments: --all-features
 
   vscode-extension:
     runs-on: ubuntu-latest
@@ -86,40 +97,40 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install clang
         run: sudo apt-get update && sudo apt-get install -y clang
-      - name: Fiber park/unpark smoke (ASan)
+      - name: Fiber park/unpark smoke (ASan+UBSan)
         run: |
-          clang -O1 -g -fsanitize=address -I rt/include \
+          clang -O1 -g -fsanitize=address,undefined -I rt/include \
             rt/portable.c rt/tests/fiber_park_smoke.c -o /tmp/fiber_park
           /tmp/fiber_park
-      - name: Fiber smoke (ASan)
+      - name: Fiber smoke (ASan+UBSan)
         run: |
-          clang -O1 -g -fsanitize=address -I rt/include \
+          clang -O1 -g -fsanitize=address,undefined -I rt/include \
             rt/portable.c rt/tests/fiber_smoke.c -o /tmp/fiber_smoke
           /tmp/fiber_smoke
-      - name: Echo pipe smoke (ASan)
+      - name: Echo pipe smoke (ASan+UBSan)
         run: |
-          clang -O1 -g -fsanitize=address -I rt/include \
+          clang -O1 -g -fsanitize=address,undefined -I rt/include \
             rt/portable.c rt/tests/echo_smoke.c -o /tmp/echo_smoke
           /tmp/echo_smoke
-      - name: TCP echo RPS (ASan)
+      - name: TCP echo RPS (ASan+UBSan)
         run: |
-          clang -O1 -g -fsanitize=address -I rt/include \
+          clang -O1 -g -fsanitize=address,undefined -I rt/include \
             rt/portable.c rt/tests/tcp_echo_rps.c -o /tmp/tcp_echo
           /tmp/tcp_echo
-      - name: Load harness RPS floor (ASan)
+      - name: Load harness RPS floor (ASan+UBSan)
         run: |
-          clang -O1 -g -fsanitize=address -I rt/include \
+          clang -O1 -g -fsanitize=address,undefined -I rt/include \
             rt/portable.c rt/tests/load_harness.c -o /tmp/load_harness
           /tmp/load_harness
-      - name: JSON parse smoke (ASan)
+      - name: JSON parse smoke (ASan+UBSan)
         run: |
-          clang -O1 -g -fsanitize=address -I rt/include \
+          clang -O1 -g -fsanitize=address,undefined -I rt/include \
             rt/portable.c rt/tests/json_smoke.c -o /tmp/json_smoke
           /tmp/json_smoke
-          clang -O1 -g -fsanitize=address -I rt/include \
+          clang -O1 -g -fsanitize=address,undefined -I rt/include \
             rt/portable.c rt/tests/json_unit.c -o /tmp/json_unit
           /tmp/json_unit
-          clang -O1 -g -fsanitize=address -I rt/include \
+          clang -O1 -g -fsanitize=address,undefined -I rt/include \
             rt/portable.c rt/tests/http_smoke.c -o /tmp/http_smoke
           /tmp/http_smoke
       - name: Uring build + SQE + TCP smoke

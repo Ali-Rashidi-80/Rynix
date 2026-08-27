@@ -1,0 +1,28 @@
+# Phase 35 — Track G ADR
+
+[contract]
+name = "phase35-track-g-adr"
+
+[[evidence]]
+id = "adr-0025"
+kind = "file"
+path = "docs/adr/0025-parametric-monomorphization.md"
+contains = "Accepted"
+
+[[evidence]]
+id = "rfc-0001"
+kind = "file"
+path = "rfcs/0001-parametric-monomorphization.md"
+contains = "Accepted"
+
+[[evidence]]
+id = "compat-spike"
+kind = "cargo_test"
+package = "rynixc"
+filter = "vec_t_i64_compat_spike"
+
+[[evidence]]
+id = "phase35-doc"
+kind = "file"
+path = "docs/PHASE35.md"
+contains = "Track G design"
