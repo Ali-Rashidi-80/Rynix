@@ -363,7 +363,7 @@ are **superseded** by behavioral gates in Phases 31–32 (not a reopen of Q-Core
 | 34 | Track C depth | ✅ [PHASE34.md](PHASE34.md) |
 | 35 | Track G ADR-0025 + spike | ✅ [PHASE35.md](PHASE35.md) |
 | 36 | Track G ship | ✅ [PHASE36.md](PHASE36.md) |
-| 37 | Public `v0.2.0` | HOLD [PHASE37.md](PHASE37.md) (explicit ask) |
+| 37 | Public `v0.2.0` | ✅ [PHASE37.md](PHASE37.md) |
 
 ## Follow-on (post-13 / parallel)
 

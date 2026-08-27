@@ -6,9 +6,17 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ## [Unreleased]
 
+_(empty — next notes land here after `v0.2.0`)_
+
+## [0.2.0] — Track G public cut (Phases 30–36)
+
+Public Track G band on Quality-10 `v0.1.1`. See
+[docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md) and
+[PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
+
 ### Added
 
-- Phase 37: HOLD doc for `v0.2.0` (explicit ask only).
+- Phase 37: public `v0.2.0` release cut (`PHASE37.md`, `phase37_release` contract).
 - Phase 36: Track G ship — Vec/Map matrices, `std/collections.ryx`, legacy aliases,
   `phase36_track_g` contract.
 - Phase 35: ADR-0025 + RFC 0001 parametric monomorphization + `vec_t_i64_compat_spike`.
@@ -22,7 +30,7 @@ tracks versions informally until a tagged release is explicitly requested.
   (Windows Job Object), CWE-798 additive `glpat-`, `phase31_security_harden`.
 - Golden Remaining Path ([docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)):
   Phases 30–37 post Q-Core sequence.
-- Phase 30: public Quality-10 cut docs (`PHASE30.md`, scoreboard).
+- Phase 30: public Quality-10 cut (`v0.1.1`, `PHASE30.md`, scoreboard).
 
 ## [0.1.1] — Quality-10 public cut (Phases 21–29)
 
@@ -86,6 +94,7 @@ Local tree certification — **not** Absolute-10 vs Go. See [docs/NICHE10.md](do
 - LSP completion + rename; WASM host-import `env.print_i64`
 - Package UX + INSTALL one-path clang; local `rynix.attest.v1` digest
 
-[Unreleased]: https://github.com/Ali-Rashidi-80/Rynix/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/Ali-Rashidi-80/Rynix/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Ali-Rashidi-80/Rynix/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Ali-Rashidi-80/Rynix/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Ali-Rashidi-80/Rynix/releases/tag/v0.1.0

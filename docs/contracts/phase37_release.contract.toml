@@ -1,0 +1,40 @@
+# Phase 37 — public Track G release (v0.2.0)
+
+[contract]
+name = "phase37-release"
+
+[[evidence]]
+id = "changelog-v020"
+kind = "cargo_test"
+package = "rynixc"
+filter = "changelog_v020_cut"
+
+[[evidence]]
+id = "production-readiness-v020"
+kind = "cargo_test"
+package = "rynixc"
+filter = "production_readiness_v020"
+
+[[evidence]]
+id = "phase37-doc"
+kind = "file"
+path = "docs/PHASE37.md"
+contains = "Public Track G release"
+
+[[evidence]]
+id = "golden-remaining-v02"
+kind = "file"
+path = "docs/GOLDEN_REMAINING.md"
+contains = "v0.2.0"
+
+[[evidence]]
+id = "release-workflow"
+kind = "file"
+path = ".github/workflows/release.yml"
+contains = "SHA256SUMS"
+
+[[evidence]]
+id = "track-g-shipped"
+kind = "file"
+path = "docs/PHASE36.md"
+contains = "Track G ship"

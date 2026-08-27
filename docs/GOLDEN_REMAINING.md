@@ -31,7 +31,7 @@ Absolute-10, Niche-11, or Track G theater.
 | 34 | Track C depth (tutorials, CONTRIBUTING, RFC, E-14/E-15) | After 33 |
 | 35 | Track G ADR-0025 + compat spike | After 34 |
 | 36 | Track G ship (Vec[T]/Map[K,V] matrices) | After 35 |
-| 37 | Public `v0.2.0` | Explicit ask after 36 |
+| 37 | Public `v0.2.0` | Explicit ask after 36 — ✅ [PHASE37.md](PHASE37.md) |
 | 38 | Agent surface remainder (optional) | After 33 |
 
 ## Gate supersession

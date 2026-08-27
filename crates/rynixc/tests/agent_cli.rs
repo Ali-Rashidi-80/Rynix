@@ -2891,6 +2891,19 @@ fn changelog_v011_cut() {
 }
 
 #[test]
+fn changelog_v020_cut() {
+    let text = std::fs::read_to_string(repo_root().join("CHANGELOG.md")).unwrap();
+    assert!(
+        text.contains("## [0.2.0]") && text.contains("Track G"),
+        "CHANGELOG must cut [0.2.0] Track G section"
+    );
+    assert!(
+        text.contains("compare/v0.2.0...HEAD") || text.contains("/releases/tag/v0.2.0"),
+        "CHANGELOG must link v0.2.0 compare/release"
+    );
+}
+
+#[test]
 fn production_readiness_scoreboard() {
     let text = std::fs::read_to_string(repo_root().join("PRODUCTION_READINESS.md")).unwrap();
     assert!(
@@ -2915,6 +2928,19 @@ fn production_readiness_scoreboard() {
     assert!(
         text.contains("0.1.1") || text.contains("`0.1.1`"),
         "PRODUCTION_READINESS must reference 0.1.1"
+    );
+}
+
+#[test]
+fn production_readiness_v020() {
+    let text = std::fs::read_to_string(repo_root().join("PRODUCTION_READINESS.md")).unwrap();
+    assert!(
+        text.contains("0.2.0") || text.contains("`0.2.0`"),
+        "PRODUCTION_READINESS must reference 0.2.0"
+    );
+    assert!(
+        text.contains("Track G") || text.contains("v0.2.0"),
+        "PRODUCTION_READINESS must note Track G / v0.2.0"
     );
 }
 
@@ -3230,11 +3256,37 @@ fn verify_phase36_track_g_contract() {
 }
 
 #[test]
-fn phase37_hold_documented() {
+fn verify_phase37_release_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase37_release.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "phase37 verify failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn phase37_release_documented() {
     let text = std::fs::read_to_string(repo_root().join("docs/PHASE37.md")).unwrap();
     assert!(
-        text.contains("HOLD") && text.contains("explicit"),
-        "PHASE37 must document hold + explicit ask"
+        text.contains("Public Track G release") && text.contains("v0.2.0"),
+        "PHASE37 must document Public Track G release v0.2.0"
+    );
+    assert!(
+        text.contains("explicit"),
+        "PHASE37 must retain explicit-ask language"
     );
 }
 
