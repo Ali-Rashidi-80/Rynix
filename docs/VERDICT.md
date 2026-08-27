@@ -108,7 +108,7 @@ Suite5 `--bench` Rynix bins were smaller than End `--strip` on prior Windows run
 | “End has more CLI commands” | Volume ≠ depth; Rynix has **MCP** (End has zero) |
 | “End has C11 / UI / frameworks” | Real C transpile exists; UI/registry/JIT largely theater. We deferred C11/UI **on purpose** (ADRs) |
 | “Maybe Suite12 proves End faster” | Different workloads; Rynix ports MATCH ids with **checksum locks**, not End ms tables |
-| “Am I wasting time?” | Rynix ships real TLS, fibers+IOCP/uring, MCP-18, Suite5 CI, package unity — End cannot match those with parse tests |
+| “Am I wasting time?” | Rynix ships real TLS, fibers+IOCP/uring, MCP-19, Suite5 CI, package unity — End cannot match those with parse tests |
 | “Should I copy End domains?” | **No** — that wastes months ([LEAD_AHEAD.md](LEAD_AHEAD.md) §0b) |
 
 ---

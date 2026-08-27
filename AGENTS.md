@@ -49,7 +49,7 @@ ad-hoc scraping.
   Phases 25–29 closed. Golden Remaining 30–38 closed (`v0.1.1` / `v0.2.0` +
   LSP codeAction): [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md).
 - **Golden path (Quality-10, Phases 25–29):** [docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md);
-  **Remaining (30–38):** [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)
+  **Golden Remaining (30–38, closed):** [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)
 - Install: one-path clang Win/Linux — [INSTALL.md](INSTALL.md)
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 

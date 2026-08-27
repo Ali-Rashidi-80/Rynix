@@ -11,6 +11,12 @@ tracks versions informally until a tagged release is explicitly requested.
 - Phase 38: LSP `textDocument/codeAction` from compiler Fixes; honest MCP=19 gate;
   `phase38_agent` contract.
 
+### Changed
+
+- Docs hygiene: GOLDEN_REMAINING Status CLOSED; README/README.fa MCP **19**,
+  Shipping **0–38**, release tags `v0.1.1`/`v0.2.0`; GOLDEN_PATH/ROADMAP/VERDICT
+  aligned after Phases 30–38.
+
 ## [0.2.0] — Track G public cut (Phases 30–36)
 
 Public Track G band on Quality-10 `v0.1.1`. See

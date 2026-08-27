@@ -277,9 +277,9 @@ Plan: **[PHASE24.md](PHASE24.md)**.
 ## Golden path (post-24)
 
 Canonical Q-Core plan: **[GOLDEN_PATH.md](GOLDEN_PATH.md)** — **Quality-10**
-Phases **25–29 closed**. Remaining: **[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)**
-(Phases **30–37** + Track R). **Phase 30** remains user-triggered only
-(no auto push/tag/release).
+Phases **25–29 closed**. Post-Q-Core **[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)**
+Phases **30–38 closed** (`v0.1.1` / `v0.2.0` + LSP codeAction). Further releases
+remain **user-triggered only** (no auto push/tag). Track R is optional.
 
 ## Phase 25 — Map[str,str] + documentSymbol
 

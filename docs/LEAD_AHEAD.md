@@ -56,7 +56,7 @@ End README feels complete because of **presentation**, not depth:
 **no MCP**. Green ≠ shipping.
 
 Rynix’s gap is the **opposite problem**: the architecture already ships real
-HTTP/TLS/WS/crypto/KV/fs/MCP-18/packages/fibers/IOCP/uring/Suite5 — but README
+HTTP/TLS/WS/crypto/KV/fs/MCP-19/packages/fibers/IOCP/uring/Suite5 — but README
 **under-lists** them (soft table starved; CLI/MCP tables stop at ~11 tools;
 `|>` / region / effects / `new` buried). That is a **docs honesty bug**, not a
 missing architecture. Fix it in Wave 0.7 — do **not** copy End’s domain circus.

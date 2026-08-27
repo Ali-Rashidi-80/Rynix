@@ -408,11 +408,16 @@ Do **not** invent an in-memory clang daemon as a Quality-10 requirement (D-9 sta
 
 ## 9. Immediate next action (execute now)
 
-**Phases 25–29 closed** (Q-Core waves). Remaining work lives in
-**[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)** (Phases 30–37 + Track R/Refuse).
+**Phases 25–29 closed** (Q-Core). **Phases 30–38 closed** — see
+**[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)** (Status: CLOSED).
 
-**Phase 30** remains **user-triggered only** — do not auto push/tag/release.
-Do **not** start Track G without ADR-0025 Accepted ([GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)).
+Phase 30 / 37 release cuts were **user-triggered only** (executed: `v0.1.1`,
+`v0.2.0`). Do **not** auto push/tag/release future versions without an explicit
+ask. Track G shipped (ADR-0025 + Phase 36); further language growth needs a new
+ADR — do **not** invent HKT/theater without gates.
+
+**Default next work:** Track R / Refuse only (optional), or docs hygiene — not a
+new golden wave.
 
 ---
 
@@ -429,7 +434,8 @@ Do **not** start Track G without ADR-0025 Accepted ([GOLDEN_REMAINING.md](GOLDEN
 ## 11. Final coverage audit (do-not-ship-without)
 
 **Verdict:** Q-Core inventory **PASS** (56/56 + 10 weaknesses + 8 strategic).
-Phases **25–29 closed**. Post-Q-Core sequence: **[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)**.
+Phases **25–29 closed**. Post-Q-Core sequence **closed**:
+**[GOLDEN_REMAINING.md](GOLDEN_REMAINING.md)** (Phases 30–38).
 
 | Source | Count | Status |
 |--------|------:|--------|

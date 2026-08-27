@@ -12,7 +12,7 @@
 [![نسخه](https://img.shields.io/badge/version-0.1.0-3fb950.svg)](Cargo.toml)
 [![لایسنس](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE.md)
 [![Rust](https://img.shields.io/badge/Rust-1.98+-orange.svg)](rust-toolchain.toml)
-[![فازها](https://img.shields.io/badge/phases-0--20%20gated-147A8A.svg)](docs/ROADMAP.md)
+[![فازها](https://img.shields.io/badge/phases-0--38%20gated-147A8A.svg)](docs/ROADMAP.md)
 [![Niche-10](https://img.shields.io/badge/Niche--10-certified-0B3D4A.svg)](docs/NICHE10.md)
 [![حافظه](https://img.shields.io/badge/memory-Zero--GC%20escape-0B3D4A.svg)](#مدل-حافظه)
 [![AI](https://img.shields.io/badge/AI-MCP%20+%20LSP%20+%20JSON-3ECFB2.svg)](#نمونه-زبان)
@@ -57,7 +57,7 @@ JSON ساخت‌یافتهٔ `rynix.diag.v1`، و سطوح CLI/MCP/LSP بدون 
 
 | فیلد | جزئیات |
 |------|--------|
-| **نسخه** | `0.1.0` — فازهای **۰–۲۰** ([ROADMAP](docs/ROADMAP.md))؛ [Niche-10](docs/NICHE10.md) گواهی‌شده |
+| **نسخه** | کریت `0.1.0` · انتشار **`v0.1.1`** / **`v0.2.0`** — فازهای **۰–۳۸** ([ROADMAP](docs/ROADMAP.md))؛ [Niche-10](docs/NICHE10.md) گواهی‌شده |
 | **کامپایلر** | فضای کاری Rust — MSRV **1.98** |
 | **رانتایم** | C (`rt/`) — فایبر، TCP، JSON/HTTP، TLS/WS/crypto، io_uring / IOCP |
 | **بک‌اند** | LLVM متنی → clang ThinLTO؛ `emit-wasm` بدون WASI |
@@ -69,7 +69,7 @@ JSON ساخت‌یافتهٔ `rynix.diag.v1`، و سطوح CLI/MCP/LSP بدون 
 
 | برداشت اشتباه | واقعیت |
 |---------------|--------|
-| فقط نمایش بنچمارک | پایپ‌لاین کامل + رانتایم + LSP/MCP (فاز ۰–۲۰) |
+| فقط نمایش بنچمارک | پایپ‌لاین کامل + رانتایم + LSP/MCP (فاز ۰–۳۸) |
 | کلون Rust/Zig | سینتکس `.ryx`، RIR، escape، فایبر اختصاصی |
 | عقب‌تر از End در عمق واقعی | جلو در هستهٔ shipping؛ End جلو در نمایش بروشوری — [VERDICT](docs/VERDICT.md) |
 | Niche-10 = Absolute-10 vs Go | Niche-10 = سیستم+عامل+پکیج آفلاین؛ Absolute-10 رد شده |
@@ -94,7 +94,7 @@ Rynix در هستهٔ shipping جلوست؛ End در spectacle بروشور.
 |-------|--------|
 | باینری نیتیو / LLVM | 🟢 Shipping |
 | TCP / فایبر / IOCP / uring | 🟢 Shipping |
-| MCP ۱۸ ابزار + CLI عامل | 🟢 Shipping |
+| MCP ۱۹ ابزار + CLI عامل | 🟢 Shipping |
 | LSP + VS Code (completion/rename) | 🟢 Shipping |
 | HTTP محصولی + TLS/WS/crypto | 🟢 Shipping |
 | پکیج محلی + attest (نه Sigstore) | 🟢 Shipping |
@@ -286,8 +286,8 @@ end
 ```
 
 ساختار/`str`، index assign، enum تهی‌آرگومان، HTTP محصولی و WASM host-import در
-[SPEC](docs/SPEC.md) و فازهای ۱۷–۲۰ مستند شده‌اند. کلکسیون‌ها mono `i64`
-([ADR-0014](docs/adr/0014-mono-collections-niche10.md)).
+[SPEC](docs/SPEC.md) و فازهای ۱۷–۲۰ مستند شده‌اند. کلکسیون‌ها Track G
+`Vec[T]`/`Map[K,V]` ([ADR-0025](docs/adr/0025-parametric-monomorphization.md)).
 
 ---
 
@@ -347,5 +347,5 @@ SPEC، ADR و اسکیماهای JSON به‌صورت پیش‌فرض **انگل
 
 ---
 
-**Rynix v0.1.0** — برای تأیید ساخته شده، نه فقط تبلیغ.
+**Rynix** (انتشار تا **`v0.2.0`**) — برای تأیید ساخته شده، نه فقط تبلیغ.
 **زبان‌ها:** [English](README.md) · [فارسی](README.fa.md)

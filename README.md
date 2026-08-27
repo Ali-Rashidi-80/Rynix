@@ -12,7 +12,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-3fb950.svg)](Cargo.toml)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE.md)
 [![Rust](https://img.shields.io/badge/Rust-1.98+-orange.svg)](rust-toolchain.toml)
-[![Phases](https://img.shields.io/badge/phases-0--20%20gated-147A8A.svg)](docs/ROADMAP.md)
+[![Phases](https://img.shields.io/badge/phases-0--38%20gated-147A8A.svg)](docs/ROADMAP.md)
 [![Niche-10](https://img.shields.io/badge/Niche--10-certified-0B3D4A.svg)](docs/NICHE10.md)
 [![Memory](https://img.shields.io/badge/memory-Zero--GC%20escape-0B3D4A.svg)](#memory-model)
 [![AI](https://img.shields.io/badge/AI-MCP%20+%20LSP%20+%20JSON-3ECFB2.svg)](#tooling-surface)
@@ -63,7 +63,7 @@ and CLI/MCP/LSP surfaces agents can call without scraping stdout.
 
 | Field        | Detail                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------- |
-| **Version**  | `0.1.0` — phases **0–20** acceptance-gated ([ROADMAP](docs/ROADMAP.md)); [Niche-10](docs/NICHE10.md) certified |
+| **Version**  | Crate `0.1.0` · releases **`v0.1.1`** (Quality-10) / **`v0.2.0`** (Track G) — phases **0–38** gated ([ROADMAP](docs/ROADMAP.md)); [Niche-10](docs/NICHE10.md) certified |
 | **Compiler** | Rust workspace (`crates/`) — MSRV **1.98** ([`Cargo.toml`](Cargo.toml))                     |
 | **Runtime**  | C (`rt/`) — fibers, TCP, json/http, TLS/WS/crypto, io_uring (Linux) / IOCP (Win)            |
 | **Backend**  | Textual LLVM IR → clang ThinLTO ([ADR-0005](docs/adr/0005-textual-llvm-ir-first.md)); `emit-wasm` freestanding (no WASI) |
@@ -81,9 +81,9 @@ Zig/Go/C/Rust in [`benchmarks/suite5/`](benchmarks/suite5/) are **peer workload 
 
 | Misread | Reality |
 |--------|---------|
-| ❌ Only a benchmark stunt | ✅ Full compiler pipeline + runtime + LSP/MCP (phases **0–20** gated) |
+| ❌ Only a benchmark stunt | ✅ Full compiler pipeline + runtime + LSP/MCP (phases **0–38** gated) |
 | ❌ A Rust or Zig clone | ✅ Own syntax (`.ryx`), RIR, escape model, fiber runtime |
-| ❌ Losing to [End](https://github.com/IrMaho/End) on real shipping systems/agent depth | ✅ **Ahead on shipping core** (LLVM, fibers+IOCP/uring, real TLS/crypto, HTTP product path, MCP-18, Suite5 CI, VS Code LanguageClient). End leads **spectacle only** (domain wallpaper, C11/UI narrative) — [`docs/VERDICT.md`](docs/VERDICT.md) |
+| ❌ Losing to [End](https://github.com/IrMaho/End) on real shipping systems/agent depth | ✅ **Ahead on shipping core** (LLVM, fibers+IOCP/uring, real TLS/crypto, HTTP product path, MCP-19, Suite5 CI, VS Code LanguageClient). End leads **spectacle only** (domain wallpaper, C11/UI narrative) — [`docs/VERDICT.md`](docs/VERDICT.md) |
 | ❌ Same programs as End suite12 | ✅ Suite5 uses **different**, lighter integer kernels; End #12 ≠ our `reduce.ryx` |
 | ❌ Niche-10 = Absolute-10 vs Go/nginx | ✅ Niche-10 is systems+agent+offline packages ([ADR-0013](docs/adr/0013-niche-10-scorecard.md)); Absolute-10 refused |
 | ❌ “Best repo in history” | ✅ **Auditable** claims: test or CI before ✅ |
@@ -99,7 +99,7 @@ spectacle we refuse to fake.
 | | End | Rynix |
 |--|-----|-------|
 | Benchmarks | suite12 marketing (different programs) | Suite5: 12 kernels + **CI checksum** + optional End slot |
-| Agent surface | Broad CLI names; **no MCP** | CLI + **MCP 18** + verify/contracts |
+| Agent surface | Broad CLI names; **no MCP** | CLI + **MCP 19** + verify/contracts |
 | Network / crypto | TCP real; **TLS plaintext theater** | Real TLS + HTTP loop + WS + KATs |
 | Editor | LSP binary; VS Code **without** LanguageClient | LSP + **LanguageClient** + CodeLens + **completion/rename** |
 | UI / C11 / CDN / Raft / llama | Marketed; mostly stubs | Deferred by ADR (honesty, not gap panic) |
@@ -116,7 +116,7 @@ Where End markets “every domain,” Rynix statuses are **evidence-gated** (tes
 |--------|--------|-------------------|
 | Systems / native binaries | 🟢 Shipping | LLVM + ThinLTO, `size_echo_gates` |
 | Backend / TCP | 🟢 Shipping | fiber TCP, bakeoff docs, ASan CI |
-| AI-native tooling | 🟢 Shipping | MCP 18 tools, graph/impact/eval/deps/dna schemas |
+| AI-native tooling | 🟢 Shipping | MCP **19** tools, graph/impact/eval/deps/dna schemas |
 | Editor (VS Code + LSP) | 🟢 Shipping | `editors/vscode/`, CodeLens, completion, rename |
 | Memory / Zero-GC | 🟢 Shipping | escape → stack/region/heap, `--explain-alloc` |
 | Microbench matrix | 🟢 Shipping | Suite5 × 5–6 langs, C↔Rynix CI gate |
@@ -145,7 +145,7 @@ schemas agents can consume without scraping.
 | **Canonical syntax**    | `def`/`end`, newline statements                  | [`docs/SPEC.md`](docs/SPEC.md), parser snapshots |
 | **Zero-GC path**        | Escape → stack / region / heap + injected `free` | `--explain-alloc`, MCP `rynix_explain_alloc`     |
 | **Colorless I/O**       | Fibers + `PARKED`; io_uring (Linux) / IOCP (Win) | `rt/tests/`, ASan CI                             |
-| **AI-native toolchain** | NDJSON diags, MCP (18 tools), graph/impact/eval/deps/dna  | [`docs/schemas/`](docs/schemas/), `agent_cli`    |
+| **AI-native toolchain** | NDJSON diags, MCP (19 tools), graph/impact/eval/deps/dna  | [`docs/schemas/`](docs/schemas/), `agent_cli`    |
 | **Editor + arch guard** | VS Code + LSP (diag/hover/def/**completion**/**rename**); `Architecture.toml` | `phase10_gates`, `lsp_cmd` tests, `editors/vscode/` |
 | **Small binaries**      | Hello under **300 KiB** (clang gate)             | `size_echo_gates`                                |
 | **Niche-10**            | Systems + agent + offline packages certified     | [docs/NICHE10.md](docs/NICHE10.md)               |
@@ -774,11 +774,11 @@ Workflows: [`.github/workflows/ci.yml`](.github/workflows/ci.yml),
 
 | Scope                 | Detail                                                                                        |
 | --------------------- | --------------------------------------------------------------------------------------------- |
-| **Shipping**          | Phases **0–20** — [`docs/ROADMAP.md`](docs/ROADMAP.md) (each ✅ has in-tree tests)            |
+| **Shipping**          | Phases **0–38** — [`docs/ROADMAP.md`](docs/ROADMAP.md) (each ✅ has in-tree tests); tags `v0.1.1` / `v0.2.0` |
 | **Niche-10**          | Certified — [`docs/NICHE10.md`](docs/NICHE10.md) · [ADR-0013](docs/adr/0013-niche-10-scorecard.md) |
 | **Deferred**          | C11 backend — [ADR-0008](docs/adr/0008-deferred-c11-backend.md); Raft — [ADR-0012](docs/adr/0012-deferred-consensus.md) |
 | **Out of Niche-10**   | UI/canvas — [ADR-0007](docs/adr/0007-deferred-ui-frameworks.md); full WASI; Absolute-10 vs Go |
-| **Perf gaps (honest)**| mono `Vec[i64]`/`Map[i64,i64]` only ([ADR-0014](docs/adr/0014-mono-collections-niche10.md)); ms ratios vary by machine/run |
+| **Perf gaps (honest)**| Track G matrices `Vec[T]`/`Map[K,V]` ([ADR-0025](docs/adr/0025-parametric-monomorphization.md)); not HKT; ms ratios vary by machine/run |
 | **Not claimed**       | End suite12 sims (SDF/HFT/SHA); identical Suite5 instruction mixes across langs; Sigstore Rekor |
 | **License**           | MIT OR Apache-2.0 — [`LICENSE.md`](LICENSE.md) |
 
@@ -830,6 +830,6 @@ Dual-licensed **MIT OR Apache-2.0** — [`LICENSE.md`](LICENSE.md).
 
 ---
 
-**Rynix v0.1.0** — built to be verified, not merely advertised. Re-run benchmarks and gates on your machine before trusting any ms ratio.
+**Rynix** (releases through **`v0.2.0`**) — built to be verified, not merely advertised. Re-run benchmarks and gates on your machine before trusting any ms ratio.
 **Languages:** [English](README.md) · [فارسی](README.fa.md)
 
