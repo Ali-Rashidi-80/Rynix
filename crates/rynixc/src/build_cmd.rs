@@ -311,6 +311,7 @@ fn link_bench_msvcrt_gcc(
     ExitCode::SUCCESS
 }
 
+#[allow(clippy::too_many_arguments)]
 fn link_clang_job(
     clang: &Path,
     ll_path: &Path,
@@ -327,7 +328,7 @@ fn link_clang_job(
         eprintln!(
             "error: --sandbox=job is Windows-only (Job Object); use --sandbox=docker on Linux"
         );
-        return ExitCode::from(1);
+        ExitCode::from(1)
     }
     #[cfg(windows)]
     {

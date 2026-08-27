@@ -9,7 +9,10 @@ use std::ptr;
 
 use std::os::windows::raw::HANDLE;
 
+// Win32 ABI spellings (CreateJobObjectW / SetInformationJobObject).
+#[allow(clippy::upper_case_acronyms)]
 type BOOL = i32;
+#[allow(clippy::upper_case_acronyms)]
 type DWORD = u32;
 type SizeT = usize;
 

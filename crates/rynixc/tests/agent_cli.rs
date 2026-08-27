@@ -1386,7 +1386,11 @@ fn struct_literal_field() {
 fn build_run_fixture(name: &str, expect_stdout: &str) {
     let root = repo_root();
     let main = root.join("testdata").join(format!("{name}.ryx"));
-    let out_dir = root.join(format!("target/test-{name}"));
+    // Unique dir per invocation — avoids parallel tests racing on the same
+    // `target/test-{name}/*.ll` (e.g. map_str_str_roundtrip + lower_decomp_invariants).
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let out_dir = root.join(format!("target/test-{name}-{}-{seq}", std::process::id()));
     std::fs::create_dir_all(&out_dir).ok();
     let exe = out_dir.join(if cfg!(windows) {
         format!("{name}.exe")
