@@ -56,3 +56,4 @@ credentials.json
 # Local scratch / agent plans (tracked Skills under .agents/ stay committed)
 .tmp/
 .cursor/plans/
+_gif_work/

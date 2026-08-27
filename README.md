@@ -2,7 +2,7 @@
 
 **English** · [Persian](README.fa.md)
 
-<img src="assets/logo.png" alt="Rynix logo" width="128" height="128" />
+<img src="assets/logo-animated.gif" alt="Rynix logo" width="128" height="128" />
 
 # Rynix
 
