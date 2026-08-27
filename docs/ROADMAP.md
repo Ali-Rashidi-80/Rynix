@@ -364,6 +364,7 @@ are **superseded** by behavioral gates in Phases 31–32 (not a reopen of Q-Core
 | 35 | Track G ADR-0025 + spike | ✅ [PHASE35.md](PHASE35.md) |
 | 36 | Track G ship | ✅ [PHASE36.md](PHASE36.md) |
 | 37 | Public `v0.2.0` | ✅ [PHASE37.md](PHASE37.md) |
+| 38 | Agent surface remainder (LSP codeAction) | ✅ [PHASE38.md](PHASE38.md) |
 
 ## Follow-on (post-13 / parallel)
 

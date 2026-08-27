@@ -43,7 +43,7 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
   **`docs/GOLDEN_REMAINING.md`** (Phases 30–37);
   Phase 27 security: [PHASE27.md](../../docs/PHASE27.md), ADR-0022/0023;
   Phase 28–30: [PHASE28.md](../../docs/PHASE28.md), [PHASE29.md](../../docs/PHASE29.md),
-  [PHASE30.md](../../docs/PHASE30.md)
+  [PHASE30.md](../../docs/PHASE30.md); Phase 38 codeAction: [PHASE38.md](../../docs/PHASE38.md)
 - Contracts: `docs/contracts/wave1.contract.toml`, `wave12_manifest.contract.toml`,
   `phase19_path_mcp.contract.toml` (path-first MCP + LSP completion/rename),
   `phase21_roi.contract.toml` (MCP path-first remainder + match variants),

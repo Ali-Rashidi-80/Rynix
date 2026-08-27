@@ -39,5 +39,5 @@ Contract: [contracts/phase37_release.contract.toml](contracts/phase37_release.co
 ## Out of scope
 
 - Absolute-10 / Niche-11 claims
-- Phase 38 agent surface (optional follow-on)
+- Phase 38 agent surface — ✅ [PHASE38.md](PHASE38.md)
 - HKT / unbounded parametric traits

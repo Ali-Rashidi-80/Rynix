@@ -144,7 +144,7 @@ simulated** surfaces we refuse to copy.
 | Escape / alloc transparency | `--explain-alloc`, MCP explain |
 | `@llvm.ctpop` / bits workload | Suite5 `bits` + RIR tests |
 | Fiber + io_uring tests | `rt/tests/`, Linux CI |
-| Agent verify stack + MCP (18 tools) | `verify`/`precheck`/`context`/`security`/`scope`/`deps`/`dna` |
+| Agent verify stack + MCP (19 tools) | `verify`/`precheck`/`context`/`security`/`scope`/`deps`/`dna` |
 | Manifest build + contract evidence | `build_from_manifest_entry`, `verify_manifest_build_evidence` |
 | Workspace LSP go-to-def | `lsp_workspace_def` |
 | Eval CallExt hard-fail | `eval_call_ext_hard_fail` |

@@ -6,7 +6,10 @@ tracks versions informally until a tagged release is explicitly requested.
 
 ## [Unreleased]
 
-_(empty — next notes land here after `v0.2.0`)_
+### Added
+
+- Phase 38: LSP `textDocument/codeAction` from compiler Fixes; honest MCP=19 gate;
+  `phase38_agent` contract.
 
 ## [0.2.0] — Track G public cut (Phases 30–36)
 

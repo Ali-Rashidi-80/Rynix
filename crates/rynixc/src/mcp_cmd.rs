@@ -697,3 +697,23 @@ fn write_message(writer: &mut impl Write, value: &Value) -> io::Result<()> {
     writer.flush()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::tool_defs;
+
+    #[test]
+    fn mcp_tool_count_honest() {
+        let tools = tool_defs();
+        let arr = tools.as_array().expect("tool_defs array");
+        assert_eq!(
+            arr.len(),
+            19,
+            "MCP must stay at 19 real tools (no theater ≥20); got {}",
+            arr.len()
+        );
+        let names: Vec<&str> = arr.iter().filter_map(|t| t["name"].as_str()).collect();
+        assert!(names.contains(&"rynix_slice"), "missing rynix_slice: {names:?}");
+        assert!(names.contains(&"apply_fix"), "missing apply_fix: {names:?}");
+    }
+}

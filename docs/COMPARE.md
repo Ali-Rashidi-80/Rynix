@@ -14,7 +14,7 @@ driver (`endc` / `rynixc`) and lean on **C** for native runtime.
 | README / packaging | Strong (logo, badges, 12-bench matrix) | Suite5 **12** × 5–6 langs + bakeoff (checksum CI) |
 | Benchmark matrix | **suite12** heavy sims (SDF, HFT, SHA, …) | **Suite5** integer microkernels (different algorithms) |
 | End in same harness | End is a first-class suite12 lang | **`end` slot** in Suite5 when `endc` + `.end` ports exist |
-| AI CLI | `graph` / `impact` / `slice` / `eval` / `patch` / `arch` | Same + MCP (18 tools) + `verify`/`precheck`/`context`/`security`/`scope`/`deps`/`dna` |
+| AI CLI | `graph` / `impact` / `slice` / `eval` / `patch` / `arch` | Same + MCP (19 tools) + `verify`/`precheck`/`context`/`security`/`scope`/`deps`/`dna` |
 | Agent contracts | 50-feature Intent→Verify pipeline | Wave 1 toolchain evidence ([ADR-0009](adr/0009-agent-contracts-toolchain.md)); not End syntax clone |
 | Editor | VS Code chrome; **no** `vscode-languageclient` | VS Code + **LanguageClient** + LSP + CodeLens |
 | Frameworks | EndHyper, EndForge, UI canvas | Deferred ([ADR-0007](adr/0007-deferred-ui-frameworks.md)) |

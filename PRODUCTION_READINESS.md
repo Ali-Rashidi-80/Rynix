@@ -23,7 +23,7 @@ named gates only. Prior = analysis report (2026-08); After = post Phases 25–37
 | Security | 7.6 | 9.3 | Phase 31: UBSan, cargo-deny, Job Object, CWE additive |
 | Performance | 9.0 | 9.0 | Suite5 honesty; not Q-Full D-* |
 | Deployment / CI | 8.6 | 9.6 | `release.yml` + `v0.2.0` SHA256SUMS |
-| AI tooling | 9.4 | 9.8 | Track G Vec/Map matrices + `std/collections` facade |
+| AI tooling | 9.4 | 9.9 | Track G + LSP codeAction (`lsp_code_action_smoke`) |
 | Documentation | 9.4 | 9.8 | Book, GOLDEN_PATH/REMAINING close, this scoreboard |
 | Niche-10 axe | 9.0 | 9.0 | [NICHE10.md](docs/NICHE10.md) certified |
 
@@ -45,7 +45,7 @@ at `v0.2.0` ([GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)).
 | AI CLI | Ready | `graph`, `slice`, `impact`, `eval`, `patch`, `verify`, `precheck`, `context`, `security`, `scope`, `deps`, `dna`, `arch check` | Agent write needs `rynix.scope.toml` / `--force-write` |
 | Architecture guard | Ready | `Architecture.toml`, `arch check`, CI job | Import/call patterns only |
 | Benchmarks | Ready | Suite5 **12** workloads + checksum JSON + CI C↔Rynix | Opaque bounds + disclosed strength reduction |
-| Editor (LSP) | Ready | diag/hover/def/**completion**/**rename**/**references**/**workspace/symbol**/**documentSymbol**/**formatting** | No studio/canvas |
+| Editor (LSP) | Ready | diag/hover/def/**completion**/**rename**/**references**/**workspace/symbol**/**documentSymbol**/**formatting**/**codeAction** | No studio/canvas; inlayHints → Track R |
 | Std json/http | Ready | GET/POST; serve once/loop; path_param; header/body/keep-alive; TLS; Bearer soft | Not full OAuth |
 | Packages | Ready | `rynix.toml`, path+local registry/sparse, lock, `new`, `deps --attest` | Offline-first; no CDN |
 | WASM | Ready | `emit-wasm`; Node `main`; host-import `env.print_i64` + `env.print` (str) | No WASI / no `rt/` in wasm |

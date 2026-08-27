@@ -25,4 +25,4 @@ Contract: [contracts/phase33_lang_close.contract.toml](contracts/phase33_lang_cl
 
 ## Out of scope
 
-- Parametric `Option[T]`; traits; LSP codeAction (Phase 38)
+- Parametric `Option[T]`; traits; LSP inlayHints (Track R; codeAction → Phase 38 ✅)

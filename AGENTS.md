@@ -46,10 +46,10 @@ ad-hoc scraping.
   Phase 26 maturity; Phase 27 security ([docs/PHASE27.md](docs/PHASE27.md),
   ADR-0022/0023); **Phase 28** agent polish ([docs/PHASE28.md](docs/PHASE28.md),
   ADR-0024); **Phase 29** docs/WASM ceiling ([docs/PHASE29.md](docs/PHASE29.md)).
-  Phases 25–29 closed. Golden Remaining 30–37 closed (`v0.1.1` / `v0.2.0`):
-  [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md) (Phase 38 optional).
+  Phases 25–29 closed. Golden Remaining 30–38 closed (`v0.1.1` / `v0.2.0` +
+  LSP codeAction): [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md).
 - **Golden path (Quality-10, Phases 25–29):** [docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md);
-  **Remaining (30–37):** [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)
+  **Remaining (30–38):** [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)
 - Install: one-path clang Win/Linux — [INSTALL.md](INSTALL.md)
 - Peer verdict (who is ahead?): [docs/VERDICT.md](docs/VERDICT.md)
 

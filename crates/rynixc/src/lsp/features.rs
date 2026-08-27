@@ -1,4 +1,4 @@
-//! Completion, rename, references, and formatting handlers.
+//! Completion, rename, references, formatting, and codeAction handlers.
 
 use rynix_ast::{format_module, AstArena};
 use rynix_diag::VecSink;
@@ -6,6 +6,7 @@ use rynix_sema::analyze;
 use rynix_span::SourceMap;
 use serde_json::{json, Value};
 
+use crate::lsp::diagnostics::code_actions_for_doc;
 use crate::lsp::protocol::{pos_from_line_col, LspRequest};
 use crate::lsp::resolve::{
     completion_items, completion_prefix, def_index_at, is_ident, reference_spans,
@@ -234,6 +235,32 @@ impl LanguageServer {
                 "newText": formatted
             }]
         })
+    }
+
+    /// `textDocument/codeAction` — expose compiler `Diagnostic.fixes` as quickfixes.
+    pub(crate) fn code_action(&self, req: &LspRequest) -> Value {
+        let empty = json!([]);
+        let Some(params) = &req.params else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let uri = params["textDocument"]["uri"].as_str().unwrap_or_default();
+        let Some(doc) = self.documents.get(uri) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let start_line = params["range"]["start"]["line"].as_u64().unwrap_or(0) as u32;
+        let start_col = params["range"]["start"]["character"].as_u64().unwrap_or(0) as u32;
+        let end_line = params["range"]["end"]["line"].as_u64().unwrap_or(start_line as u64) as u32;
+        let end_col = params["range"]["end"]["character"].as_u64().unwrap_or(start_col as u64) as u32;
+        let actions = code_actions_for_doc(
+            &doc.path,
+            &doc.text,
+            uri,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+        );
+        json!({ "jsonrpc": "2.0", "id": req.id, "result": actions })
     }
 }
 

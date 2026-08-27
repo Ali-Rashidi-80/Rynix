@@ -303,3 +303,77 @@ fn lsp_formatting_applies_fmt() {
     );
     assert_ne!(new_text, src, "formatting should change messy input");
 }
+
+#[test]
+fn lsp_code_action_smoke() {
+    // Missing `end` — parser attaches insert-`end` Fix (same pipeline as apply_fix).
+    let src = "def main() -> i64\n  return 1\n";
+    let mut server = LanguageServer::new();
+    server.documents.insert(
+        "file:///test.ryx".into(),
+        Document {
+            path: PathBuf::from("test.ryx"),
+            text: src.into(),
+            version: 1,
+        },
+    );
+    let req = LspRequest {
+        id: Some(json!(1)),
+        method: "textDocument/codeAction".into(),
+        params: Some(json!({
+            "textDocument": { "uri": "file:///test.ryx" },
+            "range": {
+                "start": { "line": 0, "character": 0 },
+                "end": { "line": 0, "character": 3 }
+            },
+            "context": { "diagnostics": [] }
+        })),
+    };
+    let resp = server.code_action(&req);
+    let actions = resp["result"].as_array().expect("result array");
+    assert!(
+        !actions.is_empty(),
+        "expected at least one codeAction for missing end: {resp}"
+    );
+    let titles: Vec<&str> = actions
+        .iter()
+        .filter_map(|a| a["title"].as_str())
+        .collect();
+    assert!(
+        titles.iter().any(|t| t.contains("end")),
+        "expected insert end quickfix, got {titles:?}"
+    );
+    let edit = &actions[0]["edit"]["changes"]["file:///test.ryx"];
+    let edits = edit.as_array().expect("TextEdit array");
+    assert!(!edits.is_empty(), "expected WorkspaceEdit TextEdits");
+    assert!(
+        edits.iter().any(|e| e["newText"].as_str() == Some("end\n")),
+        "expected end\\n replacement: {edits:?}"
+    );
+
+    // Clean source → no actions.
+    let clean = "def main() -> i64\n  return 1\nend\n";
+    server.documents.insert(
+        "file:///clean.ryx".into(),
+        Document {
+            path: PathBuf::from("clean.ryx"),
+            text: clean.into(),
+            version: 1,
+        },
+    );
+    let req2 = LspRequest {
+        id: Some(json!(2)),
+        method: "textDocument/codeAction".into(),
+        params: Some(json!({
+            "textDocument": { "uri": "file:///clean.ryx" },
+            "range": {
+                "start": { "line": 0, "character": 0 },
+                "end": { "line": 2, "character": 0 }
+            },
+            "context": { "diagnostics": [] }
+        })),
+    };
+    let resp2 = server.code_action(&req2);
+    let empty = resp2["result"].as_array().expect("result");
+    assert!(empty.is_empty(), "clean file should have no codeActions: {resp2}");
+}

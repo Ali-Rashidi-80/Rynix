@@ -32,7 +32,7 @@ Absolute-10, Niche-11, or Track G theater.
 | 35 | Track G ADR-0025 + compat spike | After 34 |
 | 36 | Track G ship (Vec[T]/Map[K,V] matrices) | After 35 |
 | 37 | Public `v0.2.0` | Explicit ask after 36 — ✅ [PHASE37.md](PHASE37.md) |
-| 38 | Agent surface remainder (optional) | After 33 |
+| 38 | Agent surface remainder | ✅ [PHASE38.md](PHASE38.md) |
 
 ## Gate supersession
 
@@ -58,4 +58,4 @@ Absolute-10, Niche-11, or Track G theater.
 ## Execution order
 
 Wave 0 (this file + GOLDEN_PATH/ROADMAP hygiene) → Phase 30 (explicit) →
-31 → 32 → 33 → 34 → 35 → 36 → Phase 37 (explicit) → Phase 38 optional.
+31 → 32 → 33 → 34 → 35 → 36 → Phase 37 (explicit) → Phase 38.

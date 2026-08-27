@@ -1,0 +1,28 @@
+# Phase 38 — agent surface remainder
+
+[contract]
+name = "phase38-agent"
+
+[[evidence]]
+id = "lsp-code-action"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lsp_code_action_smoke"
+
+[[evidence]]
+id = "mcp-tool-count"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_tool_count_honest"
+
+[[evidence]]
+id = "phase38-doc"
+kind = "file"
+path = "docs/PHASE38.md"
+contains = "Agent surface remainder"
+
+[[evidence]]
+id = "code-action-capability"
+kind = "file"
+path = "crates/rynixc/src/lsp/server.rs"
+contains = "codeActionProvider"

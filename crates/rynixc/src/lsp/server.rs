@@ -85,7 +85,10 @@ impl LanguageServer {
                         "referencesProvider": true,
                         "workspaceSymbolProvider": true,
                         "documentSymbolProvider": true,
-                        "documentFormattingProvider": true
+                        "documentFormattingProvider": true,
+                        "codeActionProvider": {
+                            "codeActionKinds": ["quickfix"]
+                        }
                     },
                     "serverInfo": {
                         "name": "rynixc-lsp",
@@ -112,6 +115,7 @@ impl LanguageServer {
             "workspace/symbol" => Some(self.workspace_symbol(req)),
             "textDocument/documentSymbol" => Some(self.document_symbol(req)),
             "textDocument/formatting" => Some(self.formatting(req)),
+            "textDocument/codeAction" => Some(self.code_action(req)),
             "textDocument/didClose" => {
                 if let Some(params) = &req.params {
                     if let Some(uri) = params["textDocument"]["uri"].as_str() {

@@ -3278,6 +3278,28 @@ fn verify_phase37_release_contract() {
 }
 
 #[test]
+fn verify_phase38_agent_contract() {
+    let root = repo_root();
+    let contract = root.join("docs/contracts/phase38_agent.contract.toml");
+    let out = rynixc()
+        .args([
+            "verify",
+            "--contract",
+            contract.to_str().unwrap(),
+            "--root",
+            root.to_str().unwrap(),
+            "--error-format=json",
+        ])
+        .output()
+        .expect("spawn");
+    assert!(
+        out.status.success(),
+        "phase38 verify failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
 fn phase37_release_documented() {
     let text = std::fs::read_to_string(repo_root().join("docs/PHASE37.md")).unwrap();
     assert!(
