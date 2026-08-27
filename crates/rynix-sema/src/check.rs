@@ -425,9 +425,8 @@ impl<'a> Checker<'a> {
         }
         for (def, e) in pending_enums {
             let mut variants = FxHashMap::default();
-            let mut disc: i64 = 0;
             let mut has_payload = false;
-            for v in e.variants {
+            for (disc, v) in (0_i64..).zip(e.variants.iter()) {
                 let vdef = self.alloc_def(DefKind::Variant {
                     parent: def,
                     name: v.name.name,
@@ -440,7 +439,6 @@ impl<'a> Checker<'a> {
                 let payload = v.payload.map(|p| self.lower_type(p, self.module_scope));
                 let enum_ty = self.types.enum_type(def);
                 self.variant_disc.insert(vdef, disc);
-                disc += 1;
                 // Nullary variant: value of enum type; payload variant: fn(payload) -> enum
                 let vty = if let Some(p) = payload {
                     let ok = self.types.compatible(p, self.types.ty_int)

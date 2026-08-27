@@ -1,7 +1,7 @@
 # Production readiness (honest)
 
 **Version:** `0.1.1` (Quality-10 public) · Niche-10 base `0.1.0` · **Toolchain:** `rynixc`  
-Status: **v0.1.1 shipping** — acceptance-gated phases **0–29** (Q-Core) complete;
+Status: **v0.1.1 shipping** — acceptance-gated phases **0–29** (Q-Core; includes **0–24**) complete;
 Phase 30 public cut; **Niche-10 certified** ([docs/NICHE10.md](docs/NICHE10.md),
 [docs/adr/0013-niche-10-scorecard.md](docs/adr/0013-niche-10-scorecard.md));
 ROI 21–24 + Golden Path 25–29 ([docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md));

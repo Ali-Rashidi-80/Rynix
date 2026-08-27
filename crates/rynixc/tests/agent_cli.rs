@@ -3105,20 +3105,48 @@ fn vec_t_i64_compat_spike() {
 
 #[test]
 fn vec_t_roundtrip_matrix() {
-    build_run_fixture("vec_t_i64_compat_spike", "2");
-    build_run_fixture("vec_str_roundtrip", "2");
-    build_run_fixture("vec_bool_roundtrip", "2");
+    // Check-only: dedicated roundtrip tests own `target/test-*` dirs (avoid CI races).
+    for name in [
+        "vec_t_i64_compat_spike",
+        "vec_str_roundtrip",
+        "vec_bool_roundtrip",
+    ] {
+        let path = repo_root().join("testdata").join(format!("{name}.ryx"));
+        assert!(path.is_file(), "missing {name}.ryx");
+        let out = rynixc()
+            .args(["check", path.to_str().unwrap()])
+            .output()
+            .expect("check");
+        assert!(
+            out.status.success(),
+            "{name} check failed:\n{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
 }
 
 #[test]
 fn map_kv_roundtrip_matrix() {
-    build_run_fixture("map_str_i64_roundtrip", "10");
-    build_run_fixture("map_str_str_roundtrip", "2");
-    // Map[i64,i64] via soft map_new — existing product path
+    for name in ["map_str_i64_roundtrip", "map_str_str_roundtrip"] {
+        let path = repo_root().join("testdata").join(format!("{name}.ryx"));
+        assert!(path.is_file(), "missing {name}.ryx");
+        let out = rynixc()
+            .args(["check", path.to_str().unwrap()])
+            .output()
+            .expect("check");
+        assert!(
+            out.status.success(),
+            "{name} check failed:\n{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
     let root = repo_root();
     let path = root.join("examples/03_vec.ryx");
     assert!(path.is_file());
-    let check = rynixc().args(["check", path.to_str().unwrap()]).output().unwrap();
+    let check = rynixc()
+        .args(["check", path.to_str().unwrap()])
+        .output()
+        .unwrap();
     assert!(check.status.success(), "examples/03_vec check failed");
 }
 
@@ -3145,10 +3173,20 @@ fn std_collections_facade_ok() {
 
 #[test]
 fn legacy_mono_alias_ok() {
-    // Legacy soft names still resolve alongside typed Vec/Map annotations.
-    build_run_fixture("vec_str_roundtrip", "2");
-    build_run_fixture("map_str_str_roundtrip", "2");
-    build_run_fixture("vec_bool_roundtrip", "2");
+    // Soft names still typecheck alongside typed annotations (no parallel build race).
+    for name in ["vec_str_roundtrip", "map_str_str_roundtrip", "vec_bool_roundtrip"] {
+        let path = repo_root().join("testdata").join(format!("{name}.ryx"));
+        assert!(path.is_file(), "missing {name}.ryx");
+        let out = rynixc()
+            .args(["check", path.to_str().unwrap()])
+            .output()
+            .expect("check");
+        assert!(
+            out.status.success(),
+            "{name} check failed:\n{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
 }
 
 #[test]
