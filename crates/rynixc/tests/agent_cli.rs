@@ -32,12 +32,12 @@ fn repo_root() -> PathBuf {
 #[test]
 fn graph_emits_schema_and_edges() {
     let path = example("02_match_loop.ryx");
-    let out = rynixc()
-        .arg("graph")
-        .arg(&path)
-        .output()
-        .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    let out = rynixc().arg("graph").arg(&path).output().expect("spawn");
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(text.contains("rynix.graph.v1"));
     assert!(text.contains("\"classify\""));
@@ -52,7 +52,11 @@ fn impact_lists_callers_callees() {
         .args(["impact", path.to_str().unwrap(), "--fn=main"])
         .output()
         .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(text.contains("rynix.impact.v1"));
     assert!(text.contains("main"));
@@ -65,7 +69,11 @@ fn eval_arith() {
         .args(["eval", "2 + 3 * 4"])
         .output()
         .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "14");
 }
 
@@ -84,11 +92,7 @@ fn eval_json_schema() {
 #[test]
 fn slice_human_outline() {
     let path = example("02_match_loop.ryx");
-    let out = rynixc()
-        .arg("slice")
-        .arg(&path)
-        .output()
-        .expect("spawn");
+    let out = rynixc().arg("slice").arg(&path).output().expect("spawn");
     assert!(out.status.success());
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(text.contains("def classify"));
@@ -111,7 +115,11 @@ fn arch_check_json_on_repo() {
         ])
         .output()
         .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let v: serde_json::Value =
         serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
     assert_eq!(v["schema"], "rynix.arch.v1");
@@ -136,7 +144,11 @@ fn verify_wave1_contract_static() {
         ])
         .output()
         .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let v: serde_json::Value =
         serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
     assert_eq!(v["schema"], "rynix.verify.v1");
@@ -189,7 +201,11 @@ fn precheck_json_write_gate() {
         ])
         .output()
         .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let v: serde_json::Value =
         serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
     assert_eq!(v["schema"], "rynix.precheck.v1");
@@ -209,7 +225,11 @@ fn context_respects_budget() {
         ])
         .output()
         .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let v: serde_json::Value =
         serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
     assert_eq!(v["schema"], "rynix.context.v1");
@@ -245,7 +265,11 @@ fn scope_defaults_deny_patch_write() {
         .args(["scope", "--error-format=json"])
         .output()
         .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let v: serde_json::Value =
         serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
     assert_eq!(v["schema"], "rynix.scope.v1");
@@ -261,7 +285,10 @@ fn patch_write_denied_without_scope() {
         .expect("spawn");
     assert!(!out.status.success());
     let err = String::from_utf8_lossy(&out.stderr);
-    assert!(err.contains("denied") || err.contains("patch_write"), "{err}");
+    assert!(
+        err.contains("denied") || err.contains("patch_write"),
+        "{err}"
+    );
 }
 
 #[test]
@@ -269,11 +296,7 @@ fn deps_resolves_path_package() {
     let root = repo_root();
     let app = root.join("testdata/pkg_app");
     let out = rynixc()
-        .args([
-            "deps",
-            app.to_str().unwrap(),
-            "--error-format=json",
-        ])
+        .args(["deps", app.to_str().unwrap(), "--error-format=json"])
         .output()
         .expect("spawn");
     assert!(
@@ -303,11 +326,7 @@ fn deps_resolves_local_registry_version() {
     let root = repo_root();
     let app = root.join("testdata/pkg_reg_app");
     let out = rynixc()
-        .args([
-            "deps",
-            app.to_str().unwrap(),
-            "--error-format=json",
-        ])
+        .args(["deps", app.to_str().unwrap(), "--error-format=json"])
         .output()
         .expect("spawn");
     assert!(
@@ -335,11 +354,7 @@ fn deps_resolves_sparse_local_index() {
     let root = repo_root();
     let app = root.join("testdata/pkg_sparse_app");
     let out = rynixc()
-        .args([
-            "deps",
-            app.to_str().unwrap(),
-            "--error-format=json",
-        ])
+        .args(["deps", app.to_str().unwrap(), "--error-format=json"])
         .output()
         .expect("spawn");
     assert!(
@@ -890,10 +905,7 @@ core = {{ path = "{core_path}" }}
         .expect("spawn locked bad");
     assert!(!locked_bad.status.success());
     let err = String::from_utf8_lossy(&locked_bad.stderr);
-    assert!(
-        err.contains("sha256") || err.contains("lock"),
-        "{err}"
-    );
+    assert!(err.contains("sha256") || err.contains("lock"), "{err}");
 }
 
 #[test]
@@ -937,9 +949,7 @@ core = {{ path = "{core_path}" }}
     assert_eq!(body["schema"], "rynix.attest.v1");
     assert_eq!(body["kind"], "local_digest");
     assert!(
-        body["lock_sha256"]
-            .as_str()
-            .is_some_and(|s| s.len() == 64),
+        body["lock_sha256"].as_str().is_some_and(|s| s.len() == 64),
         "lock_sha256 missing"
     );
 
@@ -1013,7 +1023,11 @@ fn build_fs_roundtrip() {
         .current_dir(&out_dir)
         .output()
         .expect("run");
-    assert!(run.status.success(), "run failed: {}", String::from_utf8_lossy(&run.stderr));
+    assert!(
+        run.status.success(),
+        "run failed: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
     assert!(
         String::from_utf8_lossy(&run.stdout).contains('0'),
         "expected 0 from fs round-trip"
@@ -1092,7 +1106,11 @@ fn dna_emits_schema() {
         .args(["dna", root.to_str().unwrap(), "--error-format=json"])
         .output()
         .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let v: serde_json::Value =
         serde_json::from_str(String::from_utf8_lossy(&out.stdout).trim()).expect("json");
     assert_eq!(v["schema"], "rynix.dna.v1");
@@ -1168,10 +1186,7 @@ fn build_missing_entry_diag() {
         .args(["build", "--error-format=json"])
         .output()
         .expect("spawn build");
-    assert!(
-        !out.status.success(),
-        "expected failure for missing entry"
-    );
+    assert!(!out.status.success(), "expected failure for missing entry");
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(
         err.contains("[package].entry") || err.contains("missing"),
@@ -1191,22 +1206,23 @@ fn new_scaffolds_package() {
     std::fs::create_dir_all(&parent).unwrap();
     let name = "demo_app";
     let out = rynixc()
-        .args([
-            "new",
-            name,
-            "--path",
-            parent.to_str().unwrap(),
-        ])
+        .args(["new", name, "--path", parent.to_str().unwrap()])
         .output()
         .expect("spawn");
-    assert!(out.status.success(), "{:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let root = parent.join(name);
     assert!(root.join("rynix.toml").is_file());
     assert!(root.join("src/main.ryx").is_file());
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
         stdout.contains("ok: created package")
-            && stdout.lines().any(|l| l.contains("next:") && l.contains("rynixc build")),
+            && stdout
+                .lines()
+                .any(|l| l.contains("next:") && l.contains("rynixc build")),
         "expected clear new success + next build hint, got: {stdout}"
     );
     let build = rynixc()
@@ -1226,10 +1242,7 @@ fn package_ux_new_deps_attest() {
     use std::sync::atomic::{AtomicU64, Ordering};
     static SEQ: AtomicU64 = AtomicU64::new(0);
     let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    let parent = std::env::temp_dir().join(format!(
-        "rynix_pkg_ux_{}_{n}",
-        std::process::id()
-    ));
+    let parent = std::env::temp_dir().join(format!("rynix_pkg_ux_{}_{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&parent);
     std::fs::create_dir_all(&parent).unwrap();
     let name = "ux_attest_app";
@@ -1275,14 +1288,9 @@ fn package_ux_new_deps_attest() {
     );
 
     let attest_path = root.join("rynix.attest.v1.json");
-    assert!(
-        attest_path.is_file(),
-        "missing {}",
-        attest_path.display()
-    );
+    assert!(attest_path.is_file(), "missing {}", attest_path.display());
     let body: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&attest_path).unwrap())
-            .expect("attest json");
+        serde_json::from_str(&std::fs::read_to_string(&attest_path).unwrap()).expect("attest json");
     assert_eq!(body["schema"], "rynix.attest.v1");
     let _ = std::fs::remove_dir_all(&parent);
 }
@@ -1312,11 +1320,7 @@ fn compile_fail_memory_corpus() {
         let path = dir.join(name);
         assert!(path.is_file(), "missing fixture {}", path.display());
         let out = rynixc()
-            .args([
-                "check",
-                path.to_str().unwrap(),
-                "--error-format=json",
-            ])
+            .args(["check", path.to_str().unwrap(), "--error-format=json"])
             .output()
             .expect("spawn check");
         assert!(
@@ -1500,15 +1504,21 @@ fn enum_payload_str_match_roundtrip() {
 }
 
 #[test]
+fn option_t_i64_match_roundtrip() {
+    build_run_fixture("option_t_i64_match_roundtrip", "7");
+}
+
+#[test]
+fn option_t_str_match_roundtrip() {
+    build_run_fixture("option_t_str_match_roundtrip", "1");
+}
+
+#[test]
 fn example_http_path_param_tls_checks() {
     let root = repo_root();
     let example = root.join("examples/11_http_path_param_tls.ryx");
     let check = rynixc()
-        .args([
-            "check",
-            example.to_str().unwrap(),
-            "--error-format=json",
-        ])
+        .args(["check", example.to_str().unwrap(), "--error-format=json"])
         .output()
         .expect("check");
     assert!(
@@ -1547,11 +1557,7 @@ fn example_http_vec_map_str_checks() {
     let root = repo_root();
     let example = root.join("examples/12_http_vec_map_str.ryx");
     let check = rynixc()
-        .args([
-            "check",
-            example.to_str().unwrap(),
-            "--error-format=json",
-        ])
+        .args(["check", example.to_str().unwrap(), "--error-format=json"])
         .output()
         .expect("check");
     assert!(
@@ -1580,8 +1586,7 @@ fn example_http_vec_map_str_checks() {
         "missing vec_str"
     );
     assert!(
-        text.contains("rynix_rt_map_str_i64_new")
-            || text.contains("rynix_rt_map_str_i64_insert"),
+        text.contains("rynix_rt_map_str_i64_new") || text.contains("rynix_rt_map_str_i64_insert"),
         "missing map_str_i64"
     );
     assert!(
@@ -1595,11 +1600,7 @@ fn example_map_str_str_product_checks() {
     let root = repo_root();
     let example = root.join("examples/13_http_map_str_str.ryx");
     let check = rynixc()
-        .args([
-            "check",
-            example.to_str().unwrap(),
-            "--error-format=json",
-        ])
+        .args(["check", example.to_str().unwrap(), "--error-format=json"])
         .output()
         .expect("check");
     assert!(
@@ -1624,8 +1625,7 @@ fn example_map_str_str_product_checks() {
     );
     let text = std::fs::read_to_string(&ll_path).expect("read ll");
     assert!(
-        text.contains("rynix_rt_map_str_str_new")
-            || text.contains("rynix_rt_map_str_str_insert"),
+        text.contains("rynix_rt_map_str_str_new") || text.contains("rynix_rt_map_str_str_insert"),
         "missing map_str_str"
     );
     assert!(
@@ -1766,7 +1766,10 @@ fn mcp_graph_path_file() {
     let _ = child.wait();
 }
 
-fn mcp_tools_call(name: &str, arguments: serde_json::Value) -> (serde_json::Value, Option<serde_json::Value>) {
+fn mcp_tools_call(
+    name: &str,
+    arguments: serde_json::Value,
+) -> (serde_json::Value, Option<serde_json::Value>) {
     use std::io::{BufRead, BufReader, Read, Write};
     use std::process::{Command, Stdio};
 
@@ -1895,7 +1898,10 @@ fn mcp_precheck_path_file() {
         text.contains("rynix.precheck.v1"),
         "expected precheck schema, got: {text}"
     );
-    assert!(text.contains("rynix.impact.v1") || text.contains("\"impact\""), "expected impact nest: {text}");
+    assert!(
+        text.contains("rynix.impact.v1") || text.contains("\"impact\""),
+        "expected impact nest: {text}"
+    );
     let err = err.expect("fail-closed response");
     assert!(
         err.get("error").is_some(),
@@ -2220,6 +2226,18 @@ fn lsp_decomp_parity() {
 }
 
 #[test]
+fn mcp_decomp_parity() {
+    let root = repo_root();
+    assert!(root.join("crates/rynixc/src/mcp/mod.rs").is_file());
+    assert!(root.join("crates/rynixc/src/mcp/tools.rs").is_file());
+    let thin = std::fs::read_to_string(root.join("crates/rynixc/src/mcp_cmd.rs")).unwrap();
+    assert!(
+        thin.contains("crate::mcp::run"),
+        "mcp_cmd should re-export mcp module"
+    );
+}
+
+#[test]
 fn unwrap_budget_gate() {
     let root = repo_root();
     let script = root.join("scripts/audit_unwrap.py");
@@ -2246,7 +2264,10 @@ fn unwrap_budget_gate() {
 fn contract_schema_gate() {
     let root = repo_root();
     assert!(root.join("docs/schemas/rynix.contract.v1.json").is_file());
-    assert!(root.join("docs/adr/0021-phase-contract-schema.md").is_file());
+    assert!(
+        root.join("docs/adr/0021-phase-contract-schema.md")
+            .is_file()
+    );
     let dir = root.join("docs/contracts");
     let mut n = 0;
     for ent in std::fs::read_dir(&dir).unwrap() {
@@ -2260,10 +2281,7 @@ fn contract_schema_gate() {
             text.contains("[contract]") && text.contains("name"),
             "{name} missing [contract] name"
         );
-        assert!(
-            text.contains("[[evidence]]"),
-            "{name} missing [[evidence]]"
-        );
+        assert!(text.contains("[[evidence]]"), "{name} missing [[evidence]]");
         n += 1;
     }
     assert!(n >= 5, "expected several contracts, got {n}");
@@ -2290,16 +2308,12 @@ fn cargo_deny_clean_inner() {
         "deny.toml must configure licenses"
     );
     let ci = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).unwrap();
-    assert!(
-        ci.contains("cargo-deny"),
-        "CI must run cargo-deny job"
-    );
+    assert!(ci.contains("cargo-deny"), "CI must run cargo-deny job");
 }
 
 #[test]
 fn sanitizer_scaffold_documented() {
-    let text =
-        std::fs::read_to_string(repo_root().join("docs/SANITIZER_SCAFFOLD.md")).unwrap();
+    let text = std::fs::read_to_string(repo_root().join("docs/SANITIZER_SCAFFOLD.md")).unwrap();
     assert!(text.contains("fsanitize"));
     assert!(
         text.contains("Phase 27") || text.contains("Phase 31"),
@@ -2366,8 +2380,8 @@ fn sandbox_docker_smoke() {
 
     // Avoid hanging on registry pulls: only exercise full link when the image
     // is already present locally (CI without image → skip matrix OK).
-    let image = std::env::var("RYNIX_DOCKER_IMAGE")
-        .unwrap_or_else(|_| "silkeh/clang:latest".to_string());
+    let image =
+        std::env::var("RYNIX_DOCKER_IMAGE").unwrap_or_else(|_| "silkeh/clang:latest".to_string());
     let image_local = Command::new("docker")
         .args(["image", "inspect", &image])
         .output()
@@ -2458,7 +2472,9 @@ fn msan_ubsan_rt_enforced_inner() {
     );
     let scaffold = std::fs::read_to_string(repo_root().join("docs/SANITIZER_SCAFFOLD.md")).unwrap();
     assert!(
-        scaffold.contains("memory") || scaffold.contains("MSan") || scaffold.contains("fsanitize=memory"),
+        scaffold.contains("memory")
+            || scaffold.contains("MSan")
+            || scaffold.contains("fsanitize=memory"),
         "MSan must remain documented as optional"
     );
 }
@@ -2469,7 +2485,11 @@ fn fuzz_new_targets_seeded() {
     let target = root.join("fuzz/fuzz_targets/parse_no_crash.rs");
     assert!(target.is_file(), "parse_no_crash fuzz target missing");
     let seed = root.join("fuzz/corpus/parse_no_crash/seed_main.ryx");
-    assert!(seed.is_file(), "seed corpus file missing at {}", seed.display());
+    assert!(
+        seed.is_file(),
+        "seed corpus file missing at {}",
+        seed.display()
+    );
 }
 
 #[test]
@@ -2492,7 +2512,10 @@ fn emit_ll_no_link_smoke() {
         String::from_utf8_lossy(&out.stdout)
     );
     let ll = std::fs::read_to_string(&out_ll).expect("read .ll");
-    assert!(ll.contains("define"), "expected LLVM IR define in emit-ll output");
+    assert!(
+        ll.contains("define"),
+        "expected LLVM IR define in emit-ll output"
+    );
 }
 
 #[test]
@@ -2539,7 +2562,10 @@ fn windows_sandbox_smoke_inner() {
             .status()
             .expect("spawn build --sandbox=job");
         assert!(status.success(), "build --sandbox=job failed");
-        assert!(out.is_file(), "expected output binary from job sandbox build");
+        assert!(
+            out.is_file(),
+            "expected output binary from job sandbox build"
+        );
     }
 }
 
@@ -2593,7 +2619,9 @@ fn mcp_slice_or_documented_absence() {
     assert_eq!(v["schema"], "rynix.slice.v1");
     let lines = v["lines"].as_array().expect("lines");
     assert!(
-        lines.iter().any(|l| l.as_str().is_some_and(|s| s.contains("main"))),
+        lines
+            .iter()
+            .any(|l| l.as_str().is_some_and(|s| s.contains("main"))),
         "expected main in slice lines: {lines:?}"
     );
     let err = err.expect("fail-closed response");
@@ -2620,7 +2648,8 @@ fn std_crypto_hmac_aes_import_ok() {
     );
     let crypto = std::fs::read_to_string(root.join("std/crypto.ryx")).expect("crypto.ryx");
     assert!(
-        crypto.contains("hmac_sha256_first_i64") && crypto.contains("aes128_gcm_nist_empty_tag_first_i64"),
+        crypto.contains("hmac_sha256_first_i64")
+            && crypto.contains("aes128_gcm_nist_empty_tag_first_i64"),
         "std/crypto.ryx must facade HMAC and AES"
     );
 }
@@ -2631,12 +2660,16 @@ fn verdict_peer_date_current() {
     let verdict = std::fs::read_to_string(root.join("docs/VERDICT.md")).expect("VERDICT");
     let gap = std::fs::read_to_string(root.join("docs/END_PEER_GAP.md")).expect("END_PEER_GAP");
     assert!(
-        verdict.contains("2026-08-26"),
-        "VERDICT.md peer date should be refreshed to 2026-08-26"
+        verdict.contains("bdc8732"),
+        "VERDICT.md peer pin should be bdc8732 (Golden Lead refresh)"
     );
     assert!(
-        gap.contains("2026-08-26"),
-        "END_PEER_GAP.md audit refresh should be 2026-08-26"
+        gap.contains("bdc8732"),
+        "END_PEER_GAP.md peer pin should be bdc8732 (Golden Lead refresh)"
+    );
+    assert!(
+        verdict.contains("2026-08-30") || gap.contains("2026-08-30"),
+        "peer audit docs should carry 2026-08-30 refresh date"
     );
 }
 
@@ -2711,7 +2744,8 @@ fn tls_linux_ci_row_green() {
         text.contains("http_tls_product_smoke"),
         "TLS matrix must cite http_tls_product_smoke job/gate"
     );
-    let gates = std::fs::read_to_string(repo_root().join("crates/rynixc/tests/size_echo_gates.rs")).unwrap();
+    let gates = std::fs::read_to_string(repo_root().join("crates/rynixc/tests/size_echo_gates.rs"))
+        .unwrap();
     assert!(
         gates.contains("fn http_tls_product_smoke"),
         "size_echo_gates must define http_tls_product_smoke"
@@ -2730,7 +2764,8 @@ fn http_bearer_header_soft_gate() {
 }
 
 fn http_bearer_header_soft_gate_inner() {
-    let doc = std::fs::read_to_string(repo_root().join("docs/HTTP_AUTH_METHOD_DEFERRAL.md")).unwrap();
+    let doc =
+        std::fs::read_to_string(repo_root().join("docs/HTTP_AUTH_METHOD_DEFERRAL.md")).unwrap();
     assert!(
         doc.contains("Bearer") && (doc.contains("Implemented") || doc.contains("soft")),
         "HTTP auth doc must document Bearer soft"
@@ -2763,7 +2798,8 @@ fn escape_interproc_improvement_gate_inner() {
         doc.contains("SCC") || doc.contains("interproc_scc"),
         "escape doc must cite SCC improvement"
     );
-    let unit = std::fs::read_to_string(repo_root().join("crates/rynix-rir/tests/escape_unit.rs")).unwrap();
+    let unit =
+        std::fs::read_to_string(repo_root().join("crates/rynix-rir/tests/escape_unit.rs")).unwrap();
     assert!(
         unit.contains("interproc_scc_mutual_recursion_arg_escape"),
         "escape_unit must include SCC mutual-recursion gate"
@@ -2785,12 +2821,16 @@ fn attest_docs_match_impl() {
         "SPEC must document local digest attest"
     );
     assert!(
-        spec.contains("not** Sigstore") || spec.contains("not Sigstore") || spec.contains("**not** Sigstore"),
+        spec.contains("not** Sigstore")
+            || spec.contains("not Sigstore")
+            || spec.contains("**not** Sigstore"),
         "SPEC must refuse Sigstore theater"
     );
     let skill = std::fs::read_to_string(root.join(".agents/skills/rynix/SKILL.md")).expect("skill");
     assert!(
-        skill.contains("not** Sigstore") || skill.contains("not Sigstore") || skill.contains("Sigstore Rekor"),
+        skill.contains("not** Sigstore")
+            || skill.contains("not Sigstore")
+            || skill.contains("Sigstore Rekor"),
         "skill must stay honest about attest vs Sigstore"
     );
 }
@@ -2950,7 +2990,10 @@ fn golden_remaining_sot() {
     let p = root.join("docs/GOLDEN_REMAINING.md");
     assert!(p.is_file(), "GOLDEN_REMAINING.md missing");
     let text = std::fs::read_to_string(&p).unwrap();
-    assert!(text.contains("Phase") && text.contains("30"), "must list Phase 30");
+    assert!(
+        text.contains("Phase") && text.contains("30"),
+        "must list Phase 30"
+    );
     let golden = std::fs::read_to_string(root.join("docs/GOLDEN_PATH.md")).unwrap();
     assert!(
         golden.contains("GOLDEN_REMAINING"),
@@ -3054,8 +3097,17 @@ fn tutorial_five_runnable() {
 #[test]
 fn contributing_sections_gate() {
     let text = std::fs::read_to_string(repo_root().join("CONTRIBUTING.md")).unwrap();
-    for needle in ["Build matrix", "ADR workflow", "Commit style", "good-first-issue", "RFC"] {
-        assert!(text.contains(needle), "CONTRIBUTING missing section {needle}");
+    for needle in [
+        "Build matrix",
+        "ADR workflow",
+        "Commit style",
+        "good-first-issue",
+        "RFC",
+    ] {
+        assert!(
+            text.contains(needle),
+            "CONTRIBUTING missing section {needle}"
+        );
     }
 }
 
@@ -3204,7 +3256,11 @@ fn std_collections_facade_ok() {
 #[test]
 fn legacy_mono_alias_ok() {
     // Soft names still typecheck alongside typed annotations (no parallel build race).
-    for name in ["vec_str_roundtrip", "map_str_str_roundtrip", "vec_bool_roundtrip"] {
+    for name in [
+        "vec_str_roundtrip",
+        "map_str_str_roundtrip",
+        "vec_bool_roundtrip",
+    ] {
         let path = repo_root().join("testdata").join(format!("{name}.ryx"));
         assert!(path.is_file(), "missing {name}.ryx");
         let out = rynixc()
@@ -3375,9 +3431,7 @@ fn install_one_path_clang_win_linux() {
         "INSTALL.md must mention clang for Linux"
     );
     // Both platforms appear in the one-path section (not only troubleshooting).
-    let idx = text
-        .find("One-path clang")
-        .expect("One-path clang heading");
+    let idx = text.find("One-path clang").expect("One-path clang heading");
     let section = &text[idx..];
     let section_end = section.find("\n## ").unwrap_or(section.len());
     let one_path = &section[..section_end];

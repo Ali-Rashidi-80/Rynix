@@ -135,6 +135,121 @@ impl LanguageServer {
         })
     }
 
+    pub(crate) fn prepare_rename(&self, req: &LspRequest) -> Value {
+        let empty = json!(null);
+        let Some(params) = &req.params else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let uri = params["textDocument"]["uri"].as_str().unwrap_or_default();
+        let line = params["position"]["line"].as_u64().unwrap_or(0) as u32 + 1;
+        let col = params["position"]["character"].as_u64().unwrap_or(0) as u32 + 1;
+        let Some(doc) = self.documents.get(uri) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+
+        let mut sources = SourceMap::new();
+        let label = doc.path.to_string_lossy();
+        sources.add_owned(label.as_ref(), doc.text.clone());
+        let file = sources.files().next().expect("one file");
+        let offset = pos_from_line_col(file, line, col);
+
+        let arena = AstArena::new();
+        let mut interner = rynix_span::Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(
+            &arena,
+            &mut interner,
+            file.text(),
+            file.start_pos(),
+            &mut sink,
+        );
+        let analysis = analyze(module, &mut interner, &mut sink);
+
+        let Some(def_idx) = def_index_at(module, &analysis, offset) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let spans = reference_spans(module, &analysis, def_idx);
+        let Some(span) = spans.into_iter().find(|s| s.contains(offset)) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let (_f, start) = sources.line_col(span.lo());
+        let (_, end) = sources.line_col(span.hi());
+        json!({
+            "jsonrpc": "2.0",
+            "id": req.id,
+            "result": {
+                "range": {
+                    "start": {
+                        "line": start.line.saturating_sub(1),
+                        "character": start.col.saturating_sub(1)
+                    },
+                    "end": {
+                        "line": end.line.saturating_sub(1),
+                        "character": end.col.saturating_sub(1)
+                    }
+                }
+            }
+        })
+    }
+
+    pub(crate) fn document_highlight(&self, req: &LspRequest) -> Value {
+        let empty = json!([]);
+        let Some(params) = &req.params else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let uri = params["textDocument"]["uri"].as_str().unwrap_or_default();
+        let line = params["position"]["line"].as_u64().unwrap_or(0) as u32 + 1;
+        let col = params["position"]["character"].as_u64().unwrap_or(0) as u32 + 1;
+        let Some(doc) = self.documents.get(uri) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+
+        let mut sources = SourceMap::new();
+        let label = doc.path.to_string_lossy();
+        sources.add_owned(label.as_ref(), doc.text.clone());
+        let file = sources.files().next().expect("one file");
+        let offset = pos_from_line_col(file, line, col);
+
+        let arena = AstArena::new();
+        let mut interner = rynix_span::Interner::new();
+        let mut sink = VecSink::new();
+        let module = rynix_parser::parse(
+            &arena,
+            &mut interner,
+            file.text(),
+            file.start_pos(),
+            &mut sink,
+        );
+        let analysis = analyze(module, &mut interner, &mut sink);
+
+        let Some(def_idx) = def_index_at(module, &analysis, offset) else {
+            return json!({ "jsonrpc": "2.0", "id": req.id, "result": empty });
+        };
+        let spans = reference_spans(module, &analysis, def_idx);
+        let highlights: Vec<Value> = spans
+            .into_iter()
+            .map(|span| {
+                let kind = if span.contains(offset) { 2 } else { 1 };
+                let (_f, start) = sources.line_col(span.lo());
+                let (_, end) = sources.line_col(span.hi());
+                json!({
+                    "range": {
+                        "start": {
+                            "line": start.line.saturating_sub(1),
+                            "character": start.col.saturating_sub(1)
+                        },
+                        "end": {
+                            "line": end.line.saturating_sub(1),
+                            "character": end.col.saturating_sub(1)
+                        }
+                    },
+                    "kind": kind
+                })
+            })
+            .collect();
+        json!({ "jsonrpc": "2.0", "id": req.id, "result": highlights })
+    }
+
     pub(crate) fn references(&self, req: &LspRequest) -> Value {
         let empty = json!([]);
         let Some(params) = &req.params else {

@@ -3,7 +3,7 @@
 **Status: CLOSED** — Phases **30–38** shipped (`v0.1.1`, `v0.2.0`, LSP codeAction).  
 **Parent SoT:** [GOLDEN_PATH.md](GOLDEN_PATH.md) (Q-Core locked).  
 **Refuse:** R1–R19 unchanged from GOLDEN_PATH §2.  
-**Follow-on:** Track R / Refuse only — not a new golden wave.
+**Follow-on:** [GOLDEN_LEAD.md](GOLDEN_LEAD.md) (Phases 39–49) — Track R / Refuse only from Remaining doc.
 
 ## Two-layer honesty
 

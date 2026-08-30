@@ -16,8 +16,7 @@ fixed `Map` variants). Track G introduces **compile-time monomorphization** of
 2. Lowering: each instantiation reuses the existing mono soft/RT symbols
    (`vec_*`, `vec_str_*`, `vec_bool_*`, `map_*`, …).
 3. Migration: legacy soft names remain aliases (Phase 36-D).
-4. Refuse v1: HKT, traits/vtable, unbounded type params, `Option[T]` parametric
-   (payload enums stay ADR-0024 narrow).
+4. Refuse v1: HKT, traits/vtable, unbounded type params (`Option[T]` allow-list → [ADR-0026](0026-option-t-mono.md)).
 
 ## Consequences
 

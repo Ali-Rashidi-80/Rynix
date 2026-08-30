@@ -81,14 +81,18 @@ impl LanguageServer {
                         "completionProvider": {
                             "triggerCharacters": ["."]
                         },
-                        "renameProvider": true,
+                        "renameProvider": {
+                            "prepareProvider": true
+                        },
                         "referencesProvider": true,
+                        "documentHighlightProvider": true,
                         "workspaceSymbolProvider": true,
                         "documentSymbolProvider": true,
                         "documentFormattingProvider": true,
                         "codeActionProvider": {
                             "codeActionKinds": ["quickfix"]
-                        }
+                        },
+                        "inlayHintProvider": true
                     },
                     "serverInfo": {
                         "name": "rynixc-lsp",
@@ -111,11 +115,14 @@ impl LanguageServer {
             "textDocument/hover" => Some(self.hover(req)),
             "textDocument/completion" => Some(self.completion(req)),
             "textDocument/rename" => Some(self.rename(req)),
+            "textDocument/prepareRename" => Some(self.prepare_rename(req)),
             "textDocument/references" => Some(self.references(req)),
+            "textDocument/documentHighlight" => Some(self.document_highlight(req)),
             "workspace/symbol" => Some(self.workspace_symbol(req)),
             "textDocument/documentSymbol" => Some(self.document_symbol(req)),
             "textDocument/formatting" => Some(self.formatting(req)),
             "textDocument/codeAction" => Some(self.code_action(req)),
+            "textDocument/inlayHint" => Some(self.inlay_hint(req)),
             "textDocument/didClose" => {
                 if let Some(params) = &req.params {
                     if let Some(uri) = params["textDocument"]["uri"].as_str() {

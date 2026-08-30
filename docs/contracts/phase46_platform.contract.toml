@@ -1,0 +1,64 @@
+# Phase 46 — Lead Platform Complete
+
+[contract]
+name = "phase46-platform"
+
+[[evidence]]
+id = "golden-lead-doc"
+kind = "file"
+path = "docs/GOLDEN_LEAD.md"
+contains = "Lead Platform Complete"
+
+[[evidence]]
+id = "prepare-rename"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lsp_prepare_rename_smoke"
+
+[[evidence]]
+id = "document-highlight"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lsp_document_highlight_smoke"
+
+[[evidence]]
+id = "option-i64"
+kind = "cargo_test"
+package = "rynixc"
+filter = "option_t_i64_match_roundtrip"
+
+[[evidence]]
+id = "option-str"
+kind = "cargo_test"
+package = "rynixc"
+filter = "option_t_str_match_roundtrip"
+
+[[evidence]]
+id = "inlay-smoke"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lsp_inlay_hint_smoke"
+
+[[evidence]]
+id = "mcp-decomp"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_decomp_parity"
+
+[[evidence]]
+id = "mcp-dual-era"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_dual_era_smoke"
+
+[[evidence]]
+id = "peer-pin"
+kind = "file"
+path = "docs/VERDICT.md"
+contains = "bdc8732"
+
+[[evidence]]
+id = "phase46-doc"
+kind = "file"
+path = "docs/PHASE46.md"
+contains = "Lead Platform Complete"

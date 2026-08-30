@@ -40,7 +40,8 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
 - Spec: `docs/SPEC.md`
 - Roadmap / phases: `docs/ROADMAP.md`, `docs/LEAD_AHEAD.md`, `docs/PHASE14.md`, `docs/PHASE15.md`,
   `docs/PHASE16.md`, **`docs/GOLDEN_PATH.md`** (Q-Core 25–29);
-  **`docs/GOLDEN_REMAINING.md`** (Phases 30–37);
+  **`docs/GOLDEN_REMAINING.md`** (Phases 30–38, closed);
+  **`docs/GOLDEN_LEAD.md`** (Phases 39–49, active Lead SoT);
   Phase 27 security: [PHASE27.md](../../docs/PHASE27.md), ADR-0022/0023;
   Phase 28–30: [PHASE28.md](../../docs/PHASE28.md), [PHASE29.md](../../docs/PHASE29.md),
   [PHASE30.md](../../docs/PHASE30.md); Phase 38 codeAction: [PHASE38.md](../../docs/PHASE38.md)
@@ -52,22 +53,25 @@ This file is a **Cursor Agent Skill** (docs pack) — not a language keyword.
   `phase24_map_str.contract.toml` (Map[str,i64] + example 12),
   `phase25_golden.contract.toml` (Map[str,str] + documentSymbol + example 13),
   `phase28_agent.contract.toml`, `phase29_ceiling.contract.toml`
-- vs End verdict: `docs/VERDICT.md`, `docs/END_PEER_GAP.md`
+- vs End verdict: `docs/VERDICT.md`, `docs/END_PEER_GAP.md` (peer **`bdc8732`** — host rustls/h2 real; MCP still absent)
 - Soft builtins and std: README Soft builtins + `std/*.ryx` (`std::fs`, `std::crypto`
   SHA/HMAC/AES facades,
   HTTP loop `_2paths_` / `_3paths_` / `path_param`); `Vec[i64]` / `Vec[str]` /
   `Map[i64,i64]` / `Map[str,i64]` / `Map[str,str]` mono
 - LSP (`rynixc lsp-serve`): diagnostics, hover, go-to-definition, **completion**,
-  **rename**, **references**, **workspace/symbol**, **documentSymbol**, **formatting**
+  **rename** (incl. prepareRename), **references**, **documentHighlight**,
+  **workspace/symbol**, **documentSymbol**, **formatting**, **codeAction**, **inlayHint**
 - MCP: prefer filesystem `path` (path-first; fail-closed on missing file) for
   `rynix_graph` / `rynix_slice` / `rynix_impact` / `rynix_precheck` / `rynix_check` /
   `rynix_context` / `rynix_security` / `apply_fix` / `rynix_format` /
-  `rynix_explain_alloc` / `compile` / `ast_query`; inline `source` still works
+  `rynix_explain_alloc` / `compile` / `ast_query`; inline `source` still works;
+  **19 tools**; **`server/discover`** dual-era metadata; tool annotations on graph/apply_fix
 - Language: `match` on nullary enum variants + `Enum::Variant` paths
   ([ADR-0015](../../docs/adr/0015-match-enum-variants.md)); `Vec[str]`
   ([ADR-0016](../../docs/adr/0016-vec-str-mono.md)); `Map[str, i64]`
   ([ADR-0017](../../docs/adr/0017-map-str-i64-mono.md)); `Map[str, str]`
-  ([ADR-0018](../../docs/adr/0018-map-str-str-mono.md))
+  ([ADR-0018](../../docs/adr/0018-map-str-str-mono.md)); `Option[i64]` / `Option[str]`
+  ([ADR-0026](../../docs/adr/0026-option-t-mono.md))
 - Memory: escape / region / linear move (`RYX2011`) / `#^ effect: pure` (`RYX2012`)
 - Reserved stubs rejected: `tensor` / `signal` / `agent` → `RYX2013`
 

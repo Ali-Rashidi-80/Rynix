@@ -1,0 +1,28 @@
+# Phase 43 — MCP decomp + quality
+
+[contract]
+name = "phase43-mcp"
+
+[[evidence]]
+id = "mcp-decomp"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_decomp_parity"
+
+[[evidence]]
+id = "mcp-annotations"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_annotations_smoke"
+
+[[evidence]]
+id = "mcp-tool-count"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_tool_count_honest"
+
+[[evidence]]
+id = "phase43-doc"
+kind = "file"
+path = "docs/PHASE43.md"
+contains = "Agent-Quality"

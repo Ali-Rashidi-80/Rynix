@@ -377,3 +377,95 @@ fn lsp_code_action_smoke() {
     let empty = resp2["result"].as_array().expect("result");
     assert!(empty.is_empty(), "clean file should have no codeActions: {resp2}");
 }
+
+#[test]
+fn lsp_prepare_rename_smoke() {
+    let src = "def main() -> i64\n  let answer = 42\n  return answer\nend\n";
+    let mut server = LanguageServer::new();
+    server.documents.insert(
+        "file:///test.ryx".into(),
+        Document {
+            path: PathBuf::from("test.ryx"),
+            text: src.into(),
+            version: 1,
+        },
+    );
+    let use_line = src.lines().position(|l| l.contains("return answer")).unwrap();
+    let use_col = src.lines().nth(use_line).unwrap().find("answer").unwrap();
+    let req = LspRequest {
+        id: Some(json!(1)),
+        method: "textDocument/prepareRename".into(),
+        params: Some(json!({
+            "textDocument": { "uri": "file:///test.ryx" },
+            "position": { "line": use_line, "character": use_col }
+        })),
+    };
+    let resp = server.prepare_rename(&req);
+    let range = resp["result"]["range"].as_object().expect("prepareRename range");
+    assert_eq!(range["start"]["line"].as_u64(), Some(use_line as u64));
+    assert!(
+        range["start"]["character"].as_u64().unwrap() <= use_col as u64,
+        "range should start at answer: {range:?}"
+    );
+}
+
+#[test]
+fn lsp_document_highlight_smoke() {
+    let src = "def main() -> i64\n  let answer = 42\n  return answer\nend\n";
+    let mut server = LanguageServer::new();
+    server.documents.insert(
+        "file:///test.ryx".into(),
+        Document {
+            path: PathBuf::from("test.ryx"),
+            text: src.into(),
+            version: 1,
+        },
+    );
+    let use_line = src.lines().position(|l| l.contains("return answer")).unwrap();
+    let use_col = src.lines().nth(use_line).unwrap().find("answer").unwrap();
+    let req = LspRequest {
+        id: Some(json!(1)),
+        method: "textDocument/documentHighlight".into(),
+        params: Some(json!({
+            "textDocument": { "uri": "file:///test.ryx" },
+            "position": { "line": use_line, "character": use_col }
+        })),
+    };
+    let resp = server.document_highlight(&req);
+    let highlights = resp["result"].as_array().expect("highlights");
+    assert!(
+        highlights.len() >= 2,
+        "expected def + use highlights: {highlights:?}"
+    );
+}
+
+#[test]
+fn lsp_inlay_hint_smoke() {
+    let src = "def main() -> i64\n  let answer = 42\n  return answer\nend\n";
+    let mut server = LanguageServer::new();
+    server.documents.insert(
+        "file:///test.ryx".into(),
+        Document {
+            path: PathBuf::from("test.ryx"),
+            text: src.into(),
+            version: 1,
+        },
+    );
+    let req = LspRequest {
+        id: Some(json!(1)),
+        method: "textDocument/inlayHint".into(),
+        params: Some(json!({
+            "textDocument": { "uri": "file:///test.ryx" },
+            "range": {
+                "start": { "line": 0, "character": 0 },
+                "end": { "line": 10, "character": 0 }
+            }
+        })),
+    };
+    let resp = server.inlay_hint(&req);
+    let hints = resp["result"].as_array().expect("inlay hints");
+    assert!(
+        hints.iter().any(|h| h["label"].as_str().is_some_and(|l| l.contains("i64"))),
+        "expected i64 inlay hint for answer: {hints:?}"
+    );
+}

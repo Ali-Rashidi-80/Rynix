@@ -1,0 +1,22 @@
+# Phase 42 — inlayHint
+
+[contract]
+name = "phase42-inlay"
+
+[[evidence]]
+id = "inlay-smoke"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lsp_inlay_hint_smoke"
+
+[[evidence]]
+id = "inlay-capability"
+kind = "file"
+path = "crates/rynixc/src/lsp/server.rs"
+contains = "inlayHintProvider"
+
+[[evidence]]
+id = "phase42-doc"
+kind = "file"
+path = "docs/PHASE42.md"
+contains = "inlayHint"

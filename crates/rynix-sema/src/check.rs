@@ -5,7 +5,8 @@
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use rynix_ast::{
-    AssignOp, BinaryOp, Expr, Item, LiteralKind, Module, Path, Stmt, StructLitExpr, Type, UnaryOp,
+    AssignOp, AstArena, BinaryOp, Expr, Item, LiteralKind, Module, Path, Stmt, StructLitExpr, Type,
+    UnaryOp,
 };
 use rynix_diag::DiagSink;
 use rynix_span::{Interner, Span, Symbol};
@@ -105,6 +106,10 @@ struct Checker<'a> {
     ownership: FxHashMap<DefId, MovedInfo>,
     /// Filled by [`analyze_with_source`] effect pass.
     fn_effects: FxHashMap<DefId, crate::effects::EffectSet>,
+    /// Builtin `Option[i64]` enum (ADR-0026).
+    option_i64_enum: DefId,
+    /// Builtin `Option[str]` enum (ADR-0026).
+    option_str_enum: DefId,
 }
 
 impl<'a> Checker<'a> {
@@ -131,6 +136,8 @@ impl<'a> Checker<'a> {
             aliases: FxHashMap::default(),
             ownership: FxHashMap::default(),
             fn_effects: FxHashMap::default(),
+            option_i64_enum: DefId::from_index(0),
+            option_str_enum: DefId::from_index(0),
         }
     }
 
@@ -158,8 +165,166 @@ impl<'a> Checker<'a> {
     }
 
     fn display_ty(&self, id: TypeId) -> String {
-        self.types
-            .display(id, &|d| self.defs[d.index() as usize].name(), self.interner)
+        match self.types.kind(id) {
+            TypeKind::Enum(d) if *d == self.option_i64_enum => "Option[i64]".into(),
+            TypeKind::Enum(d) if *d == self.option_str_enum => "Option[str]".into(),
+            _ => self
+                .types
+                .display(id, &|d| self.defs[d.index() as usize].name(), self.interner),
+        }
+    }
+
+    fn install_builtin_option(&mut self, internal: &str, payload_ty: TypeId) -> DefId {
+        let arena = AstArena::new();
+        let name_sym = self.interner.intern(internal);
+        let enum_def = self.alloc_def(DefKind::Enum {
+            node: arena.next_id(),
+            name: name_sym,
+            span: Span::empty(0),
+        });
+        let enum_ty = self.types.enum_type(enum_def);
+        self.def_types.insert(enum_def, enum_ty);
+
+        let none_sym = self.interner.intern("None");
+        let none_def = self.alloc_def(DefKind::Variant {
+            parent: enum_def,
+            name: none_sym,
+            span: Span::empty(0),
+        });
+        self.variant_disc.insert(none_def, 0);
+        self.def_types.insert(none_def, enum_ty);
+
+        let some_sym = self.interner.intern("Some");
+        let some_def = self.alloc_def(DefKind::Variant {
+            parent: enum_def,
+            name: some_sym,
+            span: Span::empty(0),
+        });
+        self.variant_disc.insert(some_def, 1);
+        self.variant_payload.insert(some_def, payload_ty);
+        let some_ty = self.types.fn_type(vec![payload_ty], enum_ty);
+        self.def_types.insert(some_def, some_ty);
+
+        let mut variants = FxHashMap::default();
+        variants.insert(none_sym, (none_def, None));
+        variants.insert(some_sym, (some_def, Some(payload_ty)));
+        self.enum_variants.insert(enum_def, variants);
+        self.enum_has_payload.insert(enum_def);
+        enum_def
+    }
+
+    fn enum_def_for_ty(&self, ty: TypeId) -> Option<DefId> {
+        match self.types.kind(ty) {
+            TypeKind::Enum(d) => Some(*d),
+            _ => None,
+        }
+    }
+
+    fn variant_def(&self, enum_def: DefId, name: Symbol) -> Option<DefId> {
+        self.enum_variants
+            .get(&enum_def)
+            .and_then(|m| m.get(&name))
+            .map(|(vdef, _)| *vdef)
+    }
+
+    fn resolve_none_value(&mut self, path: &Path<'_>, expected: TypeId) -> Option<TypeId> {
+        let enum_def = self.enum_def_for_ty(expected)?;
+        if enum_def != self.option_i64_enum && enum_def != self.option_str_enum {
+            return None;
+        }
+        let none_sym = self.interner.intern("None");
+        let vdef = self.variant_def(enum_def, none_sym)?;
+        self.path_resolution.insert(path.id, vdef);
+        let ty = self.def_types.get(&vdef).copied()?;
+        self.node_types.insert(path.id, ty);
+        Some(ty)
+    }
+
+    fn resolve_some_call(
+        &mut self,
+        path: &Path<'_>,
+        args: &[&Expr<'_>],
+        scope: ScopeId,
+        span: Span,
+    ) -> Option<TypeId> {
+        if args.len() != 1 {
+            return None;
+        }
+        let arg_ty = self.check_expr(args[0], scope, None);
+        let enum_def = if self.types.compatible(arg_ty, self.types.ty_int) {
+            self.option_i64_enum
+        } else if self.types.compatible(arg_ty, self.types.ty_str) {
+            self.option_str_enum
+        } else {
+            self.sink.emit(errors::type_mismatch(
+                args[0].span(),
+                "i64 or str for Option Some",
+                &self.display_ty(arg_ty),
+            ));
+            return Some(self.types.ty_error);
+        };
+        let some_sym = self.interner.intern("Some");
+        let vdef = self.variant_def(enum_def, some_sym)?;
+        self.path_resolution.insert(path.id, vdef);
+        let callee = self
+            .def_types
+            .get(&vdef)
+            .copied()
+            .unwrap_or(self.types.ty_error);
+        Some(self.check_call(callee, args, span, scope))
+    }
+
+    fn check_path_for_scrutinee(
+        &mut self,
+        path: &Path<'_>,
+        scope: ScopeId,
+        scrut: TypeId,
+    ) -> TypeId {
+        if path.segments.len() == 1 {
+            let name = self.interner.resolve(path.segments[0].name);
+            if let Some(enum_def) = self.enum_def_for_ty(scrut) {
+                if (enum_def == self.option_i64_enum || enum_def == self.option_str_enum)
+                    && (name == "None" || name == "Some")
+                {
+                    if let Some(vdef) = self.variant_def(enum_def, path.segments[0].name) {
+                        self.path_resolution.insert(path.id, vdef);
+                        let ty = self
+                            .def_types
+                            .get(&vdef)
+                            .copied()
+                            .unwrap_or(self.types.ty_error);
+                        self.node_types.insert(path.id, ty);
+                        return ty;
+                    }
+                }
+            }
+        }
+        self.check_path(path, scope)
+    }
+
+    fn check_path_with_expected(
+        &mut self,
+        path: &Path<'_>,
+        scope: ScopeId,
+        expected: Option<TypeId>,
+    ) -> TypeId {
+        if path.segments.len() == 1 {
+            let name = self.interner.resolve(path.segments[0].name);
+            if name == "None" {
+                if let Some(exp) = expected {
+                    if let Some(ty) = self.resolve_none_value(path, exp) {
+                        return ty;
+                    }
+                }
+                self.sink.emit(errors::type_mismatch(
+                    path.span,
+                    "Option[i64] or Option[str] context for None",
+                    "unannotated None",
+                ));
+                return self.types.ty_error;
+            }
+        }
+        self.check_path(path, scope)
     }
 
     fn collect_builtins(&mut self) {
@@ -244,6 +409,13 @@ impl<'a> Checker<'a> {
         self.scopes.define(self.module_scope, map_sym, map_def);
         self.def_types.insert(map_def, ty_m);
 
+        self.option_i64_enum = self.install_builtin_option("__Option_i64", ty_i);
+        self.option_str_enum = self.install_builtin_option("__Option_str", ty_s);
+        let option_sym = self.interner.intern("Option");
+        let option_def = self.alloc_def(DefKind::BuiltinType { name: option_sym });
+        self.scopes
+            .define(self.module_scope, option_sym, option_def);
+
         // TCP soft surface (recv/send take ptr buffers — soft args are i64 slots).
         self.soft_fn("tcp_listen", vec![ty_i], ty_i);
         self.soft_fn("tcp_accept", vec![ty_i], ty_i);
@@ -256,10 +428,22 @@ impl<'a> Checker<'a> {
         self.soft_fn("json_get_i64", vec![ty_s, ty_s], ty_i);
         self.soft_fn("json_has_i64", vec![ty_s, ty_s], ty_i);
         self.soft_fn("http_get_json_i64", vec![ty_s, ty_i, ty_s, ty_s], ty_i);
-        self.soft_fn("http_post_json_i64", vec![ty_s, ty_i, ty_s, ty_s, ty_s], ty_i);
+        self.soft_fn(
+            "http_post_json_i64",
+            vec![ty_s, ty_i, ty_s, ty_s, ty_s],
+            ty_i,
+        );
         self.soft_fn("http_serve_once_json_i64", vec![ty_i, ty_s, ty_i], ty_i);
-        self.soft_fn("http_serve_once_echo_json_i64", vec![ty_i, ty_s, ty_s], ty_i);
-        self.soft_fn("http_serve_loop_json_i64", vec![ty_i, ty_s, ty_i, ty_i], ty_i);
+        self.soft_fn(
+            "http_serve_once_echo_json_i64",
+            vec![ty_i, ty_s, ty_s],
+            ty_i,
+        );
+        self.soft_fn(
+            "http_serve_loop_json_i64",
+            vec![ty_i, ty_s, ty_i, ty_i],
+            ty_i,
+        );
         self.soft_fn(
             "http_serve_loop_2paths_json_i64",
             vec![ty_i, ty_s, ty_i, ty_s, ty_i, ty_i],
@@ -270,9 +454,21 @@ impl<'a> Checker<'a> {
             vec![ty_i, ty_s, ty_i, ty_s, ty_i, ty_s, ty_i, ty_i],
             ty_i,
         );
-        self.soft_fn("http_serve_loop_path_param_json_i64", vec![ty_i, ty_s, ty_i], ty_i);
-        self.soft_fn("http_serve_loop_header_json_i64", vec![ty_i, ty_s, ty_s, ty_i], ty_i);
-        self.soft_fn("http_serve_loop_bearer_json_i64", vec![ty_i, ty_s, ty_s, ty_i], ty_i);
+        self.soft_fn(
+            "http_serve_loop_path_param_json_i64",
+            vec![ty_i, ty_s, ty_i],
+            ty_i,
+        );
+        self.soft_fn(
+            "http_serve_loop_header_json_i64",
+            vec![ty_i, ty_s, ty_s, ty_i],
+            ty_i,
+        );
+        self.soft_fn(
+            "http_serve_loop_bearer_json_i64",
+            vec![ty_i, ty_s, ty_s, ty_i],
+            ty_i,
+        );
         self.soft_fn(
             "http_serve_loop_post_echo_json_i64",
             vec![ty_i, ty_s, ty_s, ty_i, ty_i],
@@ -418,8 +614,7 @@ impl<'a> Checker<'a> {
             for (i, field) in s.fields.iter().enumerate() {
                 let ty = self.lower_type(field.ty, self.module_scope);
                 fields.insert(field.name.name, ty);
-                self.field_offsets
-                    .insert((def, field.name.name), i as u32);
+                self.field_offsets.insert((def, field.name.name), i as u32);
             }
             self.struct_fields.insert(def, fields);
         }
@@ -506,10 +701,10 @@ impl<'a> Checker<'a> {
             }
             Type::Path(path) => self.resolve_type_path(path, scope),
             Type::App { path, args, span } => {
-                let name = path.segments.last().map_or_else(
-                    || "?".into(),
-                    |s| self.interner.resolve(s.name).to_string(),
-                );
+                let name = path
+                    .segments
+                    .last()
+                    .map_or_else(|| "?".into(), |s| self.interner.resolve(s.name).to_string());
                 for a in *args {
                     let _ = self.lower_type(a, scope);
                 }
@@ -552,20 +747,31 @@ impl<'a> Checker<'a> {
                             self.sink.emit(errors::type_mismatch(
                                 *span,
                                 "Map[i64, i64], Map[str, i64], or Map[str, str]",
-                                &format!(
-                                    "Map[{}, {}]",
-                                    self.display_ty(k),
-                                    self.display_ty(v)
-                                ),
+                                &format!("Map[{}, {}]", self.display_ty(k), self.display_ty(v)),
+                            ));
+                            self.types.ty_error
+                        }
+                    }
+                    "Option" if args.len() == 1 => {
+                        let elem = self.lower_type(args[0], scope);
+                        if self.types.compatible(elem, self.types.ty_int)
+                            || matches!(self.types.kind(elem), TypeKind::Error)
+                        {
+                            self.types.enum_type(self.option_i64_enum)
+                        } else if self.types.compatible(elem, self.types.ty_str) {
+                            self.types.enum_type(self.option_str_enum)
+                        } else {
+                            self.sink.emit(errors::type_mismatch(
+                                *span,
+                                "Option[i64] or Option[str]",
+                                &format!("Option[{}]", self.display_ty(elem)),
                             ));
                             self.types.ty_error
                         }
                     }
                     _ => {
-                        self.sink.emit(errors::unresolved_name(
-                            *span,
-                            &format!("{name}[...]"),
-                        ));
+                        self.sink
+                            .emit(errors::unresolved_name(*span, &format!("{name}[...]")));
                         self.types.ty_error
                     }
                 }
@@ -824,7 +1030,7 @@ impl<'a> Checker<'a> {
                             }
                         }
                         rynix_ast::MatchPat::Ctor { path, binder } => {
-                            let pty = self.check_path(path, scope);
+                            let pty = self.check_path_for_scrutinee(path, body_scope, scrut);
                             // Payload ctor as value is fn(payload)->enum; pattern binds payload.
                             let payload_ty = match self.types.kind(pty).clone() {
                                 TypeKind::Fn { params, ret } if params.len() == 1 => {
@@ -965,7 +1171,7 @@ impl<'a> Checker<'a> {
                 self.node_types.insert(l.id, ty);
                 ty
             }
-            Expr::Path(p) => self.check_path(p, scope),
+            Expr::Path(p) => self.check_path_with_expected(p, scope, expected),
             Expr::Unary(u) => {
                 let operand = self.check_expr(u.operand, scope, None);
                 let ty = match u.op {
@@ -1015,6 +1221,15 @@ impl<'a> Checker<'a> {
                 ty
             }
             Expr::Call(c) => {
+                if let Expr::Path(p) = c.callee
+                    && p.segments.len() == 1
+                    && self.interner.resolve(p.segments[0].name) == "Some"
+                {
+                    if let Some(ty) = self.resolve_some_call(p, c.args, scope, c.span) {
+                        self.node_types.insert(c.id, ty);
+                        return ty;
+                    }
+                }
                 if let Expr::Path(p) = c.callee
                     && p.segments.len() == 1
                 {
@@ -1333,11 +1548,7 @@ impl<'a> Checker<'a> {
         // `Enum::Variant` — allow enum type as path prefix (Phase 23-B).
         if path.segments.len() == 2 && matches!(kind, DefKind::Enum { .. }) {
             let seg = &path.segments[1];
-            if let Some(&(vdef, _)) = self
-                .enum_variants
-                .get(&def)
-                .and_then(|m| m.get(&seg.name))
-            {
+            if let Some(&(vdef, _)) = self.enum_variants.get(&def).and_then(|m| m.get(&seg.name)) {
                 self.path_resolution.insert(path.id, vdef);
                 let ty = self
                     .def_types
@@ -1362,10 +1573,8 @@ impl<'a> Checker<'a> {
             return self.types.ty_error;
         }
         if path.segments.len() == 1 {
-            if matches!(
-                kind,
-                DefKind::Local { .. } | DefKind::Param { .. }
-            ) && let Some(moved) = self.ownership.get(&def)
+            if matches!(kind, DefKind::Local { .. } | DefKind::Param { .. })
+                && let Some(moved) = self.ownership.get(&def)
             {
                 let name = self.interner.resolve(first.name).to_string();
                 let to = self.interner.resolve(moved.to).to_string();

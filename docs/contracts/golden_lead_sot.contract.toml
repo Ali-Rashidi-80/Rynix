@@ -1,0 +1,40 @@
+# Wave 0 — Golden Lead SoT + peer honesty
+
+[contract]
+name = "golden-lead-sot"
+
+[[evidence]]
+id = "golden-lead-doc"
+kind = "file"
+path = "docs/GOLDEN_LEAD.md"
+contains = "Lead Platform Complete"
+
+[[evidence]]
+id = "peer-pin-gap"
+kind = "file"
+path = "docs/END_PEER_GAP.md"
+contains = "bdc8732"
+
+[[evidence]]
+id = "peer-pin-verdict"
+kind = "file"
+path = "docs/VERDICT.md"
+contains = "bdc8732"
+
+[[evidence]]
+id = "suite5-score-honest"
+kind = "file"
+path = "docs/END_PEER_GAP.md"
+contains = "Rynix **11** · End **1**"
+
+[[evidence]]
+id = "mcp-19-readme"
+kind = "file"
+path = "README.md"
+contains = "rynix_slice"
+
+[[evidence]]
+id = "golden-remaining-pointer"
+kind = "file"
+path = "docs/GOLDEN_REMAINING.md"
+contains = "GOLDEN_LEAD.md"

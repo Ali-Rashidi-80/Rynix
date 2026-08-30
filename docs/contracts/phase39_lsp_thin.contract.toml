@@ -1,0 +1,28 @@
+# Phase 39 — LSP prepareRename + documentHighlight
+
+[contract]
+name = "phase39-lsp-thin"
+
+[[evidence]]
+id = "prepare-rename-smoke"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lsp_prepare_rename_smoke"
+
+[[evidence]]
+id = "document-highlight-smoke"
+kind = "cargo_test"
+package = "rynixc"
+filter = "lsp_document_highlight_smoke"
+
+[[evidence]]
+id = "phase39-doc"
+kind = "file"
+path = "docs/PHASE39.md"
+contains = "prepareRename"
+
+[[evidence]]
+id = "rename-prepare-capability"
+kind = "file"
+path = "crates/rynixc/src/lsp/server.rs"
+contains = "prepareProvider"

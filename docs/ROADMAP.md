@@ -366,6 +366,23 @@ are **superseded** by behavioral gates in Phases 31–32 (not a reopen of Q-Core
 | 37 | Public `v0.2.0` | ✅ [PHASE37.md](PHASE37.md) |
 | 38 | Agent surface remainder (LSP codeAction) | ✅ [PHASE38.md](PHASE38.md) |
 
+## Golden Lead (post Remaining)
+
+Plan: **[GOLDEN_LEAD.md](GOLDEN_LEAD.md)** — single SoT for Phases 39–49.
+
+| Phase | Theme | Status |
+|------:|-------|--------|
+| 0 | SoT + peer `bdc8732` honesty | ✅ Wave 0 |
+| 39 | LSP prepareRename + documentHighlight | ✅ [PHASE39.md](PHASE39.md) |
+| 40 | ADR-0026 `Option[T]` | ✅ [PHASE40.md](PHASE40.md) |
+| 41 | Ship `Option[T]` (i64\|str) | ✅ [PHASE41.md](PHASE41.md) |
+| 42 | inlayHint | ✅ [PHASE42.md](PHASE42.md) |
+| 43 | MCP split + Agent-Quality Pack | ✅ [PHASE43.md](PHASE43.md) |
+| 46-pre | MCP dual-era / discover | ✅ |
+| 46 | Lead Platform Complete | ✅ [PHASE46.md](PHASE46.md) |
+| 44–45 | seccomp / MSan (Track-R optional) | optional |
+| 47–49 | `&T` / traits (ask-only) | ask |
+
 ## Follow-on (post-13 / parallel)
 
 | Item | Status | Gate |

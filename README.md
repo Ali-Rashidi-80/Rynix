@@ -92,15 +92,17 @@ Zig/Go/C/Rust in [`benchmarks/suite5/`](benchmarks/suite5/) are **peer workload 
 
 ## vs End ([IrMaho/End](https://github.com/IrMaho/End))
 
-Same thesis (AI-native, Zero-GC, systems backend). **Audit verdict (2026-08-25,
-peer `@cf5bef3`):** Rynix leads the **shipping** core; End leads **brochure**
-spectacle we refuse to fake.
+Same thesis (AI-native, Zero-GC, systems backend). **Audit verdict (2026-08-30,
+peer `@bdc8732`):** Rynix leads **MCP + agent toolchain + Suite5 honesty**; End host
+Rust now ships real TLS/HTTP2/DB — do not claim “End TLS fake.” End leads **brochure
+spectacle** (domain wallpaper, agent DSL keywords). Lead path:
+[`docs/GOLDEN_LEAD.md`](docs/GOLDEN_LEAD.md).
 
 | | End | Rynix |
 |--|-----|-------|
 | Benchmarks | suite12 marketing (different programs) | Suite5: 12 kernels + **CI checksum** + optional End slot |
 | Agent surface | Broad CLI names; **no MCP** | CLI + **MCP 19** + verify/contracts |
-| Network / crypto | TCP real; **TLS plaintext theater** | Real TLS + HTTP loop + WS + KATs |
+| Network / crypto | Host rustls/h2 @ bdc8732; C path partial | Real TLS + HTTP loop + WS + KATs |
 | Editor | LSP binary; VS Code **without** LanguageClient | LSP + **LanguageClient** + CodeLens + **completion/rename** |
 | UI / C11 / CDN / Raft / llama | Marketed; mostly stubs | Deferred by ADR (honesty, not gap panic) |
 
@@ -110,7 +112,31 @@ spectacle we refuse to fake.
 
 ## Domain maturity (honest)
 
-Where End markets “every domain,” Rynix statuses are **evidence-gated** (test/CI or deferred ADR):
+Where End markets “every domain,” Rynix statuses are **evidence-gated** with explicit **Fate**
+(Ship / Lead / FFI-later / Refuse) — do not copy End 🟢 Stable rows:
+
+| Domain | Rynix status | End @ bdc8732 (audit) | Fate |
+|--------|--------------|------------------------|------|
+| Systems / native binaries | 🟢 Shipping | C11 + LLVM host | **Ship** |
+| Backend / TCP + fibers | 🟢 Shipping | Host tokio + fibers | **Ship** |
+| AI-native tooling (MCP) | 🟢 Shipping | **Absent** | **Lead** |
+| Editor (VS Code + LSP) | 🟢 Shipping | LSP; no LanguageClient | **Lead** |
+| Memory / Zero-GC | 🟢 Shipping | Region narrative | **Ship** |
+| Microbench (Suite5) | 🟢 Shipping | suite12 different harness | **Lead** (checksum CI) |
+| HTTP / JSON / TLS / WS / crypto | 🟢 Shipping | Host rustls + product HTTP/1 | **Ship** |
+| Packages + attest | 🟢 Shipping | PubGrub theater | **Ship** |
+| WASM freestanding | 🟢 Shipping | WAT/toy | **Ship** |
+| Niche-10 scorecard | 🟢 Certified | — | **Ship** |
+| HTTP/2 / Postgres / SQLite | — | Host h2 / tokio-postgres / rusqlite | **FFI-later / Refuse rewrite** |
+| Raft / GPU / GGUF | — | runtime raft / wgpu / candle | **Refuse** |
+| Reserved stubs (`tensor`/`signal`/`agent`) | ⚪ Rejected | keyword theater | **Refuse** |
+| Web frameworks / UI canvas | ⚪ Deferred | marketed Stable | **Refuse** |
+| C11 backend | ⚪ Deferred | real C path | **Deferred** (ADR-0008) |
+| Raft / consensus product | ⚪ Deferred | host engine | **Refuse** (ADR-0012) |
+| Agent contract DSL (End keywords) | ⚪ Design only | `feature`/`skill` syntax | **Refuse** (ADR-0009) |
+| Full WASI / mobile | ⚪ Out of Niche-10 | planned | **Refuse** |
+
+Legacy single-column view (evidence pointers):
 
 | Domain | Status | Evidence / pointer |
 |--------|--------|-------------------|
@@ -543,7 +569,7 @@ not identical instruction mixes.
 
 † End via local `endc` ([END_INTEGRATION.md](benchmarks/suite5/END_INTEGRATION.md));
 Suite5 `.end` ports use the same opaque trip-count contract as C/Rynix.
-Peer still End@`cf5bef3`.
+Peer still End@`bdc8732`.
 
 **Score this run vs End:** Rynix **11** · End **1** (`matrix`). Artifact:
 [`suite5_summary_2026-08-25_phase16.txt`](benchmarks/suite5/suite5_summary_2026-08-25_phase16.txt).
@@ -716,8 +742,7 @@ Start: `rynixc mcp-serve` (stdio JSON-RPC).
 | 16  | `rynix_scope`         | Write scope           |
 | 17  | `rynix_deps`          | Deps report           |
 | 18  | `rynix_dna`           | DNA / conventions     |
-
-
+| 19  | `rynix_slice`         | Slice JSON (**path-first**) |
 ### Release
 
 Tag `v*` → GitHub Release: Linux + Windows `rynixc`, per-artifact SHA256,

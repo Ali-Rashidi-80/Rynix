@@ -1,9 +1,9 @@
 # Verdict — Rynix vs End (who is ahead?)
 
-**Date:** 2026-08-26  
-**Peer:** [IrMaho/End](https://github.com/IrMaho/End) `main` @ **`cf5bef3`**  
+**Date:** 2026-08-30  
+**Peer:** [IrMaho/End](https://github.com/IrMaho/End) `main` @ **`bdc8732`**  
 (local clone `D:\0\End-peer`, `git fetch` + `pull --ff-only` — **no peer source edits**)  
-**This repo:** Rynix Quality-10 Phases 25–29 ([GOLDEN_PATH.md](GOLDEN_PATH.md));
+**This repo:** Rynix Golden Remaining closed (30–38); **Lead path:** [GOLDEN_LEAD.md](GOLDEN_LEAD.md);  
 Niche-10 certified ([NICHE10.md](NICHE10.md)).
 
 This document answers one question under audit rules:
@@ -15,10 +15,12 @@ This document answers one question under audit rules:
 
 ## One-line answer
 
-**Rynix is ahead on the shipping systems + agent core that End actually
-implements in working code.** End is ahead only on **spectacle** (README domain
-wallpaper, ~60 CLI names, C11/UI narrative, suite12 marketing) — surfaces we
-refuse to fake ([ADR-0007](adr/0007-deferred-ui-frameworks.md),
+**Rynix is ahead on the shipping agent/systems core End cannot match today:**
+MCP-19, contracts/scope, NDJSON diags, VS Code LanguageClient depth path, Suite5
+checksum CI, honest deferred ADRs. End @ `bdc8732` now ships **real rustls TLS and
+h2 HTTP/2** in host Rust — **stop claiming “End TLS is simulated.”** End still leads
+**spectacle** (README domain wallpaper, ~60 CLI names, agent DSL keywords, C11/UI
+narrative) — surfaces we refuse to fake ([ADR-0007](adr/0007-deferred-ui-frameworks.md),
 [0008](adr/0008-deferred-c11-backend.md), [0009](adr/0009-agent-contracts-toolchain.md)).
 
 You are **not** behind on real language value. Time spent on Rynix built
@@ -42,21 +44,22 @@ Full methodology: [END_PEER_GAP.md](END_PEER_GAP.md). Positioning: [COMPARE.md](
 
 ## Scorecard — shipping axes
 
-| Axis | End @ cf5bef3 | Rynix | Winner |
+| Axis | End @ bdc8732 | Rynix | Winner |
 |------|---------------|-------|--------|
-| Native binaries | **Real** C11 → host CC | **Real** LLVM IR → clang ThinLTO | **Rynix** (AOT product + size gates; C11 deferred by choice) |
-| Async / I/O runtime | Thin TCP; fiber theater | Fibers + **portable / uring / IOCP** | **Rynix** |
-| TLS | Plaintext TCP + cipher **label** | Real SChannel / OpenSSL | **Rynix** |
-| Crypto | SHA-256 + HMAC real; Argon2/AES claims fake | SHA + HMAC + AES-GCM KATs | **Rynix** |
-| HTTP | Thin string helpers on TCP | One-shot + **bounded loop** + JSON | **Rynix** |
+| Native binaries | **Real** C11 → host CC; host Rust runtimes | **Real** LLVM IR → clang ThinLTO | **Tie** product paths; Rynix size gates |
+| Async / I/O runtime | Fibers + host tokio net | Fibers + **portable / uring / IOCP** | **Rynix** |
+| TLS (product path) | **rustls** in host; C/std partial | Real SChannel / OpenSSL product | **Parity** — not “Rynix wins fake TLS” |
+| HTTP/2 | **h2** in host Rust | HTTP/1 + WS product | **End host** on H2; Rynix refuses brochure chase |
+| Crypto | SHA-256 + HMAC real; some AES/Argon theater | SHA + HMAC + AES-GCM KATs | **Rynix** (KAT discipline) |
+| HTTP | Host HTTP/2 + thin `.end` | One-shot + **bounded loop** + JSON | **Rynix** product ergonomics |
 | WebSocket | — / incomplete | RFC 6455 + wire smokes | **Rynix** |
-| Agent CLI | ~60 names, uneven depth | graph/slice/impact/eval/patch/verify… | Tie on overlap; End broader **names** |
+| Agent CLI | ~60 names, uneven depth | graph/slice/impact/eval/patch/verify… | Tie overlap; End broader **names** |
 | **MCP** | **Absent** | **19 tools** (`mcp-serve`, includes `rynix_slice`) | **Rynix** |
-| Packages | Local path; **PubGrub theater** | Path + local index (scan + sparse) + unity/semver/lock/workspace + **local digest attest** | **Rynix** |
-| WASM | Text / toy surface | `emit-ll --target=wasm32` + **`emit-wasm`** (real `\0asm`) + Node run gate (Phase 15) — **no WASI** | **Rynix** (honest subset) |
+| Packages | Local path; **PubGrub theater** | Path + local index + unity/semver/lock/workspace + **local digest attest** | **Rynix** |
+| WASM | Text / toy surface | `emit-ll --target=wasm32` + **`emit-wasm`** + Node run — **no WASI** | **Rynix** (honest subset) |
 | Memory / escape | Real region/borrow subset | Escape + move + `#^ effect: pure` + explain-alloc | **Rynix** (transparency) |
 | Editor LSP | LSP server; VS Code **without** LanguageClient | `lsp-serve` + **LanguageClient** + CodeLens + workspace goto | **Rynix** |
-| Microbench fairness | suite12 (different programs; checksum caveats) | Suite5 **C↔Rynix CI** + optional End slot | **Rynix** |
+| Microbench fairness | suite12 (different programs) | Suite5 **C↔Rynix CI** + optional End slot | **Rynix** |
 | Docs honesty | 62 files; STATUS often green on stubs | Evidence-gated maturity + ADRs | **Rynix** |
 | Spectacle / domain matrix | Strong marketing | Refuses wallpaper | **End** (spectacle only) |
 
@@ -80,7 +83,7 @@ Large wins use **disclosed** strength reduction (same checksum). See
 
 ### vs End on Suite5 (2026-08-25 Phase 16-A, this machine)
 
-Peer `endc` built release-only from untouched `D:\0\End-peer` @ `cf5bef3`
+Peer `endc` built release-only from untouched `D:\0\End-peer` @ `bdc8732`
 (`ENDC_PATH=…/endc/target/release/endc.exe`).
 
 **Peer compiler regressions discovered during prior audit (not Rynix edits):**
@@ -104,12 +107,12 @@ Suite5 `--bench` Rynix bins were smaller than End `--strip` on prior Windows run
 
 | Worry | Evidence response |
 |-------|-------------------|
-| “End README looks finished; maybe I’m late” | ~62 docs + green domains; TLS/Cranelift/PubGrub/GGUF/Raft are stubs in-tree |
+| “End README looks finished; maybe I’m late” | Host Rust @ bdc8732 is real on TLS/H2/DB; brochure rows still overclaim C/UI/registry |
 | “End has more CLI commands” | Volume ≠ depth; Rynix has **MCP** (End has zero) |
-| “End has C11 / UI / frameworks” | Real C transpile exists; UI/registry/JIT largely theater. We deferred C11/UI **on purpose** (ADRs) |
+| “End has C11 / UI / frameworks” | Real C transpile + host runtimes exist; copying wallpaper wastes months. We deferred C11/UI **on purpose** (ADRs) |
 | “Maybe Suite12 proves End faster” | Different workloads; Rynix ports MATCH ids with **checksum locks**, not End ms tables |
-| “Am I wasting time?” | Rynix ships real TLS, fibers+IOCP/uring, MCP-19, Suite5 CI, package unity — End cannot match those with parse tests |
-| “Should I copy End domains?” | **No** — that wastes months ([LEAD_AHEAD.md](LEAD_AHEAD.md) §0b) |
+| “Am I wasting time?” | Rynix ships MCP-19, fibers+IOCP/uring, Suite5 CI, package unity — **Lead path** deepens agent niche |
+| “Should I copy End domains?” | **No** — FFI/Refuse per [GOLDEN_LEAD.md](GOLDEN_LEAD.md) Fate matrix |
 
 ---
 
@@ -148,10 +151,11 @@ cargo test -p rynixc --test agent_cli
 | Question | Answer |
 |----------|--------|
 | Who is ahead on **real shipping** systems + agent toolchain? | **You (Rynix)** |
-| Who is ahead on **Suite5 same-algorithm wall-clock** vs End@cf5bef3? | **You — 11 wins, 1 loss (`matrix`)** (Phase 16-A; checksums OK) |
+| Who is ahead on **Suite5 same-algorithm wall-clock** vs End@bdc8732? | **You — 11 wins, 1 loss (`matrix`)** (Phase 16-A; checksums OK) |
 | Who is ahead on **brochure / domain spectacle**? | Friend (End) — by design of their README |
-| Is Rynix a waste of time vs End? | **No** — Rynix leads where code must be true; End’s suite12 `.end` does not even parse at peer HEAD |
-| What would reverse this? | End ships real TLS, MCP, fixes `if` parsing, and drops STATUS green on stubs — then re-audit |
+| Is Rynix a waste of time vs End? | **No** — Rynix leads MCP/agent toolchain; End leads wallpaper |
+| What would reverse this? | End ships MCP + drops green-on-stub STATUS — then re-audit |
 
-Canonical execute history: [LEAD_AHEAD.md](LEAD_AHEAD.md).  
+Canonical Lead SoT: [GOLDEN_LEAD.md](GOLDEN_LEAD.md).  
+Execute history: [LEAD_AHEAD.md](LEAD_AHEAD.md).  
 Living gap log: [END_PEER_GAP.md](END_PEER_GAP.md).

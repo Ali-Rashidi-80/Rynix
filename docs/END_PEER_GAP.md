@@ -4,18 +4,19 @@
 
 Reference: [IrMaho/End](https://github.com/IrMaho/End) (v0.4.x positioning, 2026).
 
-## Peer snapshot (audit refresh 2026-08-26)
+## Peer snapshot (audit refresh 2026-08-30)
 
 | Field | Value |
 |-------|--------|
 | Repo | [IrMaho/End](https://github.com/IrMaho/End) `main` |
-| Local clone | `D:\0\End-peer` @ **`cf5bef3`** (2026-08-24) — `git fetch` + `pull --ff-only`; **no peer source edits** |
+| Local clone | `D:\0\End-peer` @ **`bdc8732`** (2026-08-27) — `git fetch` + `pull --ff-only`; **no peer source edits** |
 | `endc` for Suite5 | Built release-only: `cargo build --release --manifest-path endc/Cargo.toml` → `endc/target/release/endc.exe` (`ENDC_PATH`) |
 | Docs | ~62 `docs/*.md` hub |
-| MCP | **none** |
-| Still simulated | TLS (plaintext + cipher label), Cranelift (no crate / fake addr), registry/PubGrub theater, GGUF/Raft/HTTP2 stubs |
+| MCP | **none** — Rynix sole peer with MCP-19 |
+| Host Rust (real since bdc8732) | **rustls TLS**, **h2 HTTP/2**, **rusqlite**, **tokio-postgres** (NoTls), **wgpu GPU**, **Raft engine** (TCP+SQLite) in `endc/src/runtime/` |
+| Still theater / dual-stack gaps | Cranelift (no crate), PubGrub registry, Redis `.end` toy, C AOT stubs for many runtime names, agent DSL keyword wallpaper |
 | VS Code | Extension present; **no** `vscode-languageclient` wiring |
-| Rynix note | Do not copy End green-domain wallpaper; see [LEAD_AHEAD.md](LEAD_AHEAD.md) + [research/PHASE12_RESEARCH_INVENTORY.md](research/PHASE12_RESEARCH_INVENTORY.md) |
+| Rynix strategy | Do **not** copy End 🟢 Stable brochure; compete on **MCP + Suite5 checksum + honesty + Niche-10** — see [GOLDEN_LEAD.md](GOLDEN_LEAD.md) |
 
 This document is **not marketing**. It lists what End ships, what Rynix ships, what is
 comparable, and what would be required to lead **without copying End’s prose or
@@ -75,7 +76,7 @@ Cross-repo speed claims must name the **exact harness and source file**.
 
 ### Latest local Suite5 (2026-08-25, Windows, Phase 16-A) — vs C / Rynix / End
 
-Fair opaque trip counts. Peer `endc` from untouched End@`cf5bef3` release build
+Fair opaque trip counts. Peer `endc` from untouched End@`bdc8732` release build
 (`ENDC_PATH`; peer still ff-only up to date). Warmup=3, runs=9, trimmed median ms.
 **All 12 checksums OK** (C ↔ Rust ↔ Go ↔ Zig ↔ Rynix ↔ End).
 
@@ -158,7 +159,9 @@ simulated** surfaces we refuse to copy.
 
 | Area | End claim / surface |
 |------|---------------------|
-| suite12 heavy-sim marketing | Different harness; End’s own `.end` suite12 **fails to parse** at `cf5bef3` |
+| suite12 heavy-sim marketing | Different harness; End’s own `.end` suite12 **fails to parse** at prior peers |
+| HTTP/2 / Postgres / SQLite host | Real in `endc` Rust runtime @ bdc8732 | Rynix: HTTP/1+WS product; no PG/SQLite rewrite | **FFI-later / Refuse core** — not Lead copy |
+| TLS / HTTP/2 narrative | End README 🟢 bundles host+C stubs | Rynix real product TLS | Parity on product path; **do not claim “End TLS fake”** |
 | C11-first backend | Rynix: LLVM + ADR-0008 (choice, not inability) |
 | UI canvas / hot-reload | Deferred ADR-0007 |
 | Network package registry CDN | Local path + filesystem index (dir-scan or sparse); no CDN ([ADR-0010](adr/0010-local-package-index.md)) |
@@ -208,7 +211,7 @@ Priority is **evidence-first** (test or CI before README ✅).
 - [x] HTTP POST + echo JSON (`http_post_json_i64` / `http_serve_once_echo_json_i64`)
 - [x] Length-prefixed binary framing (`frame_*` echo smoke)
 - [x] SHA-256 + arena string KV soft builtins (NIST KAT + smoke)
-- [x] Real TLS echo (SChannel / OpenSSL) — End peer “TLS” is simulated
+- [x] Real TLS echo (SChannel / OpenSSL) — Rynix product path; End host now has rustls @ bdc8732 (C path still partial)
 - [x] HMAC-SHA256 + AES-128-GCM NIST KAT (End AES is stub)
 - [x] `rynixc dna` + `rynixc new` (scaffold; no fake registry)
 - [x] Explicit `region … end` scopes (SPEC §3.1)
@@ -239,7 +242,7 @@ Full-runtime hello gate remains **&lt;300 KiB** (measured ~13 KiB on 2026-08-25)
 ### P2 — frameworks & domains
 
 - [x] HTTP POST + JSON echo beyond GET/serve-once smoke
-- [x] TLS echo (SChannel/OpenSSL) — not End’s simulated session layer
+- [x] TLS echo (SChannel/OpenSSL) — Rynix product TLS; peer comparison is parity not “fake TLS” marketing
 - [x] WebSocket frames + upgrade echo (RFC 6455; 7/16/64-bit lengths + fragmentation; 70 KiB wire smoke) — canvas/UI still [ADR-0007](adr/0007-deferred-ui-frameworks.md)
 - [x] Windows IOCP runtime (`--runtime=iocp`; AcceptEx/ConnectEx + WSARecv/WSASend)
 - [x] suite12 checksum-locked C ports (ALU/trees/HFT/SHA/JSON/FSM/DNA/GEMM/MC; skip divergent ids #1/#5/#6 per [ADR-0011](adr/0011-suite12-divergent-benches.md))
@@ -267,11 +270,13 @@ Full-runtime hello gate remains **&lt;300 KiB** (measured ~13 KiB on 2026-08-25)
 
 ## 6. One-line verdict
 
-**Rynix leads on auditable systems + agent toolchain depth for features End
-actually ships in working code** (HTTP/crypto/KV/TLS, region/pipe/effects, verify
-stack, MCP/fibers/LLVM), and on **Suite5 head-to-head vs End@cf5bef3** this audit
-(**10–2** with checksum parity; `sum` gap closed to ~1.03×). End still leads on **spectacle and deferred UI/C11**.
-Full judgment: [VERDICT.md](VERDICT.md).
+**Rynix leads on auditable systems + agent toolchain depth** (MCP-19, contracts,
+scope gate, NDJSON diags, real HTTP/crypto/KV/TLS product path, verify stack,
+fibers/LLVM), and on **Suite5 head-to-head vs End@bdc8732** retained run
+(**11–1**, loss `matrix`; checksum parity). End host Rust now ships real TLS/HTTP2/DB
+surfaces — **do not sell outdated “End TLS simulated.”** End still leads **brochure
+spectacle** (domain wallpaper, agent DSL keywords, C11/UI narrative). Full judgment:
+[VERDICT.md](VERDICT.md). Lead path: [GOLDEN_LEAD.md](GOLDEN_LEAD.md).
 
 Phase 11 backlog is closed in-tree (suite12 MATCH ports, WS 64-bit + large wire,
 local registry index + **unity compile** + multifile/`rynix.lock.toml`/`fs_*`,

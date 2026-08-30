@@ -1,0 +1,16 @@
+# Phase 46-pre — MCP dual-era discover
+
+[contract]
+name = "mcp-dual-era"
+
+[[evidence]]
+id = "discover-smoke"
+kind = "cargo_test"
+package = "rynixc"
+filter = "mcp_dual_era_smoke"
+
+[[evidence]]
+id = "discover-handler"
+kind = "file"
+path = "crates/rynixc/src/mcp/mod.rs"
+contains = "server/discover"

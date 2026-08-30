@@ -6,7 +6,7 @@ use std::process::{Command, ExitCode};
 use crate::cli::{BuildOptions, ErrorFormat, PgoMode, RuntimeKind, SandboxKind};
 use crate::codegen_pipe;
 use crate::lockfile;
-use crate::manifest::{resolve_for_source, resolve_project_sources, DepsReport, ProjectSources};
+use crate::manifest::{DepsReport, ProjectSources, resolve_for_source, resolve_project_sources};
 
 pub fn run(options: &BuildOptions) -> ExitCode {
     let project = match resolve_project_sources(options.path.as_deref()) {
@@ -151,9 +151,13 @@ fn link_artifacts(
         return link_clang_docker(ll_path, rt_c, &include, out_bin, options, runtime, rt_root);
     }
     if options.sandbox == SandboxKind::Job {
-        return link_clang_job(clang, ll_path, rt_c, &include, out_bin, options, runtime, rt_root);
+        return link_clang_job(
+            clang, ll_path, rt_c, &include, out_bin, options, runtime, rt_root,
+        );
     }
-    link_clang(clang, ll_path, rt_c, &include, out_bin, options, runtime, rt_root)
+    link_clang(
+        clang, ll_path, rt_c, &include, out_bin, options, runtime, rt_root,
+    )
 }
 
 /// CLI `--runtime` wins when present; else `[build].runtime`; else portable (L4).
@@ -166,9 +170,7 @@ fn effective_runtime(cli: Option<RuntimeKind>, manifest: Option<&str>) -> Runtim
         Some("iocp") => RuntimeKind::Iocp,
         Some("portable") | None => RuntimeKind::Portable,
         Some(other) => {
-            eprintln!(
-                "warning: unknown [build].runtime = {other:?}; using portable"
-            );
+            eprintln!("warning: unknown [build].runtime = {other:?}; using portable");
             RuntimeKind::Portable
         }
     }
@@ -324,7 +326,9 @@ fn link_clang_job(
 ) -> ExitCode {
     #[cfg(not(windows))]
     {
-        let _ = (clang, ll_path, rt_c, include, out_bin, options, runtime, rt_root);
+        let _ = (
+            clang, ll_path, rt_c, include, out_bin, options, runtime, rt_root,
+        );
         eprintln!(
             "error: --sandbox=job is Windows-only (Job Object); use --sandbox=docker on Linux"
         );
@@ -425,7 +429,10 @@ fn link_clang_inner(
 
     // Winsock + SChannel when the full portable/net runtime is linked.
     if cfg!(windows) && !options.bench {
-        cmd.arg("-lws2_32").arg("-lsecur32").arg("-lcrypt32").arg("-lbcrypt");
+        cmd.arg("-lws2_32")
+            .arg("-lsecur32")
+            .arg("-lcrypt32")
+            .arg("-lbcrypt");
     }
 
     // Linux SysV fiber swap object (optional; unused by Win32 fiber path / bench RT).
@@ -490,7 +497,10 @@ fn link_clang_docker(
 
     let work = std::env::temp_dir().join(format!("rynix_sandbox_{}", std::process::id()));
     if let Err(e) = std::fs::create_dir_all(&work) {
-        eprintln!("error: cannot create sandbox work dir {}: {e}", work.display());
+        eprintln!(
+            "error: cannot create sandbox work dir {}: {e}",
+            work.display()
+        );
         return ExitCode::from(3);
     }
     let cleanup = || {
@@ -516,6 +526,22 @@ fn link_clang_docker(
         cleanup();
         return ExitCode::from(3);
     }
+    // `portable.c` / `minimal.c` pull sibling `.c` files via relative includes.
+    let rt_src = rt_root.join("src");
+    if rt_src.is_dir() {
+        let dst_src = work.join("src");
+        if let Err(e) = copy_tree(&rt_src, &dst_src) {
+            eprintln!("error: cannot stage runtime src tree: {e}");
+            cleanup();
+            return ExitCode::from(3);
+        }
+    }
+    if options.bench {
+        let bench_rt = rt_root.join("bench_rt.c");
+        if bench_rt.is_file() {
+            let _ = std::fs::copy(&bench_rt, work.join("bench_rt.c"));
+        }
+    }
     // Copy public headers used by portable runtime.
     if include.is_dir() {
         if let Ok(entries) = std::fs::read_dir(include) {
@@ -528,8 +554,8 @@ fn link_clang_docker(
         }
     }
 
-    let image = std::env::var("RYNIX_DOCKER_IMAGE")
-        .unwrap_or_else(|_| "silkeh/clang:latest".to_string());
+    let image =
+        std::env::var("RYNIX_DOCKER_IMAGE").unwrap_or_else(|_| "silkeh/clang:latest".to_string());
     let work_abs = match work.canonicalize() {
         Ok(p) => p,
         Err(e) => {
@@ -560,7 +586,6 @@ fn link_clang_docker(
     if runtime == RuntimeKind::Iocp {
         clang_args.push("-DRYNIX_RT_IOCP".into());
     }
-    let _ = rt_root; // fiber asm not staged into minimal docker link
 
     let mut cmd = Command::new("docker");
     cmd.arg("run")
@@ -599,6 +624,21 @@ fn link_clang_docker(
     }
     cleanup();
     ExitCode::SUCCESS
+}
+
+fn copy_tree(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for ent in std::fs::read_dir(src)? {
+        let ent = ent?;
+        let from = ent.path();
+        let to = dst.join(ent.file_name());
+        if from.is_dir() {
+            copy_tree(&from, &to)?;
+        } else {
+            std::fs::copy(&from, &to)?;
+        }
+    }
+    Ok(())
 }
 
 fn docker_available() -> bool {

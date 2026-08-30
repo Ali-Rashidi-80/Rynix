@@ -14,8 +14,6 @@ mod attest;
 mod build_cmd;
 mod check_cmd;
 mod cli;
-#[cfg(windows)]
-mod job_object;
 mod codegen_pipe;
 mod contract;
 mod deps_cmd;
@@ -28,11 +26,14 @@ mod emit_wasm_cmd;
 mod eval_cmd;
 mod fix;
 mod fmt_cmd;
+#[cfg(windows)]
+mod job_object;
 mod lex_cmd;
 mod lockfile;
 mod lsp;
 mod lsp_cmd;
 mod manifest;
+mod mcp;
 mod mcp_cmd;
 mod new_cmd;
 mod parse_cmd;

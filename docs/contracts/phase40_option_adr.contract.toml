@@ -1,0 +1,22 @@
+# Phase 40 — Option[T] ADR
+
+[contract]
+name = "phase40-option-adr"
+
+[[evidence]]
+id = "adr-0026"
+kind = "file"
+path = "docs/adr/0026-option-t-mono.md"
+contains = "Accepted"
+
+[[evidence]]
+id = "adr-0025-amend"
+kind = "file"
+path = "docs/adr/0025-parametric-monomorphization.md"
+contains = "0026-option-t-mono"
+
+[[evidence]]
+id = "phase40-doc"
+kind = "file"
+path = "docs/PHASE40.md"
+contains = "ADR-0026"

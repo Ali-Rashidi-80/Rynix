@@ -28,5 +28,6 @@ Contract: [contracts/phase28_agent.contract.toml](contracts/phase28_agent.contra
 - **28-E:** hard-stop while [ADR-0024](adr/0024-payload-enums.md) is Deferred — no `Some` stub.
 - **28-F:** struct `bool` fields not landed; literals remain `i64`/`str` only (Phase 17).
 - **28-H:** multiline string syntax not added; stay with single-line `str` literals.
-- MCP HTTP/SSE, Absolute-10, parametric collections, codeAction/inlayHints.
+- MCP HTTP/SSE, Absolute-10, parametric collections beyond Track G allow-list.
+- **codeAction** / **inlayHint** / **prepareRename** / **documentHighlight** → Golden Lead Phases 38–42 ([GOLDEN_LEAD.md](GOLDEN_LEAD.md)).
 - **Phase 30** remains **user-triggered only** (no auto push/tag/release). See [GOLDEN_PATH.md](GOLDEN_PATH.md) § Phase 30.

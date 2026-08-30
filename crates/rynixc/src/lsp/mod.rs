@@ -1,6 +1,6 @@
 //! Minimal LSP server on stdio: full-sync documents, diagnostics, go-to-definition,
-//! hover, completion, rename, references, workspace/document symbols, formatting,
-//! and codeAction (compiler Fixes as quickfixes).
+//! hover, completion, rename (incl. prepareRename), references, documentHighlight,
+//! workspace/document symbols, formatting, codeAction, and inlayHint.
 
 #![allow(
     clippy::collapsible_if,
@@ -17,6 +17,7 @@
 mod diagnostics;
 mod document;
 mod features;
+mod inlay;
 mod navigation;
 mod protocol;
 mod resolve;

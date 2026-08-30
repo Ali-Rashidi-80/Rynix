@@ -1,12 +1,14 @@
 # Production readiness (honest)
 
 **Version:** `0.2.0` (Track G public) · Quality-10 `0.1.1` · Niche-10 base `0.1.0` · **Toolchain:** `rynixc`  
-Status: **v0.2.0 shipping** — acceptance-gated phases **0–36** complete (Q-Core 0–29 +
-Golden Remaining 30–36); Phase 37 public cut; **Niche-10 certified**
+Status: **Lead Platform Complete** — Golden Lead Phases **0 + 39–43 + 46-pre + 46**
+([docs/GOLDEN_LEAD.md](docs/GOLDEN_LEAD.md)); **v0.2.0 shipping** — acceptance-gated phases **0–36**
+complete (Q-Core 0–29 + Golden Remaining 30–36); Phase 37 public cut; **Niche-10 certified**
 ([docs/NICHE10.md](docs/NICHE10.md),
 [docs/adr/0013-niche-10-scorecard.md](docs/adr/0013-niche-10-scorecard.md));
 ROI 21–24 + Golden Path 25–29 ([docs/GOLDEN_PATH.md](docs/GOLDEN_PATH.md));
-Remaining path closed: [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md).
+Remaining path closed: [docs/GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md).  
+Lead path closed: [docs/GOLDEN_LEAD.md](docs/GOLDEN_LEAD.md) (Phases 39–46).
 
 ## Quality-10 scoreboard
 
@@ -23,7 +25,7 @@ named gates only. Prior = analysis report (2026-08); After = post Phases 25–37
 | Security | 7.6 | 9.3 | Phase 31: UBSan, cargo-deny, Job Object, CWE additive |
 | Performance | 9.0 | 9.0 | Suite5 honesty; not Q-Full D-* |
 | Deployment / CI | 8.6 | 9.6 | `release.yml` + `v0.2.0` SHA256SUMS |
-| AI tooling | 9.4 | 9.9 | Track G + LSP codeAction (`lsp_code_action_smoke`) |
+| AI tooling | 9.4 | 9.9 | Track G + LSP codeAction/inlayHint; MCP dual-era discover |
 | Documentation | 9.4 | 9.8 | Book, GOLDEN_PATH/REMAINING close, this scoreboard |
 | Niche-10 axe | 9.0 | 9.0 | [NICHE10.md](docs/NICHE10.md) certified |
 
@@ -41,11 +43,11 @@ at `v0.2.0` ([GOLDEN_REMAINING.md](docs/GOLDEN_REMAINING.md)).
 | Runtime fibers | Ready | ASan smokes, fiber park, TCP echo/load | uring TCP recv/send (Phase 32) |
 | io_uring (Linux) | Ready | CI uring SQE + TCP recv/send + load smokes | Windows uses portable runtime |
 | IOCP (Windows) | Ready | AcceptEx/ConnectEx smokes (`--runtime=iocp`) | Linux uses portable/uring |
-| MCP | Ready | **19** tools incl. `rynix_slice`; path-first fail-closed | stdio JSON-RPC only |
+| MCP | Ready | **19** tools incl. `rynix_slice`; path-first; **`server/discover`** dual-era; tool annotations | stdio primary; Streamable HTTP → Track-L |
 | AI CLI | Ready | `graph`, `slice`, `impact`, `eval`, `patch`, `verify`, `precheck`, `context`, `security`, `scope`, `deps`, `dna`, `arch check` | Agent write needs `rynix.scope.toml` / `--force-write` |
 | Architecture guard | Ready | `Architecture.toml`, `arch check`, CI job | Import/call patterns only |
 | Benchmarks | Ready | Suite5 **12** workloads + checksum JSON + CI C↔Rynix | Opaque bounds + disclosed strength reduction |
-| Editor (LSP) | Ready | diag/hover/def/**completion**/**rename**/**references**/**workspace/symbol**/**documentSymbol**/**formatting**/**codeAction** | No studio/canvas; inlayHints → Track R |
+| Editor (LSP) | Ready | diag/hover/def/**completion**/**rename**/**prepareRename**/**references**/**documentHighlight**/**workspace/symbol**/**documentSymbol**/**formatting**/**codeAction**/**inlayHint** | No studio/canvas |
 | Std json/http | Ready | GET/POST; serve once/loop; path_param; header/body/keep-alive; TLS; Bearer soft | Not full OAuth |
 | Packages | Ready | `rynix.toml`, path+local registry/sparse, lock, `new`, `deps --attest` | Offline-first; no CDN |
 | WASM | Ready | `emit-wasm`; Node `main`; host-import `env.print_i64` + `env.print` (str) | No WASI / no `rt/` in wasm |

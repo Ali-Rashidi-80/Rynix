@@ -1,0 +1,22 @@
+# Phase 41 — Option[T] ship
+
+[contract]
+name = "phase41-option-t"
+
+[[evidence]]
+id = "option-i64"
+kind = "cargo_test"
+package = "rynixc"
+filter = "option_t_i64_match_roundtrip"
+
+[[evidence]]
+id = "option-str"
+kind = "cargo_test"
+package = "rynixc"
+filter = "option_t_str_match_roundtrip"
+
+[[evidence]]
+id = "phase41-doc"
+kind = "file"
+path = "docs/PHASE41.md"
+contains = "Option[T]"
